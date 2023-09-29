@@ -2,14 +2,10 @@ Cytomata is an open-source script collection that integrates tools and methods u
 Author: Lev Petrov
 
 
-master.sh
-Shell script controlling all the important settings. Path setting, module switching and all pipeline preferences are here.
+master.R
+Installation of required packages, folder management, all the most important settings.
+General usage guide is also included here as comments.
 Plotting preferences have to be changed separately in corresponding scripts.
 
-environment_setup.R
-Install all packages and dependencies listed here.
-
-cleaning_debarcoding.R
-First step in analysis. Loading raw .fcs files, gating doublets and demultiplexing (debarcoding) of samples is done here.
 
 

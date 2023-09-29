@@ -1,7 +1,8 @@
 install.packages("arrow")
 library(arrow)
+library(dplyr)
 
-raw_data_path <- "~/DOCTORATE/Cytomata_data/input/raw_experiment_data/panel1/"
+
 parquet_out_path <- paste0(raw_data_path, "parquet/")
 
 
@@ -13,7 +14,7 @@ input <- input[grepl(".fcs$", input)]
 ifelse(!dir.exists(parquet_out_path), dir.create(parquet_out_path), FALSE)
 
 for (f in input) {
-  fcs <- flowCore::read.FCS(filename=f, transformation=FALSE, truncate_max_range = FALSE)
+  fcs <- flowCore::read.FCS(filename = f, transformation = FALSE, truncate_max_range = FALSE)
   parquet_filename <- gsub("./|.fcs", "", f)
   arrow::write_parquet(as.data.frame(fcs@exprs), paste0(parquet_out_path, parquet_filename, ".parquet"))
   rm(fcs)
@@ -23,7 +24,7 @@ for (f in input) {
 setwd(raw_data_path)
 ds <- arrow::open_dataset("parquet")
 
-library(dplyr)
+
 
 
 vars <- names(ds)
