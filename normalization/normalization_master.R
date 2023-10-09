@@ -5,32 +5,34 @@ library(ggridges)
 library(progress)
 library(dplyr)
 library(readxl)
-
-
-
-#1 means all events are used, this is not used for normalization step itself, only for exploration and diagnostics
-downsampling_factor <- 0.5
-
+library(provenance)
+library(scales)
+#1 means all events are used, this is not used for normalization step itself, only for plotting of densities
+downsampling_factor <- 0.1
+hide_zeroes_in_ridges <- 0
 
 
 
 start_time <- Sys.time()
-date <- gsub('-','',strsplit(x = as.character(start_time), split = ' ')[[1]][1])
+date <- gsub('-', '', strsplit(x = as.character(start_time), split = ' ')[[1]][1])
 #creating a logfile where all output will go
-sink(file=paste0(log_folder, date, "_", project_name, "_log.txt"), split=TRUE)
+sink(file = paste0(log_folder, date, "_", project_name, "_log.txt"), split = TRUE)
 
-
-
-
-#automatically chooses the best anchor out of available
-#automatically chooses optimal percentile via peak recognition and diversity metric estimation
+setwd(path_to_cytomata)
+source("./normalization/normalization_functions.R")
+setwd(path_to_cytomata)
+source("./normalization/normalization_plots.R")
+#automatically chooses the best (most "average") anchor out of available for each channel
+#automatically chooses optimal percentile via diversity metric estimation
 #creates plots for user to verify automatic settings
-#creates a settings .csv table for user to adjust automatic settings
-source("normalization_exploration.R")
+#creates a .csv table for user to adjust automatically set parameters (IF IN INTERACTIVE SESSION)
+setwd(path_to_cytomata)
+source("./normalization/normalization_exploration_adjustment.R")
 
-#LOCAL INVERSE SIMPSON's INDEX
-#how many different batches are in the local neighbourhood of a cell, inspired by
-#https://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1009071
+
+
+
+#normalization_diagnosics.R
 
 
 

@@ -33,6 +33,7 @@ using_github <- function(...) {
 
 
 load_metafile <- function(meta_naming_scheme) {
+    library(readxl)
     #looking for metafile in meta folder
     metafile <- dir(meta_folder)[grepl(meta_naming_scheme, dir(meta_folder))]
     meta <- read_xlsx(paste0(meta_folder, metafile))
@@ -77,10 +78,13 @@ load_panel <- function(...) {
 }
 
 
-inject_fcs <- function(input){
+inject_fcs <- function(input, filter_features, asinh_transform, cofac){
+    library(flowCore)
+    library(progress)
+    library(dplyr)
     cat('INJECTING DATA\n')
 
-    pb <- progress_bar$new(format = "(:spin) [:bar] :percent [Elapsed time: :elapsedfull || Estimated time remaining: :eta]",
+    pb <- progress_bar$new(format = "(:spin) [:bar] :percent [Elapsed time: :elapsedfull || Estimated time remaining: :eta]\n",
                         total = length(input),
                         complete = "=",   # Completion bar character
                         incomplete = "-", # Incomplete bar character
@@ -88,49 +92,43 @@ inject_fcs <- function(input){
                         clear = FALSE,    # If TRUE, clears the bar when finish
                         width = 100)      # Width of the progress bar
 
-    temp <- data.frame()
+    exprs_set <- data.frame()
     sample <- c()
     total_events <- 0
-
-
-    if (downsampling_rate < 1) {
-    cat('\n==========\nApplied downsampling rate of ', downsampling_rate, '\n==========\n')
-    }
-
-    setwd(input_path)
+    cat("Feature markers selected are:\n")
+    cat(feature_markers, "\n", sep=" ")
+    pb$tick(0)
     for (f in input) {
-        fcs <- read.FCS(filename=f, transformation=FALSE, truncate_max_range = FALSE)
+        fcs <- read.FCS(filename = f, transformation = FALSE, truncate_max_range = FALSE)
         exprs <- as.data.frame(fcs@exprs)
-        cat(nrow(exprs),'events in',rep(basename(f)),'\n')
-        markers <- gsub(pattern = '.*_', replacement = '', x = as.vector(fcs@parameters@data$desc))
+        cat(nrow(exprs), "events in", rep(basename(f)), "\n")
+        markers <- gsub(pattern = ".*_", replacement = "", x = as.vector(fcs@parameters@data$desc))
         colnames(exprs)[which(!is.na(markers))] <- markers[which(!is.na(markers))]
-        set.seed(1234)
+        if (filter_features == TRUE) {
+            exprs <- exprs[, colnames(exprs) %in% feature_markers]
+        }
         if (downsampling_rate < 1) {
-            cat('Sampled', round(nrow(exprs)*downsampling_rate), 'events ','\n\n')
-            exprs_sample <- exprs[sample(round(nrow(exprs)*downsampling_rate), replace=FALSE),]
-            exprs_set <- bind_rows(exprs_set, exprs_sample)
-            sample <- append(sample, rep(basename(f), round(nrow(exprs)*downsampling_rate)))
-            total_events <- total_events+round(nrow(exprs)*downsampling_rate)
+            cat('\n==========\nApplied downsampling rate of ', downsampling_rate, '\n==========\n')
+            cat("Sampled", round(nrow(exprs) * downsampling_rate), "events ", "\n\n")
+            exprs_sample <- exprs[sample(round(nrow(exprs) * downsampling_rate), replace = FALSE), ]
+            exprs_set <- rbind(exprs_set[, colnames(exprs_set) %in% colnames(exprs)], exprs_sample)
+            sample <- append(sample, rep(basename(f), round(nrow(exprs) * downsampling_rate)))
+            total_events <- total_events + round(nrow(exprs) * downsampling_rate)
         } else {
-            exprs_set <- rbind(exprs_set, exprs)
+            exprs_set <- rbind(exprs_set[, colnames(exprs_set) %in% colnames(exprs)], exprs)
             sample <- append(sample, rep(basename(f), nrow(exprs)))
-            total_events <- total_events+nrow(exprs)
+            total_events <- total_events + nrow(exprs)
         }
         pb$tick()
     }
     exprs_set$sample <- sample
-    cat(total_events,'total events in the read expression matrix\n')
-    #------------------------
+    cat(total_events, "total events in the read expression matrix\n")
 
+    if (asinh_transform == TRUE) {
+        #transform the expression values
+        exprs_set[, colnames(exprs_set) %in% feature_markers] <- asinh(exprs_set[, colnames(exprs_set) %in% feature_markers] / cofac)
+        cat("Applied arcsinh transformation with the cofactor of", cofac, "\n")
+    }
 
-    #Transform the expression values
-    #------------------------
-    feature_markers <- colnames(exprs_set)[colnames(exprs_set) %in% panel$antigen]
-    exprs_set_trans <- cbind(asinh(exprs_set[,feature_markers]/cofac), exprs_set[,'sample'])
-    colnames(exprs_set_trans)[length(colnames(exprs_set_trans))] <- 'sample'
-
-
-
-
-
+    return(exprs_set)
 }
