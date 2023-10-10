@@ -95,10 +95,6 @@ for (a_id in anchor_ids) {
         optimal_percentile <- optimal_percentile_compute()
 
 
-
-        
-
-        
         if (hide_zeroes_in_ridges == 1) {
             #optional
             #plot density ridges with optimal anchor and percentile highlighted wothout zero values (for better visibility in some channels)
@@ -111,8 +107,9 @@ for (a_id in anchor_ids) {
                             width = 100)      # Width of the progress bar
 
             for (channel in feature_markers) {
-                exploration_ridges_wo_zeroes()
                 pb$tick()
+                cat("Plotting", channel, "ridges\n")
+                exploration_ridges_wo_zeroes()
             }
         } else {
             #plot density ridges with optimal anchor and percentile highlighted
@@ -125,14 +122,15 @@ for (a_id in anchor_ids) {
                             width = 100)      # Width of the progress bar
 
             for (channel in feature_markers) {
-                exploration_ridges()
                 pb$tick()
+                cat("Plotting", channel, "ridges\n")
+                exploration_ridges()
             }
         }
-
+        optimal_percentile$channel <- as.character(optimal_percentile$channel)
         settings_table <- left_join(optimal_percentile, optimal_anchor)
         setwd(out_norm_aid_folder)
-        write.csv(settings_table, file = "normalization_settings.csv")
+        write.csv(apply(settings_table, 2, as.character), file = "normalization_settings.csv")
         
 
             
@@ -191,6 +189,10 @@ for (a_id in anchor_ids) {
 
             scaling_factors_barplots()
             
+
+            #normalizing batches
+            
+            normalize_batches()
 
 
         }
@@ -273,8 +275,9 @@ for (a_id in anchor_ids) {
                             width = 100)      # Width of the progress bar
 
             for (channel in feature_markers) {
-                exploration_ridges_wo_zeroes
                 pb$tick()
+                exploration_ridges_wo_zeroes
+                
             }
         } else {
             #plot density ridges with optimal anchor and percentile highlighted
@@ -287,8 +290,9 @@ for (a_id in anchor_ids) {
                             width = 100)      # Width of the progress bar
 
             for (channel in feature_markers) {
-                exploration_ridges()
                 pb$tick()
+                exploration_ridges()
+                
             }
         }
 

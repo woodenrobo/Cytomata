@@ -84,7 +84,7 @@ inject_fcs <- function(input, filter_features, asinh_transform, cofac){
     library(dplyr)
     cat('INJECTING DATA\n')
 
-    pb <- progress_bar$new(format = "(:spin) [:bar] :percent [Elapsed time: :elapsedfull || Estimated time remaining: :eta]\n",
+    pb <- progress_bar$new(format = "Injecting data\n(:spin) [:bar] :percent [Elapsed time: :elapsedfull || Estimated time remaining: :eta]\n",
                         total = length(input),
                         complete = "=",   # Completion bar character
                         incomplete = "-", # Incomplete bar character

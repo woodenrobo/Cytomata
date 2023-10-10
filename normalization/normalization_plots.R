@@ -223,7 +223,8 @@ scaling_factors_barplots <- function() {
             theme(axis.title.x = element_text(size = 35),
                 axis.text.x = element_text(size = 20),
                 axis.text.y = element_text(size = 20),
-                strip.text.x = element_text(size = 35)) +
+                strip.text.x = element_text(size = 35),
+                panel.spacing=unit(2,"lines")) +
             facet_wrap(~factor(filtered_factors$channel, ordered = TRUE, levels = unique(filtered_factors$channel)), ncol = 5, scales = "free_x") +
             scale_y_continuous(breaks = scales::pretty_breaks()) +
             scale_fill_gradientn(values = c(scales::rescale(min(as.numeric(filtered_factors$factor)), to = c(0, 1), from = c(0,ceiling_dec(max(as.numeric(filtered_factors$factor), level = 1)))),
