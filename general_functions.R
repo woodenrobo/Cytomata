@@ -90,7 +90,7 @@ inject_fcs <- function(input, filter_features, asinh_transform, cofac){
                         incomplete = "-", # Incomplete bar character
                         current = ">",    # Current bar character
                         clear = FALSE,    # If TRUE, clears the bar when finish
-                        width = 100)      # Width of the progress bar
+                        width = 150)      # Width of the progress bar
 
     exprs_set <- data.frame()
     sample <- c()
@@ -98,8 +98,11 @@ inject_fcs <- function(input, filter_features, asinh_transform, cofac){
     cat("Feature markers selected are:\n")
     cat(feature_markers, "\n", sep=" ")
     pb$tick(0)
+    f=input[1]
     for (f in input) {
         fcs <- read.FCS(filename = f, transformation = FALSE, truncate_max_range = FALSE)
+        fcs_channel_desc <<- as.vector(fcs@parameters@data$desc)
+        fcs_channel_name <<- as.vector(fcs@parameters@data$name)
         exprs <- as.data.frame(fcs@exprs)
         cat(nrow(exprs), "events in", rep(basename(f)), "\n")
         markers <- gsub(pattern = ".*_", replacement = "", x = as.vector(fcs@parameters@data$desc))
@@ -111,11 +114,11 @@ inject_fcs <- function(input, filter_features, asinh_transform, cofac){
             cat('\n==========\nApplied downsampling rate of ', downsampling_rate, '\n==========\n')
             cat("Sampled", round(nrow(exprs) * downsampling_rate), "events ", "\n\n")
             exprs_sample <- exprs[sample(round(nrow(exprs) * downsampling_rate), replace = FALSE), ]
-            exprs_set <- rbind(exprs_set[, colnames(exprs_set) %in% colnames(exprs)], exprs_sample)
+            exprs_set <- rbind(exprs_set, exprs_sample)
             sample <- append(sample, rep(basename(f), round(nrow(exprs) * downsampling_rate)))
             total_events <- total_events + round(nrow(exprs) * downsampling_rate)
         } else {
-            exprs_set <- rbind(exprs_set[, colnames(exprs_set) %in% colnames(exprs)], exprs)
+            exprs_set <- rbind(exprs_set, exprs)
             sample <- append(sample, rep(basename(f), nrow(exprs)))
             total_events <- total_events + nrow(exprs)
         }

@@ -7,10 +7,13 @@ library(dplyr)
 library(readxl)
 library(provenance)
 library(scales)
+library(ggnewscale)
 #1 means all events are used, this is not used for normalization step itself, only for plotting of densities
 downsampling_factor <- 0.1
-hide_zeroes_in_ridges <- 0
-
+hide_zeroes_in_ridges <- 1
+#Kolmogorov-Smirnov can be computed in a pairwise manner or against total channel distribution
+#pairwise or total
+ks_testing <- "pairwise"
 
 
 start_time <- Sys.time()
@@ -28,11 +31,10 @@ source("./normalization/normalization_plots.R")
 #creates a .csv table for user to adjust automatically set parameters (IF IN INTERACTIVE SESSION)
 setwd(path_to_cytomata)
 source("./normalization/normalization_exploration_adjustment.R")
+#plots reduction in variance, dissimilarity metrics, distribution changes
+setwd(path_to_cytomata)
+source("./normalization/normalization_diagnostics.R")
 
-
-
-
-#normalization_diagnosics.R
 
 
 

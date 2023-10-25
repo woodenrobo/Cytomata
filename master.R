@@ -35,6 +35,7 @@ meta <- load_metafile(meta_naming_scheme = "meta")
 #common pre-processing channels are automatically set to 0
 panel <- load_panel()
 feature_markers <- panel$antigen[panel$feature == 1]
+
 #CLEANING AND DEBARCODING  ################
 #sadly, this part is best done in a cloud-based solution like OMIQ or Cytobank due to the massive data and the fact that gating is still best done manually
 #upload your raw data, remove calibration beads, gate on DNA channels and assign barcode identities
@@ -50,7 +51,7 @@ feature_markers <- panel$antigen[panel$feature == 1]
 #files are saved to fcs/3_normalized/<anchor_id>
 anchor_ids <- c("HC-4", "HC-100")
 #if TRUE, optimal anchor is automatically selected individually for each channel
-#if FLASE, optimal anchor is selected globally, for all channels - NOT IMPLEMENTED PROPERLY YET!
+#if FLASE, optimal anchor is selected globally, for all channels - NOT IMPLEMENTED YET!
 find_anchor_by_channel <- TRUE
 setwd(path_to_cytomata)
 source("./normalization/normalization_master.R")

@@ -27,7 +27,6 @@ quantile_table <- function() {
     return(quantiles_table_long)
 }
 
-
 quant_variation_table <- function() {
     
     quantiles_table_short <- data.frame()
@@ -53,8 +52,6 @@ quant_variation_table <- function() {
     return(quantiles_table_short)
 }
 
-
-
 anchor_difference_compute <- function() {
     
 
@@ -66,24 +63,24 @@ anchor_difference_compute <- function() {
             temp <- quantiles_table_long[quantiles_table_long$channel == channel, ]
             a <- mutate_all(temp[, -c(1:2)], function(x) as.numeric(as.character(x)))
             b <- mutate_all(temp[temp$a_sample == a_sample, -c(1:2), ][rep(1, nrow(temp[, -c(1:2)])), ], function(x) as.numeric(as.character(x)))
-            temp2 <- c(a_sample, channel, sum(abs(a - b)))
+            temp2 <- c(a_sample, channel, mean(as.numeric(unlist(abs(a - b)))))
             anchor_differences <- rbind(anchor_differences, temp2)
 
         }
     }
-    colnames(anchor_differences) <- c("sample", "channel", "abs_difference")
+    colnames(anchor_differences) <- c("sample", "channel", "mean_abs_difference")
 
     setwd(out_norm_tables_folder)
     write.csv(anchor_differences, file = "anchor_differences_local.csv")
 
     return(anchor_differences)
 }
-    
+
 global_anchor_difference_compute <- function() {
     #computing most "average" anchor sample throughout all channels
     anchor_differences_global <- as.data.frame(anchor_differences %>%
                                     group_by(sample) %>%
-                                    summarize(sum_difference = sum(as.numeric(abs_difference))))
+                                    summarize(mean_abs_difference = mean(as.numeric(mean_abs_difference))))
 
     setwd(out_norm_tables_folder)
     write.csv(anchor_differences_global, file = "anchor_differences_global.csv")
@@ -92,10 +89,21 @@ global_anchor_difference_compute <- function() {
 }
 
 ks_diss_compute <- function() {
+    cat("Calcualting Kolmogorov-Smirnov dissimilarity\nEach anchor`s channel vs total channel events\n")
     #computing most "average" anchor sample via Kolmogorov-Smirnov dissimilarity metric
-    #per channel
+    #per channel, for each sample vs all others
+    pb <- progress_bar$new(format = "(:spin) [:bar] :percent [Elapsed time: :elapsedfull || Estimated time remaining: :eta]\n",
+                    total = length(feature_markers),
+                    complete = "=",   # Completion bar character
+                    incomplete = "-", # Incomplete bar character
+                    current = ">",    # Current bar character
+                    clear = FALSE,    # If TRUE, clears the bar when finish
+                    width = 100)      # Width of the progress bar
+
+
     ks_diss <- data.frame()
     for (channel in feature_markers){
+        pb$tick()
         for (a_sample in unique(quantiles_table_long$a_sample)) {
             ks_diss <- rbind(ks_diss, c(a_sample, channel, KS.diss(exprs_set[exprs_set$sample == a_sample, channel], exprs_set[!exprs_set$sample == a_sample, channel])))
         }
@@ -130,7 +138,7 @@ ks_diss_pairwise_compute <- function() {
             for (b_sample in unique(quantiles_table_long$a_sample)[!unique(quantiles_table_long$a_sample) %in% a_sample]) {
                 temp_diss <- c(temp_diss, KS.diss(exprs_set[exprs_set$sample == a_sample, channel], exprs_set[exprs_set$sample == b_sample, channel]))
             }
-            ks_diss <- rbind(ks_diss, c(a_sample, channel, sum(temp_diss)))
+            ks_diss <- rbind(ks_diss, c(a_sample, channel, mean(temp_diss)))
         }
         
     }
@@ -154,7 +162,6 @@ ks_diss_global_compute <- function() {
     return(ks_diss_global)
 }
 
-
 percentile_selector_compute <- function() {
 
     cat("Testing percentiles\n")
@@ -165,7 +172,7 @@ percentile_selector_compute <- function() {
                     incomplete = "-", # Incomplete bar character
                     current = ">",    # Current bar character
                     clear = FALSE,    # If TRUE, clears the bar when finish
-                    width = 200)      # Width of the progress bar
+                    width = 125)      # Width of the progress bar
     
     
     temp_set_norm <- exprs_set
@@ -187,15 +194,26 @@ percentile_selector_compute <- function() {
 
         baseline_means_var <- exprs_set %>% group_by(sample) %>% summarise(means = mean(!!sym(channel))) %>% summarize(var = var(means))
 
-        temp_x <- exprs_set %>%
-                    filter(sample == temp_local_optimal_anchor$best_anchor) %>%
-                    pull(channel)
+        if (ks_testing == "total") {
+            temp_x <- exprs_set %>%
+                        filter(sample == temp_local_optimal_anchor$best_anchor) %>%
+                        pull(channel)
 
-        temp_y <- exprs_set %>%
-                    filter(sample != temp_local_optimal_anchor$best_anchor) %>%
-                    pull(channel)
+            temp_y <- exprs_set %>%
+                        filter(sample != temp_local_optimal_anchor$best_anchor) %>%
+                        pull(channel)
+            
+            baseline_ks <- KS.diss(temp_x, temp_y)
+        }
+        if (ks_testing == "pairwise") {
+            temp_diss <- c()
+            for (a_sample in unique(exprs_set$sample)[!unique(exprs_set$sample) %in% a_sample]) {
+                temp_diss <- c(temp_diss, KS.diss(exprs_set[exprs_set$sample == temp_local_optimal_anchor$best_anchor, channel], exprs_set[exprs_set$sample == a_sample, channel]))
+            }
+            baseline_ks <- mean(temp_diss)
+        }
         
-        baseline_ks <- KS.diss(temp_x, temp_y)
+       
 
         #computing total distance between all quantiles
         baseline_quantile_distance <- mutate_all(baseline_quantiles[, -c(1:2)], function(x) as.numeric(as.character(x)))
@@ -209,16 +227,25 @@ percentile_selector_compute <- function() {
                 for (samp in unique(temp_set_norm$sample)) {
                     temp_set_norm[temp_set_norm$sample == samp, channel] <- exprs_set[exprs_set$sample == samp, channel] * as.numeric(scaling_factors[scaling_factors$a_sample == samp, percentile])
                 }
+                if (ks_testing == "total") {
+                    temp_x <- temp_set_norm %>%
+                                filter(sample == temp_local_optimal_anchor$best_anchor) %>%
+                                pull(channel)
 
-                temp_x <- temp_set_norm %>%
-                            filter(sample == temp_local_optimal_anchor$best_anchor) %>%
-                            pull(channel)
-
-                temp_y <- temp_set_norm %>%
-                            filter(sample != temp_local_optimal_anchor$best_anchor) %>%
-                            pull(channel)
-                
-                temp_ks <- KS.diss(temp_x, temp_y)
+                    temp_y <- temp_set_norm %>%
+                                filter(sample != temp_local_optimal_anchor$best_anchor) %>%
+                                pull(channel)
+                    
+                    temp_ks <- KS.diss(temp_x, temp_y)
+                }
+                if (ks_testing == "pairwise") {
+                    temp_diss <- c()
+                    for (a_sample in unique(temp_set_norm$sample)[!unique(temp_set_norm$sample) %in% a_sample]) {
+                        temp_diss <- c(temp_diss, KS.diss(temp_set_norm[temp_set_norm$sample == temp_local_optimal_anchor$best_anchor, channel], temp_set_norm[temp_set_norm$sample == a_sample, channel]))
+                    }
+                    temp_ks <- mean(temp_diss)
+                    
+                }
 
                 temp_var <- temp_set_norm %>% pull(channel) %>% var()
 
@@ -256,8 +283,8 @@ percentile_selector_compute <- function() {
                                          ))
             }
         }
-        
     }
+    
     percentile_selector <- data.frame(percentile_selector)
     colnames(percentile_selector) <- c("channel", "percentile",
                                      "baseline_ks", "result_ks", "reduction_in_ks",
@@ -265,10 +292,10 @@ percentile_selector_compute <- function() {
                                        "baseline_means_var", "result_means_var", "reduction_in_means_var",
                                        "baseline_quantile_distance", "result_quantile_distance", "reduction_in_quantile_distance")
 
-    percentile_selector$percentile_optimality <- rescale(as.numeric(percentile_selector$reduction_in_ks)) +
-                                                     rescale(as.numeric(percentile_selector$reduction_in_var)) +
-                                                      rescale(as.numeric(percentile_selector$reduction_in_means_var)) +
-                                                      rescale(as.numeric(percentile_selector$reduction_in_quantile_distance))
+    percentile_selector$percentile_optimality <- (rescale(as.numeric(percentile_selector$reduction_in_ks)) * 1.5 +
+                                                     rescale(as.numeric(percentile_selector$reduction_in_var)) * 1.5 +
+                                                      rescale(as.numeric(percentile_selector$reduction_in_means_var)) * 2 +
+                                                      rescale(as.numeric(percentile_selector$reduction_in_quantile_distance))) * -1
                                                       
 
 
@@ -278,15 +305,12 @@ percentile_selector_compute <- function() {
     return(percentile_selector)
 }
 
-
-
-
 optimal_percentile_compute <- function() {
 
     optimal_percentile <- c()
     for (channel in feature_markers){
         temp_selector <- percentile_selector[percentile_selector$channel == channel, ]
-        optimal_percentile <- rbind(optimal_percentile, c(channel, temp_selector$percentile[which.min(temp_selector$percentile_optimality)]))
+        optimal_percentile <- rbind(optimal_percentile, c(channel, temp_selector$percentile[which.max(temp_selector$percentile_optimality)]))
     }
     optimal_percentile <- data.frame(optimal_percentile)
     colnames(optimal_percentile) <- c("channel", "percentile")
@@ -298,27 +322,31 @@ optimal_percentile_compute <- function() {
     return(optimal_percentile)
 }
 
-
-
 normalize_batches <- function() {
 
     cat(paste0("\n ANCHOR SAMPLE SELECTED IS: ", a_id, "\n"))
     cat(paste0("\n BATCHES TO BE NORMALIZED ARE: \n"))
     setwd(debar_folder)
-    anchor_batches_in_dir <- unique(target_anchors$batch[target_anchors$fcs %in% dir()])
+    anchor_batches_in_dir <- as.character(unique(target_anchors$batch[target_anchors$fcs %in% dir()]))
+    if (a_counter > 1) {
+       anchor_batches_in_dir <- anchor_batches_in_dir[!grepl(pre_norm_batch, anchor_batches_in_dir)] 
+    }
     print(anchor_batches_in_dir)
 
     files_needed <- meta$fcs[meta$batch %in% target_anchors$batch]
     total_input <- files_needed[files_needed %in% dir()]
-    if (length(total_input) != length(files_needed)){
+    if (length(total_input) != length(files_needed)) {
         warning(paste0("Only ", length(total_input), " out of ", length(files_needed), " samples in meta are present in input directory"))
     }
 
+    if (a_counter > 1) {
+       total_input <- total_input[!grepl(pre_norm_batch, total_input)] 
+    }
     
     
     downsampling_rate <- 1
     #settings for transformation
-    asinh_transform <- FALSE 
+    asinh_transform <- FALSE
     cofac <- 1
 
     for (batch in anchor_batches_in_dir) {
@@ -328,21 +356,20 @@ normalize_batches <- function() {
         exprs_set <- inject_fcs(input, filter_features = FALSE, asinh_transform = asinh_transform, cofac = cofac)
         
         for (channel in feature_markers){
-            for (samp in unique(temp_set_norm$sample)) {
+            for (samp in unique(exprs_set$sample)) {
                 exprs_set[exprs_set$sample == samp, channel] <- exprs_set[exprs_set$sample == samp, channel] *
-                                                                 as.numeric(filtered_factors[filtered_factors$a_sample == samp &
-                                                                                             filtered_factors$channel == channel, factor])
+                                                                 as.numeric(filtered_factors[grepl(batch, filtered_factors$a_sample) &
+                                                                                             filtered_factors$channel == channel, "factor"])
             }
         }
 
 
         #WRITING FILES
-        batch_subset <- exprs_set[grepl(batch, exprs_set$sample),] #failsafe
-        batch_files <- unique(batch_subset$sample)
+        batch_files <- unique(exprs_set[grepl(batch, exprs_set$sample), "sample"])
         
         
         # Initializes the progress bar
-        pb <- progress_bar$new(format = "(:spin) [:bar] :percent [Elapsed time: :elapsedfull || Estimated time remaining: :eta]",
+        pb <- progress_bar$new(format = "Writing files \n(:spin) [:bar] :percent [Elapsed time: :elapsedfull || Estimated time remaining: :eta]",
                             total = length(batch_files),
                             complete = "=",   # Completion bar character
                             incomplete = "-", # Incomplete bar character
@@ -350,19 +377,60 @@ normalize_batches <- function() {
                             clear = FALSE,    # If TRUE, clears the bar when finish
                             width = 100)      # Width of the progress bar
         
-        
-        cat('\n Writing files \n')
+
         for (file in batch_files){
             pb$tick()
             setwd(norm_folder)
             temp_file <- exprs_set[exprs_set$sample==file, ]
             temp_file <- flowFrame(data.matrix(temp_file[,!colnames(temp_file) %in% 'sample']))
-            temp_file@parameters@data$desc <- fcs@parameters@data$desc
-            temp_file@parameters@data$name <- fcs@parameters@data$name
+            temp_file@parameters@data$desc <- fcs_channel_desc
+            temp_file@parameters@data$name <- fcs_channel_name
             flowCore::write.FCS(x=temp_file, filename=paste0(file))
         }
 
     }
     
 
+}
+
+channel_mean_compute <- function(data_set) {
+    means_df <- data.frame()
+    for (channel in feature_markers) {
+        temp_means <- data_set %>% group_by(sample) %>% summarise(means = mean(!!sym(channel)))
+        temp_means$channel <- channel
+        means_df <- rbind(means_df, temp_means)
+    }
+    return(means_df)
+}
+
+channel_mean_dist_compute <- function() {
+    means_df <- data.frame()
+    means_dist_result <- data.frame()
+    for (channel in feature_markers) {
+        temp_means <- exprs_set %>% group_by(sample) %>% summarise(means = mean(!!sym(channel)))
+        temp_means$channel <- channel
+        means_df <- rbind(means_df, temp_means)
+    }
+    for (channel in feature_markers) {
+        mean_dist <- data.frame()
+        for (a_sample in unique(means_df$sample)) {
+            temp_mean_dist <- c()
+            for (b_sample in unique(means_df$sample)[!unique(means_df$sample) %in% a_sample]) {
+                temp_mean_dist <- c(temp_mean_dist,
+                means_df[means_df$sample == a_sample & means_df$channel == channel, "means"] -
+                means_df[means_df$sample == b_sample & means_df$channel == channel, "means"])
+            }
+            mean_dist <- rbind(mean_dist, c(a_sample, channel, mean(abs(unlist(temp_mean_dist)))))
+            colnames(mean_dist) <- c("sample", "channel", "mean_dist")
+        }
+        means_dist_result <- rbind(means_dist_result, mean_dist)
+
+    }
+
+    
+    
+    setwd(out_norm_tables_folder)
+    write.csv(apply(means_dist_result, 2, as.character), file = "channel_intensity_mean_distances.csv")
+
+    return(means_dist_result)
 }
