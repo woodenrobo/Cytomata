@@ -32,6 +32,8 @@ source("./normalization/normalization_plots.R")
 setwd(path_to_cytomata)
 source("./normalization/normalization_exploration_adjustment.R")
 #plots reduction in variance, dissimilarity metrics, distribution changes
+#if anchor file has little events, density can vary a little due to downsampling done for ridgeplots
+#quantile values and scaling factor calculations are done on 100 percent of events
 setwd(path_to_cytomata)
 source("./normalization/normalization_diagnostics.R")
 

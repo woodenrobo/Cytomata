@@ -294,7 +294,7 @@ percentile_selector_compute <- function() {
 
     percentile_selector$percentile_optimality <- (rescale(as.numeric(percentile_selector$reduction_in_ks)) * 1.5 +
                                                      rescale(as.numeric(percentile_selector$reduction_in_var)) * 1.5 +
-                                                      rescale(as.numeric(percentile_selector$reduction_in_means_var)) * 2 +
+                                                      rescale(as.numeric(percentile_selector$reduction_in_means_var)) * 2.5 +
                                                       rescale(as.numeric(percentile_selector$reduction_in_quantile_distance))) * -1
                                                       
 
@@ -400,6 +400,7 @@ channel_mean_compute <- function(data_set) {
         temp_means$channel <- channel
         means_df <- rbind(means_df, temp_means)
     }
+
     return(means_df)
 }
 
