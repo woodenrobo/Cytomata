@@ -9,15 +9,18 @@
 #Cytomata_data
 #holds both input and output files
 #Cytomata_data/<project_name>/fcs/
-
+setwd("C:/Users/feder/Desktop/Charite/")
 #PROJECT SETUP  ################
-path_to_cytomata <- "~/DOCTORATE/Cytomata/"
-path_to_data_folder <- "~/DOCTORATE/Cytomata_data/"
-project_name <- "dev_project_panel_1"
+#path_to_cytomata <- "~/DOCTORATE/Cytomata/"
+#path_to_data_folder <- "~/DOCTORATE/Cytomata_data/"
+#project_name <- "dev_project_panel_1"
+path_to_cytomata <- "C:/Users/feder/Desktop/Charite/Cytomata"
+path_to_data_folder <- "C:/Users/feder/Desktop/Charite/Cytomata/Cytomata_data/"
+project_name <- "dev_database"
 
 #ENVIRONMENT SETUP ################
 setwd(path_to_cytomata)
-source("general_functions.R")
+source("C:/Users/feder/Desktop/Charite/Cytomata/Cytomata_code/Cytomata/general_functions.R")
 setwd(path_to_cytomata)
 #source("environment_setup.R")
 set.seed(1234)
@@ -25,7 +28,7 @@ set.seed(1234)
 
 #this script prepares folder structure for the new project
 setwd(path_to_cytomata)
-source("folder_manager.R")
+source("C:/Users/feder/Desktop/Charite/Cytomata/Cytomata_code/Cytomata/folder_manager.R")
 
 #set filter to select metafile
 #metafile MUST have following columns: "id", "fcs", "batch", "analysis" and "group". script supports having multiple grouping-columns (e.g. "group_2", "group_3" etc.)

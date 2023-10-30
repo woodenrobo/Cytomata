@@ -30,8 +30,6 @@ using_github <- function(...) {
 }
 
 
-
-
 load_metafile <- function(meta_naming_scheme) {
     library(readxl)
     #looking for metafile in meta folder
@@ -44,8 +42,6 @@ load_metafile <- function(meta_naming_scheme) {
         stop("CHECK YOUR METAFILE!\nMetafile MUST have following columns: \"id\", \"fcs\", \"group\". \nScrip'panekt supports having multiple grouping-columns (e.g. \"group_2\", \"group_3\" etc.)")
     }
 }
-
-
 
 
 load_panel <- function(...) {
