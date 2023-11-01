@@ -7,7 +7,7 @@
 
 ## R Packages setup
 #From CRAN:
-cran_packages <- c("scales", "ggplot2", "dplyr", "ggridges", "RColorBrewer", "MASS", "Rtsne", "kohonen",
+cran_packages <- c("arrow", "scales", "ggplot2", "dplyr", "ggridges", "RColorBrewer", "MASS", "Rtsne", "kohonen",
                  "miscTools", "gplots", "Radviz", "igraph", "statmod", "devtools", "uwot", "cowplot", "limma",
                  "ggrepel", "circlize", "readxl", "ggpubr", "ggsignif", "ggfortify", "Polychrome", "progress", "ggnewscale", "BiocManager", "provenance")
 

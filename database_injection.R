@@ -1,4 +1,3 @@
-install.packages("arrow")
 library(arrow)
 library(dplyr)
 
@@ -11,11 +10,23 @@ input <- input[grepl(".fcs$", input)]
 ifelse(!dir.exists(parquet_out_path), dir.create(parquet_out_path), FALSE)
 
 #meta-based filtering out of duplicate anchors here to select input
-input <- meta[!meta$id %in% dir(norm_folder) & duplicated(target_anchors$id)]
+duplicated_anchors <- unlist(meta[meta$id %in% anchor_ids & duplicated(meta$id), "fcs"])
+filtered_meta <- meta[!meta$fcs %in% duplicated_anchors,]
+input <- unlist(filtered_meta[filtered_meta$fcs %in% dir(norm_folder), "fcs"])
+  if (length(input) != length(filtered_meta$fcs)) {
+      warning(paste0("Only ", length(input), " out of ", length(filtered_meta$fcs), " samples in meta are present in input directory"))
+  }
 
-for (f in input) {
-  # fcs <- flowCore::read.FCS(filename = f, transformation = FALSE, truncate_max_range = FALSE)
-  
+
+pb <- progress_bar$new(format = "Converting to Parquet\n(:spin) [:bar] :percent [Elapsed time: :elapsedfull || Estimated time remaining: :eta]\n",
+                        total = length(input),
+                        complete = "=",   # Completion bar character
+                        incomplete = "-", # Incomplete bar character
+                        current = ">",    # Current bar character
+                        clear = FALSE,    # If TRUE, clears the bar when finish
+                        width = 120)      # Width of the progress bar
+pb$tick(0)
+for (f in input) {  
   downsampling_rate <- 1
   #settings for transformation
   asinh_transform <- TRUE
@@ -25,6 +36,7 @@ for (f in input) {
   arrow::write_parquet(as.data.frame(exprs_set), paste0(parquet_out_path, parquet_filename, ".parquet"))
   rm(exprs_set)
   gc()
+  pb$tick()
 }
 
 setwd(norm_folder)
@@ -32,15 +44,16 @@ ds <- arrow::open_dataset("parquet")
 
 means <- ds %>%
           summarize(across(all_of(feature_markers), ~ mean(.))) %>%
-                collect() %>% as.data.frame() %>% tidyr::pivot_longer(cols = everything()) 
+                collect() %>% as.data.frame() %>% tidyr::pivot_longer(cols = everything())
+colnames(means) <- c("channel", "mean") 
                           
 stdev <- ds %>%
           summarize(across(all_of(feature_markers), ~ sd(.))) %>%
                 collect() %>% as.data.frame() %>% tidyr::pivot_longer(cols = everything())
+colnames(stdev) <- c("channel", "stdev") 
 
-meansd <- cbind(means, stdev[,2]) 
-colnames(meansd) <- c("Channel", "Mean", "SD")
+meansd <- left_join(means, stdev, by = "channel") 
 
-setwd(output_folder)
-write.csv(meansd, file = "meansd.csv", row.names=TRUE)
+setwd(meta_folder)
+write.csv(meansd, file = "meansd.csv", row.names = FALSE)
 

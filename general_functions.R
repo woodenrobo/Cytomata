@@ -86,7 +86,7 @@ inject_fcs <- function(input, filter_features, asinh_transform, cofac){
                         incomplete = "-", # Incomplete bar character
                         current = ">",    # Current bar character
                         clear = FALSE,    # If TRUE, clears the bar when finish
-                        width = 150)      # Width of the progress bar
+                        width = 120)      # Width of the progress bar
 
     exprs_set <- data.frame()
     sample <- c()
@@ -94,7 +94,6 @@ inject_fcs <- function(input, filter_features, asinh_transform, cofac){
     cat("Feature markers selected are:\n")
     cat(feature_markers, "\n", sep=" ")
     pb$tick(0)
-    f=input[1]
     for (f in input) {
         fcs <- read.FCS(filename = f, transformation = FALSE, truncate_max_range = FALSE)
         fcs_channel_desc <<- as.vector(fcs@parameters@data$desc)
