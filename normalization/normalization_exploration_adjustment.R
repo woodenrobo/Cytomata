@@ -254,6 +254,8 @@ for (a_id in anchor_ids) {
 
         setwd(debar_folder)
         input <- target_anchors$fcs[target_anchors$fcs %in% dir()]
+        #remove non-pre-norm anchor
+        input <- input[!input %in% pre_norm_anchor]
         #settings for transformation
         asinh_transform <- FALSE
         cofac <- 1

@@ -9,11 +9,13 @@
 #Cytomata_data
 #holds both input and output files
 #Cytomata_data/<project_name>/fcs/
-
 #PROJECT SETUP  ################
 path_to_cytomata <- "~/DOCTORATE/Cytomata/"
 path_to_data_folder <- "~/DOCTORATE/Cytomata_data/"
 project_name <- "dev_project_panel_1"
+# path_to_cytomata <- "C:/Users/feder/Desktop/Charite/Cytomata"
+# path_to_data_folder <- "C:/Users/feder/Desktop/Charite/Cytomata/Cytomata_data/"
+# project_name <- "dev_database"
 
 #ENVIRONMENT SETUP ################
 setwd(path_to_cytomata)
@@ -31,6 +33,7 @@ source("folder_manager.R")
 #metafile MUST have following columns: "id", "fcs", "batch", "analysis" and "group". script supports having multiple grouping-columns (e.g. "group_2", "group_3" etc.)
 #analysis column defines whether sample should be included in final analysis. duplicates of anchor/reference files are filtered out by default
 meta <- load_metafile(meta_naming_scheme = "meta")
+#samples that will be dropped from analysis have to be assigned "drop" in the respective "group" column
 #extracting marker panel. check "feature" variable and set it to 0 for unused channels.
 #common pre-processing channels are automatically set to 0
 panel <- load_panel()
@@ -60,7 +63,7 @@ source("./normalization/normalization_master.R")
 
 #FULL DATA MEAN AND SD CALCULATION FOR SCALING  ################
 setwd(path_to_cytomata)
-#database_injection.R
+source("database_injection.R")
 #creates a database to facilitate calculating statistics over tens of millions of cells at a time
 
 
