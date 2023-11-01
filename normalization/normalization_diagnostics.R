@@ -29,7 +29,6 @@ for (a_id in anchor_ids) {
     ifelse(!dir.exists(out_norm_dens_diag_folder), dir.create(out_norm_dens_diag_folder), FALSE)
 
 
-
     target_anchors <- meta[meta$id == a_id, ]
     cat(paste0("\n ANCHOR SAMPLE SELECTED IS: ", a_id, "\n"))
     cat(paste0("\n BATCHES PRESENT IN NON-NORMALIZED INPUT ARE: \n"))
