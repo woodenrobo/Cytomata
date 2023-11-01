@@ -86,7 +86,7 @@ inject_fcs <- function(input, filter_features, asinh_transform, cofac){
                         incomplete = "-", # Incomplete bar character
                         current = ">",    # Current bar character
                         clear = FALSE,    # If TRUE, clears the bar when finish
-                        width = 120)      # Width of the progress bar
+                        width = 110)      # Width of the progress bar
 
     exprs_set <- data.frame()
     sample <- c()
