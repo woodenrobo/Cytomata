@@ -32,7 +32,7 @@ for (a_id in anchor_ids) {
         a_batch_table <- bind_rows(a_batch_table, temp_a_batch_table)
 
         input <- target_anchors$fcs[target_anchors$fcs %in% dir()]
-        downsampling_rate <- 1
+        sampling_rate <- 1
         #settings for transformation
         asinh_transform <- FALSE
         cofac <- 1
@@ -161,7 +161,7 @@ for (a_id in anchor_ids) {
             cat(paste0("Reading in anchors for final scaling factor computing\n"))
             setwd(debar_folder)
             input <- target_anchors$fcs[target_anchors$fcs %in% dir()]
-            downsampling_rate <- 1
+            sampling_rate <- 1
             #settings for transformation
             asinh_transform <- FALSE
             cofac <- 1

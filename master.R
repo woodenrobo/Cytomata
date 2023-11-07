@@ -1,28 +1,41 @@
-#Cytomata is an open-source script collection that integrates tools and methods used for mass cytometry (CyTOF) analysis into an automated pipeline.
+#Cytomata is an open-source script collection that integrates tools and methods used for mass cytometry (CyTOF) analysis into a semi-automated pipeline.
 #Author: Lev Petrov
 
 #FILE STRUCTURE ################
-
 #Cytomata
 #holds scripts, distributed through github
 
 #Cytomata_data
 #holds both input and output files
 #Cytomata_data/<project_name>/fcs/
+
+
 #PROJECT SETUP  ################
+#one only thing you MUST change in the script before running it is this:
 path_to_cytomata <- "~/DOCTORATE/Cytomata/"
-path_to_data_folder <- "~/DOCTORATE/Cytomata_data/"
-project_name <- "dev_project_panel_1"
-# path_to_cytomata <- "C:/Users/feder/Desktop/Charite/Cytomata"
-# path_to_data_folder <- "C:/Users/feder/Desktop/Charite/Cytomata/Cytomata_data/"
-# project_name <- "dev_database"
+#all the other settings are to be changed using following:
+#setting.xlsx in Cytomata folder (general project setup, normalization, clustering, UMAP settings)
+#Cytomata_data/<project_folder>/meta/meta.xlsx (sample stratification, sample addition and removal for reanalyzis)
+#Cytomata_data/<project_folder>/normalization/<anchor_id>/normalization_settings.csv (adjusting automatic normalization settings, appears automatically during normalization)
+#Cytomata_data/<project_folder>/meta/subset_feature_selection.xlsx (selecting features for analysis for each subset, order will be preserved in plots)
+#Cytomata/analysis/analysis_plot_settings.R (color palletes, global text scaling, general themes for each plot type)
+#Cytomata/analysis/clustering/cluster_annotation.xlsx (manually annotate and merge clusters, appears automatically during clustering)
 
 #ENVIRONMENT SETUP ################
 setwd(path_to_cytomata)
 source("general_functions.R")
 setwd(path_to_cytomata)
-#source("environment_setup.R")
+source("environment_setup.R")
 set.seed(1234)
+
+settings <- parse_settings()
+path_to_data_folder <- settings$value[settings$setting == "path_to_data_folder"]
+project_name <- settings$value[settings$setting == "project_name"]
+# path_to_cytomata <- "C:/Users/feder/Desktop/Charite/Cytomata"
+# path_to_data_folder <- "C:/Users/feder/Desktop/Charite/Cytomata/Cytomata_data/"
+# project_name <- "dev_database"
+
+
 
 
 #this script prepares folder structure for the new project
@@ -31,8 +44,8 @@ source("folder_manager.R")
 
 #set filter to select metafile
 #metafile MUST have following columns: "id", "fcs", "batch", "analysis" and "group". script supports having multiple grouping-columns (e.g. "group_2", "group_3" etc.)
-#analysis column defines whether sample should be included in final analysis. duplicates of anchor/reference files are filtered out by default
-meta <- load_metafile(meta_naming_scheme = "meta")
+#analysis column defines whether sample should be included in final analysis. duplicates of anchor/reference files are filtered out by default during analysis
+meta <- load_metafile(meta_naming_scheme = settings$value[settings$setting == "meta_naming_scheme"])
 #samples that will be dropped from analysis have to be assigned "drop" in the respective "group" column
 #extracting marker panel. check "feature" variable and set it to 0 for unused channels.
 #common pre-processing channels are automatically set to 0
@@ -52,7 +65,7 @@ feature_markers <- panel$antigen[panel$feature == 1]
 
 #anchor = technical replicate included with each batch. Can be one or multiple. If multiple, normalization is done in order from left to right
 #files are saved to fcs/3_normalized/<anchor_id>
-anchor_ids <- c("HC-4", "HC-100")
+anchor_ids <- unlist(strsplit(settings$value[settings$setting == "anchor_ids"], split=', ', fixed=TRUE))
 #if TRUE, optimal anchor is automatically selected individually for each channel
 #if FLASE, optimal anchor is selected globally, for all channels - NOT IMPLEMENTED YET!
 find_anchor_by_channel <- TRUE

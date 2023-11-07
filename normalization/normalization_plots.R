@@ -57,7 +57,7 @@ exploration_ridges <- function() {
   percentile_colors[names(percentile_colors) %in% temp_opt_perc] <- "#c70000"
   percentile_sizes[names(percentile_sizes) %in% temp_opt_perc] <- 2
   #temp_set <- temp_set[temp_set[, channel] > 0, ]
-  temp_set <- temp_set[sample(nrow(temp_set), round(nrow(temp_set) * downsampling_factor), replace = FALSE), ]
+  temp_set <- temp_set[sample(nrow(temp_set), round(nrow(temp_set) * sampling_factor), replace = FALSE), ]
   temp_set$sample <- factor(temp_set$sample, ordered=T, levels=c(rev(unique(temp_set$sample)[order(unique(temp_set$sample))])))
 
   setwd(out_norm_dens_folder)
@@ -163,7 +163,7 @@ exploration_ridges_wo_zeroes <- function() {
   percentile_colors[names(percentile_colors) %in% temp_opt_perc] <- "#c70000"
   percentile_sizes[names(percentile_sizes) %in% temp_opt_perc] <- 2
 
-  temp_set <- temp_set[sample(nrow(temp_set), round(nrow(temp_set) * downsampling_factor), replace = FALSE), ]
+  temp_set <- temp_set[sample(nrow(temp_set), round(nrow(temp_set) * sampling_factor), replace = FALSE), ]
   temp_set <- temp_set[temp_set[, channel] > 0, ]
   temp_set$sample <- factor(temp_set$sample, ordered=T, levels=c(rev(unique(temp_set$sample)[order(unique(temp_set$sample))])))
 
@@ -309,7 +309,7 @@ diagnostics_ridges <- function() {
 
   
   #temp_set <- temp_set[temp_set[, channel] > 0, ]
-  temp_set <- temp_set[sample(nrow(temp_set), round(nrow(temp_set) * downsampling_factor), replace = FALSE), ]
+  temp_set <- temp_set[sample(nrow(temp_set), round(nrow(temp_set) * sampling_factor), replace = FALSE), ]
 
 
   setwd(out_norm_dens_diag_folder)
@@ -423,7 +423,7 @@ diagnostics_ridges_wo_zeroes <- function() {
 
   
   temp_set <- temp_set[temp_set[, channel] > 0, ]
-  temp_set <- temp_set[sample(nrow(temp_set), round(nrow(temp_set) * downsampling_factor), replace = FALSE), ]
+  temp_set <- temp_set[sample(nrow(temp_set), round(nrow(temp_set) * sampling_factor), replace = FALSE), ]
 
 
   setwd(out_norm_dens_diag_folder)
@@ -497,7 +497,7 @@ diagnostics_mean_boxplots <- function() {
   )
   ggsave(paste0(date, "_", project_name, "_channel_means_before_after.pdf"), 
          plot = last_plot(), device = "pdf", path = out_norm_aid_diag_folder, 
-         scale = 1, width = 0.16*col_number*length(unique(before_after_means$sample)), height = 2.2*ceiling(length(unique(before_after_means$channel))/col_number))
+         scale = 1, width = 1.2*col_number, height = 2.2*ceiling(length(unique(before_after_means$channel))/col_number))
 }
 
 diagnostics_mean_barplots <- function() {

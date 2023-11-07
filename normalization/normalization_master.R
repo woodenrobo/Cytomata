@@ -9,7 +9,7 @@ library(provenance)
 library(scales)
 library(ggnewscale)
 #1 means all events are used, this is not used for normalization step itself, only for plotting of densities
-downsampling_factor <- 0.1
+sampling_factor <- 0.1
 hide_zeroes_in_ridges <- 1
 #Kolmogorov-Smirnov can be computed in a pairwise manner or against total channel distribution
 #pairwise or total
@@ -22,25 +22,21 @@ date <- gsub('-', '', strsplit(x = as.character(start_time), split = ' ')[[1]][1
 sink(file = paste0(log_folder, date, "_", project_name, "_log.txt"), split = TRUE)
 
 setwd(path_to_cytomata)
-#source("./normalization/normalization_functions.R")
-source("C:/Users/feder/Desktop/Charite/Cytomata/Cytomata_code/Cytomata/normalization/normalization_functions.R")
+source("./normalization/normalization_functions.R")
 setwd(path_to_cytomata)
-#source("./normalization/normalization_plots.R")
-source("C:/Users/feder/Desktop/Charite/Cytomata/Cytomata_code/Cytomata/normalization/normalization_plots.R")
+source("./normalization/normalization_plots.R")
 
 #automatically chooses the best (most "average") anchor out of available for each channel
 #automatically chooses optimal percentile via diversity metric estimation
 #creates plots for user to verify automatic settings
 #creates a .csv table for user to adjust automatically set parameters (IF IN INTERACTIVE SESSION)
 setwd(path_to_cytomata)
-#source("./normalization/normalization_exploration_adjustment.R")
-source("C:/Users/feder/Desktop/Charite/Cytomata/Cytomata_code/Cytomata/normalization/normalization_exploration_adjustment.R")
+source("./normalization/normalization_exploration_adjustment.R")
 #plots reduction in variance, dissimilarity metrics, distribution changes
 #if anchor file has little events, density can vary a little due to downsampling done for ridgeplots
 #quantile values and scaling factor calculations are done on 100 percent of events
 setwd(path_to_cytomata)
-#source("./normalization/normalization_diagnostics.R")
-source("C:/Users/feder/Desktop/Charite/Cytomata/Cytomata_code/Cytomata/normalization/normalization_diagnostics.R")
+source("./normalization/normalization_diagnostics.R")
 
 end_time <- Sys.time()
 

@@ -344,7 +344,7 @@ normalize_batches <- function() {
     }
     
     
-    downsampling_rate <- 1
+    sampling_rate <- 1
     #settings for transformation
     asinh_transform <- FALSE
     cofac <- 1

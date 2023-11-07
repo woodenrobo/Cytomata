@@ -1,6 +1,6 @@
 
 using <- function(...) {
-    libs < -unlist(list(...))
+    libs <- unlist(list(...))
     req <- unlist(lapply(libs, require, character.only = TRUE))
     need <- libs[req == FALSE]
     if (length(need) > 0) { 
@@ -10,7 +10,7 @@ using <- function(...) {
 }
 
 using_bioconductor <- function(...) {
-    libs < -unlist(list(...))
+    libs <- unlist(list(...))
     req <- unlist(lapply(libs, require, character.only = TRUE))
     need <- libs[req == FALSE]
     if (length(need) > 0) { 
@@ -20,7 +20,7 @@ using_bioconductor <- function(...) {
 }
 
 using_github <- function(...) {
-    libs < -unlist(list(...))
+    libs <- unlist(list(...))
     req <- unlist(lapply(libs, require, character.only = TRUE))
     need <- libs[req == FALSE]
     if (length(need) > 0) { 
@@ -29,17 +29,23 @@ using_github <- function(...) {
     }
 }
 
+parse_settings <- function() {
+    library(readxl)
+    library(stringr)
+    #looking for settings.xlsx in Cytomata root folder
+    settings <- read_xlsx("settings.xlsx")
+}
 
 load_metafile <- function(meta_naming_scheme) {
     library(readxl)
     #looking for metafile in meta folder
     metafile <- dir(meta_folder)[grepl(meta_naming_scheme, dir(meta_folder))]
     meta <- read_xlsx(paste0(meta_folder, metafile))
-    required_columns <- c("id", "fcs", "group")
+    required_columns <- c("id", "fcs")
     if (sum(required_columns %in% colnames(meta)) == length(required_columns)){
         return(meta)
     } else {
-        stop("CHECK YOUR METAFILE!\nMetafile MUST have following columns: \"id\", \"fcs\", \"group\". \nScrip'panekt supports having multiple grouping-columns (e.g. \"group_2\", \"group_3\" etc.)")
+        stop("CHECK YOUR METAFILE!\nMetafile MUST have following columns: \"id\", \"fcs\"\n")
     }
 }
 
@@ -74,12 +80,13 @@ load_panel <- function(...) {
 }
 
 
-inject_fcs <- function(input, filter_features, asinh_transform, cofac){
+inject_fcs <- function(input, filter_features, asinh_transform, cofac, silent = FALSE) {
     library(flowCore)
     library(progress)
     library(dplyr)
     cat('INJECTING DATA\n')
 
+    if (silent != TRUE) {
     pb <- progress_bar$new(format = "Injecting data\n(:spin) [:bar] :percent [Elapsed time: :elapsedfull || Estimated time remaining: :eta]\n",
                         total = length(input),
                         complete = "=",   # Completion bar character
@@ -87,13 +94,18 @@ inject_fcs <- function(input, filter_features, asinh_transform, cofac){
                         current = ">",    # Current bar character
                         clear = FALSE,    # If TRUE, clears the bar when finish
                         width = 110)      # Width of the progress bar
+    }
 
     exprs_set <- data.frame()
     sample <- c()
     total_events <- 0
-    cat("Feature markers selected are:\n")
-    cat(feature_markers, "\n", sep=" ")
-    pb$tick(0)
+    if (silent != TRUE) {
+        cat("Feature markers selected are:\n")
+        cat(feature_markers, "\n", sep=" ")
+        pb$tick(0)
+    }
+
+    
     for (f in input) {
         fcs <- read.FCS(filename = f, transformation = FALSE, truncate_max_range = FALSE)
         fcs_channel_desc <<- as.vector(fcs@parameters@data$desc)
@@ -105,19 +117,14 @@ inject_fcs <- function(input, filter_features, asinh_transform, cofac){
         if (filter_features == TRUE) {
             exprs <- exprs[, colnames(exprs) %in% feature_markers]
         }
-        if (downsampling_rate < 1) {
-            cat('\n==========\nApplied downsampling rate of ', downsampling_rate, '\n==========\n')
-            cat("Sampled", round(nrow(exprs) * downsampling_rate), "events ", "\n\n")
-            exprs_sample <- exprs[sample(round(nrow(exprs) * downsampling_rate), replace = FALSE), ]
-            exprs_set <- rbind(exprs_set, exprs_sample)
-            sample <- append(sample, rep(basename(f), round(nrow(exprs) * downsampling_rate)))
-            total_events <- total_events + round(nrow(exprs) * downsampling_rate)
-        } else {
-            exprs_set <- rbind(exprs_set, exprs)
-            sample <- append(sample, rep(basename(f), nrow(exprs)))
-            total_events <- total_events + nrow(exprs)
+
+        exprs_set <- rbind(exprs_set, exprs)
+        sample <- append(sample, rep(basename(f), nrow(exprs)))
+        total_events <- total_events + nrow(exprs)
+
+        if (silent != TRUE) {
+            pb$tick()
         }
-        pb$tick()
     }
     exprs_set$sample <- sample
     cat(total_events, "total events in the read expression matrix\n")
@@ -127,6 +134,31 @@ inject_fcs <- function(input, filter_features, asinh_transform, cofac){
         exprs_set[, colnames(exprs_set) %in% feature_markers] <- asinh(exprs_set[, colnames(exprs_set) %in% feature_markers] / cofac)
         cat("Applied arcsinh transformation with the cofactor of", cofac, "\n")
     }
+
+
+    if (sampling_rate < 1) {
+        # cat('\n==========\nApplied downsampling rate of ', sampling_rate, '\n==========\n')
+        # cat("Sampled", round(nrow(exprs) * sampling_rate), "events ", "\n\n")
+        # exprs_sample <- exprs[sample(round(nrow(exprs) * sampling_rate), replace = FALSE), ]
+        # exprs_set <- rbind(exprs_set, exprs_sample)
+        # sample <- append(sample, rep(basename(f), round(nrow(exprs) * sampling_rate)))
+        # total_events <- total_events + round(nrow(exprs) * sampling_rate)
+
+
+
+    }
+    if (sampling_rate > 1) {
+        # cat('\n==========\nApplied oversampling rate of ', sampling_rate, '\n==========\n')
+        # cat("Sampled", round(nrow(exprs) * sampling_rate), "events ", "\n\n")
+        # exprs_sample <- exprs[sample(round(nrow(exprs) * sampling_rate), replace = FALSE), ]
+        # exprs_set <- rbind(exprs_set, exprs_sample)
+        # sample <- append(sample, rep(basename(f), round(nrow(exprs) * sampling_rate)))
+        # total_events <- total_events + round(nrow(exprs) * sampling_rate)
+
+        
+
+    }
+
 
     return(exprs_set)
 }
