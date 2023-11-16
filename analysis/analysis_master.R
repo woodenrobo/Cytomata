@@ -40,11 +40,11 @@ for (data_sub in data_subsets) {
         input <- input[!input %in% input_duplicated_anchors]
 
         meta_input <- unlist(filtered_meta[filtered_meta$fcs %in% stripped_input, "fcs"])
-        if (length(input) < length(filtered_meta$fcs)) {
-            warning(paste0("Only ", length(input), " out of ", length(filtered_meta$fcs), " samples in meta after filtering are present in input directory"))
+        if (length(meta_input) < length(filtered_meta$fcs)) {
+            warning(paste0("Only ", length(meta_input), " out of ", length(filtered_meta$fcs), " samples in meta after filtering are present in input directory"))
         }
-        if (length(input) > length(filtered_meta$fcs)) {
-            warning(paste0(length(input), " out of ", length(filtered_meta$fcs), " samples in meta after filtering are present in input directory"))
+        if (length(meta_input) > length(filtered_meta$fcs)) {
+            warning(paste0(length(meta_input), " out of ", length(filtered_meta$fcs), " samples in meta after filtering are present in input directory"))
         }
 
         sampling_rate <- 1
