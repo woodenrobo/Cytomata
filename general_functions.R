@@ -80,7 +80,7 @@ load_panel <- function(...) {
 }
 
 
-inject_fcs <- function(input, filter_features, asinh_transform, cofac, silent = FALSE) {
+inject_fcs <- function(input, filter_features, asinh_transform, cofac, sampling_rate, silent = FALSE, event_cutoff) {
     library(flowCore)
     library(progress)
     library(dplyr)
@@ -129,36 +129,111 @@ inject_fcs <- function(input, filter_features, asinh_transform, cofac, silent = 
     exprs_set$sample <- sample
     cat(total_events, "total events in the read expression matrix\n")
 
+    sample_counts <- as.data.frame(table(exprs_set$sample))
+    colnames(sample_counts) <- c("sample", "freq")
+
+    event_cutoff <- as.numeric(settings$value[settings$setting == "event_cutoff"])
+    if (event_cutoff == 0) {
+        cat("Event cutoff of 0 selected, filtering of small samples omitted\n")
+        cat("Samples that are too small may skew cluster abundances!\n")
+    } else {
+        cat("Event cutoff of", event_cutoff, "applied, filtering out small samples\n")
+        small_samples <- sample_counts$sample[sample_counts$freq < event_cutoff]
+        exprs_set <- exprs_set[!exprs_set$sample %in% small_samples, ]
+        cat(length(small_samples), "samples were filtered out!\n")
+        print(small_samples)
+        sample_counts <- as.data.frame(table(exprs_set$sample))
+        colnames(sample_counts) <- c("sample", "freq")
+    }
+
     if (asinh_transform == TRUE) {
         #transform the expression values
         exprs_set[, colnames(exprs_set) %in% feature_markers] <- asinh(exprs_set[, colnames(exprs_set) %in% feature_markers] / cofac)
         cat("Applied arcsinh transformation with the cofactor of", cofac, "\n")
     }
 
-
+sampling_rate = 4
     if (sampling_rate < 1) {
-        # cat('\n==========\nApplied downsampling rate of ', sampling_rate, '\n==========\n')
-        # cat("Sampled", round(nrow(exprs) * sampling_rate), "events ", "\n\n")
-        # exprs_sample <- exprs[sample(round(nrow(exprs) * sampling_rate), replace = FALSE), ]
-        # exprs_set <- rbind(exprs_set, exprs_sample)
-        # sample <- append(sample, rep(basename(f), round(nrow(exprs) * sampling_rate)))
-        # total_events <- total_events + round(nrow(exprs) * sampling_rate)
+        cat("\n==========\nRANDOM DOWNSAMPLING INITIATED\n==========\n")
+        cat("Applied downsampling factor of", sampling_rate, "\n")
 
+        absolute_cutoff <- ceiling(mean(sample_counts$freq))
+        cat("Mean number of events is", absolute_cutoff, "and will be used as lower cutoff\n")
 
+        downsampling_index <- sample_counts[!sample_counts$freq < absolute_cutoff, ]
 
+        pb <- progress_bar$new(format = "Downsampling\n(:spin) [:bar] :percent [Elapsed time: :elapsedfull || Estimated time remaining: :eta]\n",
+                    total = length(input),
+                    complete = "=",   # Completion bar character
+                    incomplete = "-", # Incomplete bar character
+                    current = ">",    # Current bar character
+                    clear = FALSE,    # If TRUE, clears the bar when finish
+                    width = 110)      # Width of the progress bar
+        
+        temp_set <- c()
+        for (s in sample_counts$sample) {
+            if (s %in% downsampling_index$sample) {
+                target_event_number <- downsampling_index[downsampling_index$sample == s, "freq"] * sampling_rate
+                if (target_event_number < absolute_cutoff) {
+                    target_event_number <- absolute_cutoff
+                } 
+                exprs_sample <- exprs_set[exprs_set$sample == s, ]
+                exprs_sample <- exprs_sample[sample(length(exprs_sample), size = target_event_number, replace = FALSE), ]
+                temp_set <- rbind(temp_set, exprs_sample)
+            } else {
+                exprs_sample <- exprs_set[exprs_set$sample == s, ]
+                temp_set <- rbind(temp_set, exprs_sample)
+            }
+        pb$tick()
+        }
+        exprs_set <- temp_set
     }
     if (sampling_rate > 1) {
-        # cat('\n==========\nApplied oversampling rate of ', sampling_rate, '\n==========\n')
-        # cat("Sampled", round(nrow(exprs) * sampling_rate), "events ", "\n\n")
-        # exprs_sample <- exprs[sample(round(nrow(exprs) * sampling_rate), replace = FALSE), ]
-        # exprs_set <- rbind(exprs_set, exprs_sample)
-        # sample <- append(sample, rep(basename(f), round(nrow(exprs) * sampling_rate)))
-        # total_events <- total_events + round(nrow(exprs) * sampling_rate)
+        cat("\n==========\nRANDOM UPSAMPLING INITIATED\n==========\n")
+        cat("Applied oversampling factor of", sampling_rate, "\n")
 
         
+        absolute_cutoff <- ceiling(mean(sample_counts$freq))
+        cat("Mean number of events is", absolute_cutoff, "and will be used as upper cutoff\n")
 
+        oversampling_index <- sample_counts[!sample_counts$freq > absolute_cutoff, ]
+
+        pb <- progress_bar$new(format = "Upsampling\n(:spin) [:bar] :percent [Elapsed time: :elapsedfull || Estimated time remaining: :eta]\n",
+                    total = length(input),
+                    complete = "=",   # Completion bar character
+                    incomplete = "-", # Incomplete bar character
+                    current = ">",    # Current bar character
+                    clear = FALSE,    # If TRUE, clears the bar when finish
+                    width = 110)      # Width of the progress bar
+        
+        temp_set <- c()
+        for (s in sample_counts$sample) {
+            if (s %in% oversampling_index$sample) {
+                starting_event_number <- oversampling_index[oversampling_index$sample == s, "freq"]
+                target_event_number <- oversampling_index[oversampling_index$sample == s, "freq"] * sampling_rate 
+                added_event_number <- target_event_number - starting_event_number
+                if (target_event_number > absolute_cutoff) {
+                    target_event_number <- absolute_cutoff
+                    added_event_number <- target_event_number - starting_event_number
+                } 
+                exprs_sample <- exprs_set[exprs_set$sample == s, ]
+                exprs_sample$resampled <- "no"
+                exprs_sample_resampled <- exprs_sample[sample(length(exprs_sample), size = added_event_number, replace = TRUE), ]
+                exprs_sample_resampled$resampled <- "yes"
+                exprs_sample <- rbind(exprs_sample, exprs_sample_resampled)
+                temp_set <- rbind(temp_set, exprs_sample)
+            } else {
+                exprs_sample <- exprs_set[exprs_set$sample == s, ]
+                exprs_sample$resampled <- "no"
+                temp_set <- rbind(temp_set, exprs_sample)
+            }
+        pb$tick()
+        }
+        exprs_set <- temp_set
     }
 
+    rm(exprs_sample, temp_set)
+    gc()
 
     return(exprs_set)
 }

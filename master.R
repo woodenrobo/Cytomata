@@ -55,28 +55,34 @@ feature_markers <- panel$antigen[panel$feature == 1]
 #CLEANING AND DEBARCODING  ################
 #sadly, this part is best done in a cloud-based solution like OMIQ or Cytobank due to the massive data and the fact that gating is still best done manually
 #upload your raw data, remove calibration beads, gate on DNA channels and assign barcode identities
-#also a good place to make sure that all channels have proper names
+#also a good place to MAKE SURE ALL CHANNELS HAVE THE SAME NAME
 #export and put the files into Cytomata_data/<project_name>/fcs/2_debarcoded/. folder
 
 
 #Lev's unbiased batch adjustment (LUBA)  ################
 #automatically chooses the best anchor out of available, supports multi-step(anchor) adjustment
 #automatically chooses optimal percentile via peak recognition and diversity metric estimation
+anchor_ids <- unlist(strsplit(settings$value[settings$setting == "anchor_ids"], split=", ", fixed = TRUE))
 
-#anchor = technical replicate included with each batch. Can be one or multiple. If multiple, normalization is done in order from left to right
-#files are saved to fcs/3_normalized/<anchor_id>
-anchor_ids <- unlist(strsplit(settings$value[settings$setting == "anchor_ids"], split=', ', fixed=TRUE))
-#if TRUE, optimal anchor is automatically selected individually for each channel
-#if FLASE, optimal anchor is selected globally, for all channels - NOT IMPLEMENTED YET!
-find_anchor_by_channel <- TRUE
-setwd(path_to_cytomata)
-source("./normalization/normalization_master.R")
+if (settings$value[settings$setting == "do_normalization"] == 1) {
+    #anchor = technical replicate included with each batch. Can be one or multiple. If multiple, normalization is done in order from left to right
+    #files are saved to fcs/3_normalized/<anchor_id>
+    #if TRUE, optimal anchor is automatically selected individually for each channel
+    #if FLASE, optimal anchor is selected globally, for all channels - NOT IMPLEMENTED YET!
+    find_anchor_by_channel <- TRUE
+    setwd(path_to_cytomata)
+    source("./normalization/normalization_master.R")
+}
+
 
 
 
 #FULL DATA MEAN AND SD CALCULATION FOR SCALING  ################
-setwd(path_to_cytomata)
-source("database_injection.R")
+if (settings$value[settings$setting == "do_normalization"] == 1) {
+    setwd(path_to_cytomata)
+    source("database_injection.R")
+}
+
 #creates a database to facilitate calculating statistics over tens of millions of cells at a time
 
 
@@ -92,6 +98,10 @@ source("database_injection.R")
 #signal intensity analysis
 #automatic testing of all conditions included in the metafile
 
+if (settings$value[settings$setting == "do_analysis"] == 1) {
+    setwd(path_to_cytomata)
+    source("./analysis/analysis_master.R")
+}
 
 #POST-PROCESSING ADD-ONS  ################
 #population of interest-specific analyses like e.g. activated T cell flagging
