@@ -2,6 +2,7 @@
 grouping_columns <- unlist(strsplit(settings$value[settings$setting == "grouping_columns"], split = ", ", fixed = TRUE))
 data_subsets <- unlist(strsplit(settings$value[settings$setting == "data_subsets"], split = ", ", fixed = TRUE))
 sampling_factors <- as.numeric(unlist(strsplit(settings$value[settings$setting == "sampling"], split = ", ", fixed = TRUE)))
+event_cutoff <- as.numeric(settings$value[settings$setting == "event_cutoff"])
 low_var_feature_removal <- as.numeric(unlist(strsplit(settings$value[settings$setting == "low_var_feature_removal"], split = ", ", fixed = TRUE)))
 if (length(low_var_feature_removal) > 1 & low_var_feature_removal[1] == 1) {
     top_var_features <- low_var_feature_removal[2]
@@ -14,11 +15,39 @@ clustering_k <- as.numeric(unlist(strsplit(settings$value[settings$setting == "c
 umap_n <- as.numeric(unlist(strsplit(settings$value[settings$setting == "umap_n"], split = ", ", fixed = TRUE)))
 umap_min_dist <- as.numeric(unlist(strsplit(settings$value[settings$setting == "umap_min_dist"], split = ", ", fixed = TRUE)))
 
+start_time <- Sys.time()
+date <- gsub('-', '', strsplit(x = as.character(start_time), split = ' ')[[1]][1])
+#creating a logfile where all output will go
+sink(file = paste0(log_folder, date, "_", project_name, "_analysis_log.txt"), split = TRUE)
 
+
+setwd(path_to_cytomata)
+source("./analysis/analysis_functions.R")
+setwd(path_to_cytomata)
+source("./analysis/analysis_plot_settings.R")
+setwd(path_to_cytomata)
+source("./analysis/analysis_plots.R")
+
+
+
+data_sub_counter <- 0
 for (data_sub in data_subsets) {
     cat(paste0("\n DATA SUBSET SELECTED IS: ", data_sub, "\n"))
     setwd(subset_folder)
     if (grepl(data_sub, dir())) {
+        data_sub_counter <- data_sub_counter + 1
+
+        output_data_sub_analysis <- paste0(output_analysis, data_sub, "/")
+        ifelse(!dir.exists(output_data_sub_analysis), dir.create(output_data_sub_analysis), FALSE)
+        output_clustering <- paste0(output_data_sub_analysis, "clustering", "/")
+        ifelse(!dir.exists(output_clustering), dir.create(output_clustering), FALSE)
+        output_exploration <- paste0(output_data_sub_analysis, "exploration", "/")
+        ifelse(!dir.exists(output_exploration), dir.create(output_exploration), FALSE)
+        output_core <- paste0(output_data_sub_analysis, "core", "/")
+        ifelse(!dir.exists(output_core), dir.create(output_core), FALSE)
+
+
+
         input <- dir(recursive = TRUE, include.dirs = FALSE)[grepl(data_sub, dir(recursive = TRUE, include.dirs = FALSE))]
         stripped_input <- gsub(paste0(data_sub, "/"), "", input)
         #DUE TO 0 CELLS IN SOME SAMPLES AFTER PRE-GATING
@@ -47,11 +76,86 @@ for (data_sub in data_subsets) {
             warning(paste0(length(meta_input), " out of ", length(filtered_meta$fcs), " samples in meta after filtering are present in input directory"))
         }
 
-        sampling_rate <- 1
+        final_input <- input[stripped_input %in% meta_input]
+
+        sampling_rate <- sampling_factors[data_sub_counter]
         #settings for transformation
         asinh_transform <- TRUE
         cofac <- 5
-        exprs_set <- inject_fcs(meta_input, filter_features = TRUE, asinh_transform = asinh_transform, cofac = cofac)
+        exprs_set <- inject_fcs(final_input, filter_features = TRUE, asinh_transform = asinh_transform, cofac = cofac,
+                                sampling_rate = sampling_rate, silent = FALSE, event_cutoff = event_cutoff)
+
+        new_samples_mode <- 0
+        if (sum(filtered_meta$analysis > 1) > 0) {
+            new_samples_mode <- 1
+            exprs_set$sample_state[exprs_set$sample %in% filtered_meta$fcs[filtered_meta$analysis > 1]] <- "new"
+        }
+
+        dropped_samples_mode <- 0
+        if (sum(filtered_meta$analysis < 1) > 0) {
+            dropped_samples_mode <- 1
+            exprs_set$sample_state[exprs_set$sample %in% filtered_meta$fcs[filtered_meta$analysis < 1]] <- "dropped"
+        }
+
+
+        #SET FEATURES TO BE USED FOR CLUSTERING AND AUTOMATIC VISUALIZATION ######
+        #this is also used for ordering of features in plots
+        if (length(dir(meta_folder, pattern = "subset_feature_selection.xlsx")) > 0) {
+            subset_feature_selection <- read_xlsx(paste0(meta_folder, "subset_feature_selection.xlsx"))
+            clustering_feature_markers <- unlist(strsplit(subset_feature_selection[subset_feature_selection$subset == data_sub, ] %>% pull(features), split = ", ", fixed = TRUE))
+        } else if (low_var_feature_removal[1] == 1) {
+            ## REMOVE FEATURES WITH LOW VARIANCE ##########################################
+            #remove features with low variability from clustering
+            #(so that they are not weighted the same as the highly variable ones)
+            variances <- apply(exprs_set[, !names(exprs_set) %in% c('sample')],
+                                FUN = var, MARGIN=2)
+            variances <- variances[order(variances, decreasing = TRUE)]
+            
+            cat('\n TOP', high_var_top, 'variable markers are:\n')
+            print(variances[1:top_var_features])
+            
+            cat('\n Features removed due to low variance are:\n', names(variances[-(1:high_var_top)]),'\n')
+            remove <- names(variances[-(1:top_var_features)])
+            clustering_feature_markers <- setdiff(x = feature_markers, y = remove)
+        } else {
+            clustering_feature_markers <- feature_markers
+        }
+
+
+
+        
+        ## z-normalize the expression levels #########################
+
+        #before clustering and dimension reduction in order to remove the added weight of highly variable features
+        #due to variance being normalized this way, all variables are weighted the same in clustering
+        #input table with calculated means and standard deviation for each marker (from database_injection.R step)
+        mean_stdev <- read.csv(paste0(meta_folder, "meansd.csv"))
+
+        for (i in feature_markers){
+            means <- mean_stdev[grepl(paste0("^", i, "$"), mean_stdev[, 1]), "mean"]
+            stdev <- mean_stdev[grepl(paste0("^", i, "$"), mean_stdev[, 1]), "stdev"]
+            print(paste0("Scaling ", i, " to the mean of ", round(means, 2), " and to the SD of ", round(stdev, 2)))
+            exprs_set[, i] <- (exprs_set[, i] - as.numeric(means)) / as.numeric(stdev)
+        }
+
+
+    
+
+
+
+        setwd(path_to_cytomata)
+        source("./analysis/analysis_clustering.R")
+        setwd(path_to_cytomata)
+        source("./analysis/analysis_exploration.R")
+        setwd(path_to_cytomata)
+        source("./analysis/analysis_exploration_addons.R")
+
+        for (group in grouping_columns) {
+            setwd(path_to_cytomata)
+            source("./analysis/analysis_core.R")
+            setwd(path_to_cytomata)
+            source("./analysis/analysis_addons.R")            
+        }
 
     } else {
         stop("Folder including given string in the name is not present in fcs/4_subsets!")
@@ -59,3 +163,10 @@ for (data_sub in data_subsets) {
 }
 
 
+end_time <- Sys.time()
+
+timediff <- round(as.numeric(gsub('Time difference of ', '', difftime(end_time, start_time, units = "hours"))), 2)
+
+cat(paste0(date, '_', naming, ' analysis run ended successfully\n', 'Total time elapsed (in hours): ', timediff),'\n')
+
+sink()

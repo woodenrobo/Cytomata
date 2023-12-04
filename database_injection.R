@@ -9,6 +9,12 @@ input <- input[grepl(".fcs$", input)]
 
 ifelse(!dir.exists(parquet_out_path), dir.create(parquet_out_path), FALSE)
 
+
+start_time <- Sys.time()
+date <- gsub('-', '', strsplit(x = as.character(start_time), split = ' ')[[1]][1])
+#creating a logfile where all output will go
+sink(file = paste0(log_folder, date, "_", project_name, "_db_injection_log.txt"), split = TRUE)
+
 #meta-based filtering out of duplicate anchors here to select input
 duplicated_anchors <- unlist(meta[meta$id %in% anchor_ids & duplicated(meta$id), "fcs"])
 cat("\n", length(duplicated_anchors), "anchor samples detected in meta, they will be omitted\n")
@@ -72,3 +78,12 @@ meansd <- left_join(means, stdev, by = "channel")
 setwd(meta_folder)
 write.csv(meansd, file = "meansd.csv", row.names = FALSE)
 
+
+end_time <- Sys.time()
+
+timediff <- round(as.numeric(gsub("Time difference of ", "", difftime(end_time, start_time, units = "mins"))), 2)
+
+cat(paste0(date, " ", project_name, " database injection ended successfully\n", "Total time elapsed in minutes: ", timediff),"\n")
+
+
+sink()

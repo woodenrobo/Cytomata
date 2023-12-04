@@ -19,7 +19,7 @@ ks_testing <- "pairwise"
 start_time <- Sys.time()
 date <- gsub('-', '', strsplit(x = as.character(start_time), split = ' ')[[1]][1])
 #creating a logfile where all output will go
-sink(file = paste0(log_folder, date, "_", project_name, "_log.txt"), split = TRUE)
+sink(file = paste0(log_folder, date, "_", project_name, "norm_log.txt"), split = TRUE)
 
 setwd(path_to_cytomata)
 source("./normalization/normalization_functions.R")

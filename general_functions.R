@@ -132,7 +132,6 @@ inject_fcs <- function(input, filter_features, asinh_transform, cofac, sampling_
     sample_counts <- as.data.frame(table(exprs_set$sample))
     colnames(sample_counts) <- c("sample", "freq")
 
-    event_cutoff <- as.numeric(settings$value[settings$setting == "event_cutoff"])
     if (event_cutoff == 0) {
         cat("Event cutoff of 0 selected, filtering of small samples omitted\n")
         cat("Samples that are too small may skew cluster abundances!\n")
@@ -152,7 +151,7 @@ inject_fcs <- function(input, filter_features, asinh_transform, cofac, sampling_
         cat("Applied arcsinh transformation with the cofactor of", cofac, "\n")
     }
 
-sampling_rate = 4
+
     if (sampling_rate < 1) {
         cat("\n==========\nRANDOM DOWNSAMPLING INITIATED\n==========\n")
         cat("Applied downsampling factor of", sampling_rate, "\n")
@@ -187,6 +186,9 @@ sampling_rate = 4
         pb$tick()
         }
         exprs_set <- temp_set
+
+        rm(exprs_sample, temp_set)
+        gc()
     }
     if (sampling_rate > 1) {
         cat("\n==========\nRANDOM UPSAMPLING INITIATED\n==========\n")
@@ -230,10 +232,12 @@ sampling_rate = 4
         pb$tick()
         }
         exprs_set <- temp_set
+
+        rm(exprs_sample, temp_set)
+        gc()
     }
 
-    rm(exprs_sample, temp_set)
-    gc()
+
 
     return(exprs_set)
 }

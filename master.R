@@ -45,6 +45,7 @@ source("folder_manager.R")
 #set filter to select metafile
 #metafile MUST have following columns: "id", "fcs", "batch", "analysis" and "group". script supports having multiple grouping-columns (e.g. "group_2", "group_3" etc.)
 #analysis column defines whether sample should be included in final analysis. duplicates of anchor/reference files are filtered out by default during analysis
+#analysis column also accepts values of 0 for samples to be dropped from final analysis or 2 for samples added after the main analysis run (if previous clustering needs to be preserved)
 meta <- load_metafile(meta_naming_scheme = settings$value[settings$setting == "meta_naming_scheme"])
 #samples that will be dropped from analysis have to be assigned "drop" in the respective "group" column
 #extracting marker panel. check "feature" variable and set it to 0 for unused channels.
@@ -62,7 +63,7 @@ feature_markers <- panel$antigen[panel$feature == 1]
 #Lev's unbiased batch adjustment (LUBA)  ################
 #automatically chooses the best anchor out of available, supports multi-step(anchor) adjustment
 #automatically chooses optimal percentile via peak recognition and diversity metric estimation
-anchor_ids <- unlist(strsplit(settings$value[settings$setting == "anchor_ids"], split=", ", fixed = TRUE))
+anchor_ids <- unlist(strsplit(settings$value[settings$setting == "anchor_ids"], split = ", ", fixed = TRUE))
 
 if (settings$value[settings$setting == "do_normalization"] == 1) {
     #anchor = technical replicate included with each batch. Can be one or multiple. If multiple, normalization is done in order from left to right

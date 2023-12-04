@@ -30,17 +30,9 @@ log_folder <- paste0(output_folder, "logs", "/")
 ifelse(!dir.exists(log_folder), dir.create(log_folder), FALSE)
 
 
-output_analysis <- paste0(output_folder, "output", "/")
+output_analysis <- paste0(output_folder, "analysis", "/")
 ifelse(!dir.exists(output_analysis), dir.create(output_analysis), FALSE)
 
-output_clustering <- paste0(output_analysis, "output", "/")
-ifelse(!dir.exists(output_clustering), dir.create(output_clustering), FALSE)
-
-output_exploration <- paste0(output_analysis, "output", "/")
-ifelse(!dir.exists(output_exploration), dir.create(output_exploration), FALSE)
-
-output_core <- paste0(output_analysis, "output", "/")
-ifelse(!dir.exists(output_core), dir.create(output_core), FALSE)
 
 
 cat("Folders for project    ||", project_name, "||    were successfully created\n", sep = "\t")
