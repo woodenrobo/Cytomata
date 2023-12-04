@@ -37,7 +37,6 @@ project_name <- settings$value[settings$setting == "project_name"]
 
 
 
-
 #this script prepares folder structure for the new project
 setwd(path_to_cytomata)
 source("folder_manager.R")

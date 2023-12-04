@@ -31,13 +31,14 @@ source("./analysis/analysis_plots.R")
 
 
 data_sub_counter <- 0
+data_sub <- data_subsets[1]
 for (data_sub in data_subsets) {
     cat(paste0("\n DATA SUBSET SELECTED IS: ", data_sub, "\n"))
     setwd(subset_folder)
     if (grepl(data_sub, dir())) {
         data_sub_counter <- data_sub_counter + 1
 
-        output_data_sub_analysis <- paste0(output_analysis, data_sub, "/")
+        output_data_sub_analysis <- paste0(output_analysis, data_sub, "/", date, "/")
         ifelse(!dir.exists(output_data_sub_analysis), dir.create(output_data_sub_analysis), FALSE)
         output_clustering <- paste0(output_data_sub_analysis, "clustering", "/")
         ifelse(!dir.exists(output_clustering), dir.create(output_clustering), FALSE)
@@ -139,7 +140,8 @@ for (data_sub in data_subsets) {
         }
 
 
-    
+        #plotting samplesizes in absolute values, also export as a csv table
+        sample_size_bars()
 
 
 

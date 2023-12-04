@@ -141,7 +141,7 @@ inject_fcs <- function(input, filter_features, asinh_transform, cofac, sampling_
         exprs_set <- exprs_set[!exprs_set$sample %in% small_samples, ]
         cat(length(small_samples), "samples were filtered out!\n")
         print(small_samples)
-        sample_counts <- as.data.frame(table(exprs_set$sample))
+        sample_counts <<- as.data.frame(table(exprs_set$sample))
         colnames(sample_counts) <- c("sample", "freq")
     }
 
