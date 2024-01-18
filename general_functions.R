@@ -80,6 +80,40 @@ load_panel <- function(...) {
 }
 
 
+check_sampling_rate_changes <- function() {
+    if (sum(grepl(paste0("first_run_sampling_rate"), dir(output_data_sub)) == TRUE) > 0) {
+        previous_sampling_rate <- as.numeric(read.csv(paste0(output_data_sub, "first_run_sampling_rate.csv"))[-1])
+        if (sampling_rate != previous_sampling_rate) {
+            cat("Sampling rate has changed since the first run!\n",
+            "Restoring previous clustering and UMAP results will not be possible!\n")
+
+            if (interactive()) {
+                answer <- readline(paste0("Do you wish to proceed? New clustering and UMAP will be calculated!\n",
+                                "If yes, type \"continue\"\n",
+                                "If not, type \"backup\" to automatically set the old sampling_rate\n"))
+            } else {
+                answer <- "continue"
+                cat("\n\n****************************************************\n",
+                    "ATTENTION! NEW CLUSTERING AND UMAP WILL BE CALCULATED!\n",
+                    "STOP NOW IF YOU DO NOT WISH TO OVERWRITE THE RESULTS!",
+                    "\n****************************************************\n\n")
+            }
+
+            if (answer == "backup") {
+                sampling_rate <- previous_sampling_rate
+                cat("You have chosen to reset back to the sampling rate of", sampling_rate, "\n")
+            } else if (answer == "continue") {
+                cat("Continuing with new sampling rate of", sampling_rate, "\n")
+            } else {
+                cat("It seems you have typed an incorrect answer!\n")
+                check_sampling_rate_changes()
+            }
+        }
+    }
+
+}
+
+
 inject_fcs <- function(input, filter_features, asinh_transform, cofac, sampling_rate, silent = FALSE, event_cutoff) {
     library(flowCore)
     library(progress)
@@ -141,7 +175,7 @@ inject_fcs <- function(input, filter_features, asinh_transform, cofac, sampling_
         exprs_set <- exprs_set[!exprs_set$sample %in% small_samples, ]
         cat(length(small_samples), "samples were filtered out!\n")
         print(small_samples)
-        sample_counts <<- as.data.frame(table(exprs_set$sample))
+        sample_counts <- as.data.frame(table(exprs_set$sample))
         colnames(sample_counts) <- c("sample", "freq")
     }
 
@@ -219,8 +253,8 @@ inject_fcs <- function(input, filter_features, asinh_transform, cofac, sampling_
                     added_event_number <- target_event_number - starting_event_number
                 } 
                 exprs_sample <- exprs_set[exprs_set$sample == s, ]
-                exprs_sample$resampled <- "no"
                 exprs_sample_resampled <- exprs_sample[sample(length(exprs_sample), size = added_event_number, replace = TRUE), ]
+                exprs_sample$resampled <- "no"
                 exprs_sample_resampled$resampled <- "yes"
                 exprs_sample <- rbind(exprs_sample, exprs_sample_resampled)
                 temp_set <- rbind(temp_set, exprs_sample)
@@ -232,12 +266,11 @@ inject_fcs <- function(input, filter_features, asinh_transform, cofac, sampling_
         pb$tick()
         }
         exprs_set <- temp_set
-
         rm(exprs_sample, temp_set)
         gc()
     }
 
 
-
+    sample_counts <<- sample_counts
     return(exprs_set)
 }

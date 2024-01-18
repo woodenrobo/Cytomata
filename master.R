@@ -67,18 +67,14 @@ anchor_ids <- unlist(strsplit(settings$value[settings$setting == "anchor_ids"], 
 if (settings$value[settings$setting == "do_normalization"] == 1) {
     #anchor = technical replicate included with each batch. Can be one or multiple. If multiple, normalization is done in order from left to right
     #files are saved to fcs/3_normalized/<anchor_id>
-    #if TRUE, optimal anchor is automatically selected individually for each channel
-    #if FLASE, optimal anchor is selected globally, for all channels - NOT IMPLEMENTED YET!
-    find_anchor_by_channel <- TRUE
+    #optimal anchor is automatically selected individually for each channel (only for the first anchor)
     setwd(path_to_cytomata)
     source("./normalization/normalization_master.R")
 }
 
 
-
-
 #FULL DATA MEAN AND SD CALCULATION FOR SCALING  ################
-if (settings$value[settings$setting == "do_normalization"] == 1) {
+if (settings$value[settings$setting == "do_database_injection"] == 1) {
     setwd(path_to_cytomata)
     source("database_injection.R")
 }

@@ -11,7 +11,7 @@ automatic_palette <- as.numeric(settings$value[settings$setting == "automatic_pa
 
 if (automatic_palette < 1) {
     #type your custom palette here
-    custom_palette <- c("small_mouse" = "red", "big_mouse" = "blue")
+    palette <- c("small_mouse" = "red", "big_mouse" = "blue")
 }
 
 #DEFAULT THEMES PLACEHOLDER

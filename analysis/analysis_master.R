@@ -1,13 +1,19 @@
 #APPLYING SETTINGS ######
+first_run_mode <- as.numeric(settings$value[settings$setting == "first_run_mode"])
 grouping_columns <- unlist(strsplit(settings$value[settings$setting == "grouping_columns"], split = ", ", fixed = TRUE))
 data_subsets <- unlist(strsplit(settings$value[settings$setting == "data_subsets"], split = ", ", fixed = TRUE))
 sampling_factors <- as.numeric(unlist(strsplit(settings$value[settings$setting == "sampling"], split = ", ", fixed = TRUE)))
 event_cutoff <- as.numeric(settings$value[settings$setting == "event_cutoff"])
 low_var_feature_removal <- as.numeric(unlist(strsplit(settings$value[settings$setting == "low_var_feature_removal"], split = ", ", fixed = TRUE)))
-if (length(low_var_feature_removal) > 1 & low_var_feature_removal[1] == 1) {
+low_var_feature_removal <- as.numeric(unlist(strsplit(settings$value[settings$setting == "low_var_feature_removal"], split = ", ", fixed = TRUE)))
+fs_n_dims <- as.numeric(settings$value[settings$setting == "fs_n_dims"])
+ccp_delta_cutoff <- as.numeric(settings$value[settings$setting == "ccp_delta_cutoff"])
+
+
+if (length(low_var_feature_removal) > 1 && low_var_feature_removal[1] == 1) {
     top_var_features <- low_var_feature_removal[2]
 }
-if (length(low_var_feature_removal) == 1 & low_var_feature_removal[1] == 1) {
+if (length(low_var_feature_removal) == 1 && low_var_feature_removal[1] == 1) {
     top_var_features <- 20
 }
 clustering_engine <- settings$value[settings$setting == "clustering_engine"]
@@ -38,6 +44,8 @@ for (data_sub in data_subsets) {
     if (grepl(data_sub, dir())) {
         data_sub_counter <- data_sub_counter + 1
 
+        output_data_sub <- paste0(output_analysis, data_sub, "/")
+        ifelse(!dir.exists(output_data_sub), dir.create(output_data_sub), FALSE)
         output_data_sub_analysis <- paste0(output_analysis, data_sub, "/", date, "/")
         ifelse(!dir.exists(output_data_sub_analysis), dir.create(output_data_sub_analysis), FALSE)
         output_clustering <- paste0(output_data_sub_analysis, "clustering", "/")
@@ -49,7 +57,7 @@ for (data_sub in data_subsets) {
 
 
 
-        input <- dir(recursive = TRUE, include.dirs = FALSE)[grepl(data_sub, dir(recursive = TRUE, include.dirs = FALSE))]
+        input <- dir(subset_folder, recursive = TRUE, include.dirs = FALSE)[grepl(data_sub, dir(recursive = TRUE, include.dirs = FALSE))]
         stripped_input <- gsub(paste0(data_sub, "/"), "", input)
         #DUE TO 0 CELLS IN SOME SAMPLES AFTER PRE-GATING
         #REMOVE ALL FILES SMALLER THAN 8 kB (normally 0 or 1 events)
@@ -80,6 +88,9 @@ for (data_sub in data_subsets) {
         final_input <- input[stripped_input %in% meta_input]
 
         sampling_rate <- sampling_factors[data_sub_counter]
+
+        check_sampling_rate_changes()
+
         #settings for transformation
         asinh_transform <- TRUE
         cofac <- 5
@@ -143,6 +154,9 @@ for (data_sub in data_subsets) {
         #plotting samplesizes in absolute values, also export as a csv table
         sample_size_bars()
 
+        exprs_set <- merge_exprs_and_meta()
+
+        batch_size_bars()
 
 
         setwd(path_to_cytomata)

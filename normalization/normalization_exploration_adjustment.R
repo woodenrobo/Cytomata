@@ -148,12 +148,17 @@ for (a_id in anchor_ids) {
             answer <- readline(paste0("Are you satisfied with automatic settings?\n",
                             "If not, change settings table in\n",
                             "Cytomata_data/<project_folder>/output/normalization/<anchor_id>/\n",
-                            "please type yes when you are ready   "))
+                            "please type \"continue\" when you are ready\n"))
             } else {
-            answer <- "yes"
+            answer <- "continue"
+        }
+
+        if (answer != "continue") {
+            cat("It seems that your typing was inprecise, we will select \"continue\" for you")
+            answer <- "continue"
         }
         
-        if (answer == "yes") {
+        if (answer == "continue") {
             cat(paste0("Continuing with settings from ", a_id, "/normalization_settings.csv\n"))
             setwd(out_norm_aid_folder)
             settings_table <- read.csv("normalization_settings.csv", row.names = 1)
@@ -329,12 +334,18 @@ for (a_id in anchor_ids) {
             answer <- readline(paste0("Are you satisfied with automatic settings?\n",
                             "If not, change settings table in\n",
                             "Cytomata_data/<project_folder>/output/normalization/<anchor_id>/\n",
-                            "please type yes when you are ready   "))
+                            "please type \"continue\" when you are ready\n"))
             } else {
-            answer <- "yes"
+            answer <- "continue"
+        }
+
+        if (answer != "continue") {
+            cat("It seems that your typing was inprecise, we will select \"continue\" for you")
+            answer <- "continue"
         }
         
-        if (answer == "yes") {
+
+        if (answer == "continue") {
             cat(paste0("Continuing with settings from ", a_id, "/normalization_settings.csv\n"))
             setwd(out_norm_aid_folder)
             settings_table <- read.csv("normalization_settings.csv", row.names = 1)
@@ -402,6 +413,6 @@ for (a_id in anchor_ids) {
             normalize_batches()
 
 
-    }
+        }
     }
 }

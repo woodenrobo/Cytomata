@@ -18,7 +18,7 @@ using(cran_packages)
 #From BioConductor:
 
 bioc_packages <- c("flowCore", "ConsensusClusterPlus", "cydar", "ncdfFlow", "edgeR",
-                  "ComplexHeatmap", "limma")
+                  "ComplexHeatmap", "limma", "M3C")
 
 using_bioconductor(bioc_packages)
 
