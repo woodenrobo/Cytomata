@@ -114,7 +114,7 @@ check_sampling_rate_changes <- function() {
 }
 
 
-inject_fcs <- function(input, filter_features, asinh_transform, cofac, sampling_rate, silent = FALSE, event_cutoff) {
+inject_fcs <- function(input, filter_features, asinh_transform, cofac, sampling_rate = 1, silent = FALSE, event_cutoff = 0) {
     library(flowCore)
     library(progress)
     library(dplyr)

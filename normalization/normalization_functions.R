@@ -207,7 +207,7 @@ percentile_selector_compute <- function() {
         }
         if (ks_testing == "pairwise") {
             temp_diss <- c()
-            for (a_sample in unique(exprs_set$sample)[!unique(exprs_set$sample) %in% a_sample]) {
+            for (a_sample in unique(exprs_set$sample)) {
                 temp_diss <- c(temp_diss, KS.diss(exprs_set[exprs_set$sample == temp_local_optimal_anchor$best_anchor, channel], exprs_set[exprs_set$sample == a_sample, channel]))
             }
             baseline_ks <- mean(temp_diss)
@@ -240,7 +240,7 @@ percentile_selector_compute <- function() {
                 }
                 if (ks_testing == "pairwise") {
                     temp_diss <- c()
-                    for (a_sample in unique(temp_set_norm$sample)[!unique(temp_set_norm$sample) %in% a_sample]) {
+                    for (a_sample in unique(temp_set_norm$sample)) {
                         temp_diss <- c(temp_diss, KS.diss(temp_set_norm[temp_set_norm$sample == temp_local_optimal_anchor$best_anchor, channel], temp_set_norm[temp_set_norm$sample == a_sample, channel]))
                     }
                     temp_ks <- mean(temp_diss)
