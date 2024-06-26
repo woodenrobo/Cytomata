@@ -65,11 +65,11 @@ load_panel <- function(...) {
         p$antigen <- fs@parameters@data[,"desc"]
         p <- as.data.frame(p)
         p <- p[stringr::str_detect(p$fcs_colname, pattern = "[1-9]"),]
-        p$antigen <- stringr::str_split(p$antigen, pattern = "_") %>% sapply(function(x) x[2])
+        p$antigen <- stringr::str_split(p$antigen, pattern = "_", n = 2) %>% sapply(function(x) x[2])
         #remove pre-processing channels (pre-processing has already been done in OMIQ)
         p$feature <- 1
         p[is.na(p$antigen),  "feature"] <- 0
-        p[grepl("B2M|DNA|Bead|LD|Live|Dead|ID|Cell-ID", p$antigen, perl = TRUE), "feature"] <- 0
+        p[grepl("B2M|DNA|Bead|LD|Live|Dead|ID|Cell-ID|Cell_ID", p$antigen, perl = TRUE), "feature"] <- 0
         setwd(meta_folder)
         write.csv(p, "panel.csv", row.names = FALSE)
         cat("Panel extracted from .fcs, saved as .csv in project's /meta folder\n")
@@ -146,7 +146,7 @@ inject_fcs <- function(input, filter_features, asinh_transform, cofac, sampling_
         fcs_channel_name <<- as.vector(fcs@parameters@data$name)
         exprs <- as.data.frame(fcs@exprs)
         cat(nrow(exprs), "events in", rep(basename(f)), "\n")
-        markers <- gsub(pattern = ".*_", replacement = "", x = as.vector(fcs@parameters@data$desc))
+        markers <- gsub(pattern = "^.*?_", replacement = "", x = as.vector(fcs@parameters@data$desc))
         colnames(exprs)[which(!is.na(markers))] <- markers[which(!is.na(markers))]
         if (filter_features == TRUE) {
             exprs <- exprs[, colnames(exprs) %in% feature_markers]
