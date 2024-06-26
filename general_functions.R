@@ -9,6 +9,7 @@ using <- function(...) {
     }
 }
 
+
 using_bioconductor <- function(...) {
     libs <- unlist(list(...))
     req <- unlist(lapply(libs, require, character.only = TRUE))
@@ -18,6 +19,7 @@ using_bioconductor <- function(...) {
         lapply(need, require, character.only = TRUE)
     }
 }
+
 
 using_github <- function(...) {
     libs <- unlist(list(...))
@@ -29,12 +31,31 @@ using_github <- function(...) {
     }
 }
 
+
 parse_settings <- function() {
     library(readxl)
     library(stringr)
     #looking for settings.xlsx in Cytomata root folder
     settings <- read_xlsx("settings.xlsx")
 }
+
+
+update_settings <- function(settings) {
+    library(readxl)
+    library(stringr)
+    #looking for settings.xlsx in Cytomata root folder
+    new_settings <- read_xlsx("settings.xlsx")
+    changed_settings <- unlist(new_settings[new_settings$value != settings$value & !is.na(new_settings$value), "setting"])
+    if (length(changed_settings) > 0) {
+        settings[settings$setting %in% changed_settings, "value"] <- new_settings[new_settings$setting %in% changed_settings, "value"]
+        cat("Changes found in settings:\n")
+        cat(paste(changed_settings, collapse = "\n"), "\n")
+        cat("New values applied\n")
+    } else {
+        cat("No changes found in settings.\n")
+    }
+}
+
 
 load_metafile <- function(meta_naming_scheme) {
     library(readxl)
@@ -56,6 +77,7 @@ load_panel <- function(...) {
         cat("Panel restored from .csv\n")
         return(p)
     } else {
+        excluded_channels <- paste0(unlist(strsplit(settings$value[settings$setting == "excluded_channels"], split = ", ", fixed = TRUE)), collapse = "|")
         #all features need to have the same name across the samples
         setwd(debar_folder)
         fcs <- dir(debar_folder)[1]
@@ -69,14 +91,13 @@ load_panel <- function(...) {
         #remove pre-processing channels (pre-processing has already been done in OMIQ)
         p$feature <- 1
         p[is.na(p$antigen),  "feature"] <- 0
-        p[grepl("B2M|DNA|Bead|LD|Live|Dead|ID|Cell-ID|Cell_ID", p$antigen, perl = TRUE), "feature"] <- 0
+        p[grepl(excluded_channels, p$antigen, perl = TRUE), "feature"] <- 0
         setwd(meta_folder)
         write.csv(p, "panel.csv", row.names = FALSE)
         cat("Panel extracted from .fcs, saved as .csv in project's /meta folder\n")
         cat("Please set \"feature\" variable to 0 for empty or unused channels\n")
         return(p)
     }
-
 }
 
 
