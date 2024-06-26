@@ -5,9 +5,7 @@ data_subsets <- unlist(strsplit(settings$value[settings$setting == "data_subsets
 sampling_factors <- as.numeric(unlist(strsplit(settings$value[settings$setting == "sampling"], split = ", ", fixed = TRUE)))
 event_cutoff <- as.numeric(settings$value[settings$setting == "event_cutoff"])
 low_var_feature_removal <- as.numeric(unlist(strsplit(settings$value[settings$setting == "low_var_feature_removal"], split = ", ", fixed = TRUE)))
-low_var_feature_removal <- as.numeric(unlist(strsplit(settings$value[settings$setting == "low_var_feature_removal"], split = ", ", fixed = TRUE)))
-fs_n_dims <- as.numeric(settings$value[settings$setting == "fs_n_dims"])
-ccp_delta_cutoff <- as.numeric(settings$value[settings$setting == "ccp_delta_cutoff"])
+
 
 
 if (length(low_var_feature_removal) > 1 && low_var_feature_removal[1] == 1) {
@@ -18,6 +16,8 @@ if (length(low_var_feature_removal) == 1 && low_var_feature_removal[1] == 1) {
 }
 clustering_engine <- settings$value[settings$setting == "clustering_engine"]
 clustering_k <- as.numeric(unlist(strsplit(settings$value[settings$setting == "clustering_k"], split = ", ", fixed = TRUE)))
+fs_n_dims <- as.numeric(settings$value[settings$setting == "fs_n_dims"])
+ccp_delta_cutoff <- as.numeric(settings$value[settings$setting == "ccp_delta_cutoff"])
 umap_n <- as.numeric(unlist(strsplit(settings$value[settings$setting == "umap_n"], split = ", ", fixed = TRUE)))
 umap_min_dist <- as.numeric(unlist(strsplit(settings$value[settings$setting == "umap_min_dist"], split = ", ", fixed = TRUE)))
 
@@ -37,7 +37,6 @@ source("./analysis/analysis_plots.R")
 
 
 data_sub_counter <- 0
-data_sub <- data_subsets[1]
 for (data_sub in data_subsets) {
     cat(paste0("\n DATA SUBSET SELECTED IS: ", data_sub, "\n"))
     setwd(subset_folder)
