@@ -5,31 +5,6 @@ merge_exprs_and_meta <- function() {
 }
 
 
-continue_or_recluster <- function() {
-    if (interactive() && first_run_mode > 0) {
-        answer <- readline(paste0("Are you satisfied with clustering results?\n",
-                        "If yes, type \"continue\"\n",
-                        "If not, change settings table in\n",
-                        "<Cytomata_folder>/\n",
-                        "and type \"recluster\" when you are ready\n"))
-    } else {
-        answer <- "continue"
-    }
-
-    if (answer == "recluster") {
-        clustering_mode <- "do_clustering"
-        do_clustering()
-        do_clustering_diagnostics()
-        continue_or_recluster()
-    } else if (answer == "continue") {
-        cat("Continuing with current clustering results\n")
-    } else {
-        cat("It seems you have typed an incorrect answer!\n")
-        continue_or_recluster()
-    }
-}
-
-
 set_clustering_mode <- function() {
     #check for ad-hoc (after first clustering) additions or removal of samples
     #column "analysis" in metafile has to contain "2" for samples that were added after the first round of clustering
@@ -71,7 +46,6 @@ drop_resampled_events <- function() {
 
 merge_exprs_and_clusters <- function() {
     temp <- cbind(exprs_set, clusters)
-
     colnames(temp)[colnames(temp) %in% "sample"] <- "fcs"
     return(temp)
 }
@@ -329,6 +303,65 @@ continue_or_recluster <- function() {
 }
 
 
+merge_and_annotate <- function() {
+    if (first_run_mode > 0) {
+        cat("Creating cluster merging and annotation file\n")
+        cluster_annot <- as.data.frame(seq_along(unique(exprs_set$meta_cluster_id)))
+        colnames(cluster_annot) <- "original_clusters"
+        cluster_annot$merge_with <- "NA"
+        cluster_annot$annotation <- "NA"
+        cluster_annot$guide <- "NA"
+        cluster_annot$guide[1] <- "merge_with: put number of cluster that you want to merge this cluster into (merging is done from highest number to lowest)" 
+        cluster_annot$guide[2] <- "merge_with: put 0 in order to delete the cluster"
+        cluster_annot$guide[3] <- "annotation: here you can annotate your clusters"   
+        cluster_annot$guide[4] <- "annotation: If you put any values other than \"NA\" into this column, plots with annotation will be created"
+        xlsx::write.xlsx(cluster_annot, file = paste0(output_data_sub, "cluster_merging_and_annotation.xlsx"))
+    }
+
+
+    skip_or_merge_and_annotate()
+}
+
+
+skip_or_merge_and_annotate <- function() {
+    if (interactive() && first_run_mode > 0) {
+        answer <- readline(paste0("Do you want to manually merge, delete or annotate clusters?\n",
+                        "If yes, go to <project_folder>/output/analysis/<data_subset>/cluster_merging_and_annotation.xlsx\n",
+                        "Type \"continue\" when you are ready\n",
+                        "Or type \"skip\" to skip this step\n",
+                        "You can skip it now and do it after inspecting other analysis results.\n"))
+    } else {
+        answer <- "skip"
+    }
+
+    if (answer == "continue") {
+        cluster_annot <- readxl::read_excel(paste0(output_data_sub, "cluster_merging_and_annotation.xlsx"))[-1]
+        cat("Cluster annotations, merging and deletion parameters have been applied, if set.\n")
+        apply_annotation()
+        merge_or_delete_clusters()
+    } else if (answer == "skip") {
+        cat("Continuing without merging, deleting or annotating\n")
+    } else {
+        cat("It seems you have typed an incorrect answer!\n")
+        skip_or_merge_and_annotate()
+    }
+
+    if (first_run_mode < 1) {
+        cluster_annot <- readxl::read_excel(paste0(output_data_sub, "cluster_merging_and_annotation.xlsx"))[-1]
+        cat("Cluster annotations, merging and deletion parameters have been applied, if set.\n")
+        apply_annotation()
+        merge_or_delete_clusters()
+    }
+}
+
+
+apply_annotation <- function() {
+    for (i in cluster_annot$original_clusters) {
+        exprs_set$meta_cluster_annotation[exprs_set$meta_cluster_id == i] <- cluster_annot[cluster_annot$original_clusters == i, "annotation"]
+    }
+}
+
+
 merge_or_delete_clusters <- function() {
     rev_cluster_annot <- cluster_annot[sort(cluster_annot$original_clusters, decreasing = TRUE), ]
     rev_cluster_annot$merge_with <- as.numeric(rev_cluster_annot$merge_with)
@@ -344,48 +377,8 @@ merge_or_delete_clusters <- function() {
             exprs_set$meta_cluster_id[exprs_set$meta_cluster_id > from] <- exprs_set$meta_cluster_id[exprs_set$meta_cluster_id > from] - 1           
         }
     }
-
     dropped_events <<- grep("^0$", exprs_set$meta_cluster_id)
     exprs_set <- exprs_set[-dropped_events, ]
-}
-
-
-skip_or_merge_and_annotate <- function() {
-    if (interactive() && first_run_mode > 0) {
-        answer <- readline(paste0("Do you want to manually merge, delete or annotate clusters?\n",
-                        "If yes, go to <project_folder>/output/analysis/<data_subset>/cluster_merging_and_annotation.xlsx\n",
-                        "Type \"continue\" when you are ready\n",
-                        "Or type \"skip\" to skip this step\n"))
-    } else {
-        answer <- "skip"
-    }
-
-    if (answer == "continue") {
-       cluster_annot <- readxl::read_excel(paste0(output_data_sub, "cluster_merging_and_annotation.xlsx"))[-1]
-       
-       merge_or_delete_clusters()
-    } else if (answer == "skip") {
-        cat("Continuing without merging, deleting or annotating\n")
-    } else {
-        cat("It seems you have typed an incorrect answer!\n")
-        skip_or_merge_and_annotate()
-    }
-}
-
-
-merge_and_annotate <- function() {
-    cluster_annot <- as.data.frame(seq_along(unique(exprs_set$meta_cluster_id)))
-    colnames(cluster_annot) <- "original_clusters"
-    cluster_annot$merge_with <- "NA"
-    cluster_annot$annotation <- "NA"
-    cluster_annot$guide <- "NA"
-    cluster_annot$guide[1] <- "merge_with: put number of cluster that you want to merge this cluster into (merging is done from highest number to lowest)" 
-    cluster_annot$guide[2] <- "merge_with: put 0 in order to delete the cluster"
-    cluster_annot$guide[3] <- "annotation: here you can annotate your clusters"   
-    cluster_annot$guide[4] <- "annotation: If you put any values other than \"NA\" into this column, plots with annotation will be created"
-    xlsx::write.xlsx(cluster_annot, file = paste0(output_data_sub, "cluster_merging_and_annotation.xlsx"))
-
-    skip_or_merge_and_annotate()
 }
 
 
