@@ -57,7 +57,7 @@ for (data_sub in data_subsets) {
 
 
 
-        input <- dir(subset_folder, recursive = TRUE, include.dirs = FALSE)[grepl(data_sub, dir(recursive = TRUE, include.dirs = FALSE))]
+        input <- dir(subset_folder, recursive = TRUE, include.dirs = FALSE)[grepl(data_sub, dir(subset_folder, recursive = TRUE, include.dirs = FALSE))]
         stripped_input <- gsub(paste0(data_sub, "/"), "", input)
         #DUE TO 0 CELLS IN SOME SAMPLES AFTER PRE-GATING
         #REMOVE ALL FILES SMALLER THAN 8 kB (normally 0 or 1 events)
@@ -126,9 +126,9 @@ for (data_sub in data_subsets) {
                                 FUN = var, MARGIN=2)
             variances <- variances[order(variances, decreasing = TRUE)]
             cat("\n Features are pre-selected based on variance due to low_var_feature_removal setting \n")
-            cat('\n TOP', high_var_top, 'variable markers are:\n')
+            cat('\n TOP', top_var_features, 'variable markers are:\n')
             print(variances[1:top_var_features])
-            cat('\n Features removed due to low variance are:\n', names(variances[-(1:high_var_top)]),'\n')
+            cat('\n Features removed due to low variance are:\n', names(variances[-(1:top_var_features)]),'\n')
             remove <- names(variances[-(1:top_var_features)])
             clustering_feature_markers <- setdiff(x = feature_markers, y = remove)
         } else {
@@ -138,6 +138,7 @@ for (data_sub in data_subsets) {
             write.csv(clustering_feature_markers, paste0(meta_folder, data_sub, "_first_run_features.csv"), row.names = FALSE)
         }
 
+        check_feature_input_changes()
 
         
         ## z-normalize the expression levels #########################

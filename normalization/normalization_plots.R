@@ -493,11 +493,12 @@ diagnostics_mean_boxplots <- function() {
                             axis.title.y = element_text(margin=margin(t = 0, r = 10, b = 0, l = 10, unit = "pt")),
                             plot.margin = margin(t = 0, r = 10, b = 10, l = 0, unit = "pt")
     ) +
-    labs(x = "Normalization state", y = "Mean signal intensity")
+    labs(x = "Normalization state", y = "Mean signal intensity") +
+    scale_y_continuous(limits = c(0, NA))
   )
   ggsave(paste0(date, "_", project_name, "_channel_means_before_after.pdf"), 
          plot = last_plot(), device = "pdf", path = out_norm_aid_diag_folder, 
-         scale = 1, width = 1.2*col_number, height = 2.2*ceiling(length(unique(before_after_means$channel))/col_number))
+         scale = 1, width = 1.2*col_number, height = 2*ceiling(length(unique(before_after_means$channel))/col_number))
 }
 
 diagnostics_mean_barplots <- function() {
@@ -520,9 +521,10 @@ diagnostics_mean_barplots <- function() {
                             legend.margin = margin(t = 0, r = 10, b = 0, l = 10, unit = "pt"),
                             plot.margin = margin(t = 0, r = 0, b = 10, l = 0, unit = "pt")
     ) +
-    labs(y = "Mean signal intensity", fill = "Norm. state")
+    labs(y = "Mean signal intensity", fill = "Norm. state") +
+    scale_y_continuous(limits = c(0, NA))
   )
   ggsave(paste0(date, "_", project_name, "_channel_means_before_after_per_anchor.pdf"), 
          plot = last_plot(), device = "pdf", path = out_norm_aid_diag_folder, 
-         scale = 0.7, width = 0.4*col_number*length(unique(before_after_means$sample)), height = 5*ceiling(length(unique(before_after_means$channel))/col_number))
+         scale = 0.5, width = 5*col_number+(0.4*length(unique(before_after_means$sample))), height = 5*ceiling(length(unique(before_after_means$channel))/col_number))
 }

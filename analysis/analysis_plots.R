@@ -79,10 +79,12 @@ batch_size_bars <- function() {
 
 
 make_palette <- function(variable_name) {
+  set.seed(1234)
   palette <- Polychrome::createPalette(length(unique(exprs_set[, variable_name])), c("#010101", "#ff0000"), M = 10000)
-  names(palette) <- unique(exprs_set[, variable_name])
+  names(palette) <- gtools::mixedsort(unique(exprs_set[, variable_name]))
   return(palette)
 }
+
 
 
 cluster_size_bars <- function() {
@@ -181,8 +183,7 @@ cluster_expr_heatmap <- function(expression_setting, scale) {
   rownames(cluster_matrix) <- paste0("C", seq_len(nrow(cluster_matrix)))
 
   cluster_cols <- make_palette("meta_cluster_id")
-  names(cluster_cols) <- c(paste0("C", names(hm_cols)))
-
+  names(cluster_cols) <- c(paste0("C", names(cluster_cols)))
 
   if (scale == TRUE) {
   pdf(file = paste0(output_clustering, "heatmap_cluster_expr_", expression_setting, "_scaled", ".pdf"), width = 0.85 * (nrow(cluster_matrix)), height = 0.7 * (length(clustering_feature_markers)))
@@ -193,14 +194,14 @@ cluster_expr_heatmap <- function(expression_setting, scale) {
                                   annotation_legend_param = list(cluster = list(ncol = 2, 
                                                                                 title = "Cluster",
                                                                                 title_position = "topcenter",
-                                                                                at = gtools::mixedsort(names(hm_cols)),
+                                                                                at = gtools::mixedsort(names(cluster_cols)),
                                                                                 grid_height = unit(0.02 * length(feature_markers), "cm"),
                                                                                 grid_width = unit(0.02 * length(feature_markers), "cm"),
                                                                                 labels_gp = gpar(fontsize = 0.8 * length(feature_markers)),
                                                                                 title_gp = gpar(fontsize = 0.8 * length(feature_markers))
                                                                                 )
                                                                 ),
-                                  col = list(cluster = hm_cols),
+                                  col = list(cluster = cluster_cols),
                                   na_col = "white",
                                   show_annotation_name = FALSE
                                  )  

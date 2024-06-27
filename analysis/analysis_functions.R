@@ -4,13 +4,13 @@ merge_exprs_and_meta <- function() {
     return(temp)
 }
 
-first_run_mode_check <- function() {
-    if (interactive() && first_run_mode > 0 && new_samples_mode==TRUE || interactive() && first_run_mode > 0 && dropped_samples_mode==TRUE) {
+first_run_mode_check <- function() { 
+    if (interactive() && first_run_mode > 0 && new_samples_mode > 0 || interactive() && first_run_mode > 0 && dropped_samples_mode > 0) {
         answer <- readline(paste0("Did you forget to switch off first_run_mode? New or dropped samples detected in meta\n",
                         "Change settings table in\n",
                         "<Cytomata_folder>/\n",
                         "and type \"continue\" when you are ready\n"))
-    } else {
+    } else if (first_run_mode > 0 && new_samples_mode > 0 || first_run_mode > 0 && dropped_samples_mode > 0) {
         cat("New or dropped samples detected in meta. You forgot to switch off first_run_mode! We will switch it off for you.\n")
         answer <- "continue"
     }
@@ -22,6 +22,7 @@ first_run_mode_check <- function() {
         cat("It seems you have typed an incorrect answer!\n")
         first_run_mode_check()
     }
+    answer <<- NULL
 }
 
 set_clustering_mode <- function() {
@@ -223,10 +224,10 @@ do_clustering <- function() {
             colnames(codes) <- c(sprintf("som%s", k), sprintf("meta%s", mcs))
 
             #storing SOM and metacluster assignments using optimal k
-            exprs_set$som_cluster_id <- factor(som$map$mapping[, 1])
-            exprs_set$meta_cluster_id <- NA
+            exprs_set$som_cluster_id <<- factor(som$map$mapping[, 1])
+            exprs_set$meta_cluster_id <<- NA
             for (som_clust in seq(k)){
-                exprs_set$meta_cluster_id[exprs_set$som_cluster_id == som_clust] <- codes[codes$som100 == som_clust, paste0("meta", optimal_k)]
+                exprs_set$meta_cluster_id[exprs_set$som_cluster_id == som_clust] <<- codes[codes$som100 == som_clust, paste0("meta", optimal_k)]
             }
 
             drop_resampled_events()
@@ -259,10 +260,10 @@ do_clustering <- function() {
             colnames(codes) <- c(sprintf("som%s", k), sprintf("meta%s", mcs))
 
             #storing SOM and metacluster assignments
-            exprs_set$som_cluster_id <- factor(som$map$mapping[, 1])
-            exprs_set$meta_cluster_id <- NA
+            exprs_set$som_cluster_id <<- factor(som$map$mapping[, 1])
+            exprs_set$meta_cluster_id <<- NA
             for (som_clust in seq(k)){
-                exprs_set$meta_cluster_id[exprs_set$som_cluster_id == som_clust] <- codes[codes$som100 == som_clust, paste0("meta", clustering_k)]
+                exprs_set$meta_cluster_id[exprs_set$som_cluster_id == som_clust] <<- codes[codes$som100 == som_clust, paste0("meta", clustering_k)]
             }
 
             drop_resampled_events()
@@ -275,7 +276,7 @@ do_clustering <- function() {
         if (clustering_engine == "pg") {
             cat("\nClustering with PhenoGraph\n")
             cat("K nearest neighbors of", clustering_k, "was selected in settings\n")
-            exprs_set$meta_cluster_id <- cytof_cluster(xdata = exprs_set[, colnames(exprs_set) %in% clustering_feature_markers], method = "Rphenograph", Rphenograph_k = clustering_k)
+            exprs_set$meta_cluster_id <<- cytof_cluster(xdata = exprs_set[, colnames(exprs_set) %in% clustering_feature_markers], method = "Rphenograph", Rphenograph_k = clustering_k)
             cat(length(unique(meta_cluster_id)), "clusters were detected\n")
 
             drop_resampled_events()
@@ -307,7 +308,7 @@ continue_or_recluster <- function() {
     if (interactive() && first_run_mode > 0) {
         answer <- readline(paste0("Are you satisfied with clustering results?\n",
                         "If yes, type \"continue\"\n",
-                        "If not, change settings table in\n",
+                        "If not, change clustering settings table in\n",
                         "<Cytomata_folder>/\n",
                         "and type \"recluster\" when you are ready\n"))
     } else {
@@ -330,6 +331,7 @@ continue_or_recluster <- function() {
         cat("It seems you have typed an incorrect answer!\n")
         continue_or_recluster()
     }
+    answer <<- NULL
 }
 
 
@@ -382,6 +384,7 @@ skip_or_merge_and_annotate <- function() {
         apply_annotation()
         merge_or_delete_clusters()
     }
+    answer <<- NULL
 }
 
 
