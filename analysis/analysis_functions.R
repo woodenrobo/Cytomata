@@ -4,6 +4,25 @@ merge_exprs_and_meta <- function() {
     return(temp)
 }
 
+first_run_mode_check <- function() {
+    if (interactive() && first_run_mode > 0 && new_samples_mode==TRUE || interactive() && first_run_mode > 0 && dropped_samples_mode==TRUE) {
+        answer <- readline(paste0("Did you forget to switch off first_run_mode? New or dropped samples detected in meta\n",
+                        "Change settings table in\n",
+                        "<Cytomata_folder>/\n",
+                        "and type \"continue\" when you are ready\n"))
+    } else {
+        cat("New or dropped samples detected in meta. You forgot to switch off first_run_mode! We will switch it off for you.\n")
+        answer <- "continue"
+    }
+
+    if (answer == "continue") {
+        cat("Analysis continues with new or dropped samples\n")
+        first_run_mode <<- 0
+    } else {
+        cat("It seems you have typed an incorrect answer!\n")
+        first_run_mode_check()
+    }
+}
 
 set_clustering_mode <- function() {
     #check for ad-hoc (after first clustering) additions or removal of samples
@@ -32,6 +51,16 @@ set_clustering_mode <- function() {
     if (sum(grepl(paste0("clustering", clustering_engine, ".csv"), dir(output_data_sub)) == TRUE) == 0 && sum(grepl(paste0("clustering"), dir(output_data_sub)) == TRUE) > 0) {
         cat("Warning: Clustering engine chosen is different from the one, which already has results present in <data_subset> folder\n")
         cat("Clustering engine", clustering_engine, "will be used\n")
+    }
+
+    if (sampling_rate_changed > 0) {
+        cat("Warning: Sampling rate was changed, clustering will be repeated!\n")
+        clustering_mode <<- "do_clustering"
+    }
+
+    if (feature_input_changed > 0) {
+        cat("Warning: Features selected have changed, clustering will be repeated!\n")
+        clustering_mode <<- "do_clustering"
     }
 
 }
