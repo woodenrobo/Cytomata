@@ -104,6 +104,7 @@ load_panel <- function(...) {
 check_sampling_rate_changes <- function() {
     if (sum(grepl(paste0("first_run_sampling_rate"), dir(output_data_sub)) == TRUE) > 0) {
         previous_sampling_rate <- as.numeric(read.csv(paste0(output_data_sub, "first_run_sampling_rate.csv"))[-1])
+        sampling_rate_changed <- 0
         if (sampling_rate != previous_sampling_rate) {
             cat("Sampling rate has changed since the first run!\n",
             "Restoring previous clustering and UMAP results will not be possible!\n")
@@ -118,6 +119,7 @@ check_sampling_rate_changes <- function() {
                     "ATTENTION! NEW CLUSTERING AND UMAP WILL BE CALCULATED!\n",
                     "STOP NOW IF YOU DO NOT WISH TO OVERWRITE THE RESULTS!",
                     "\n****************************************************\n\n")
+                sampling_rate_changed <- 1
             }
 
             if (answer == "backup") {
@@ -125,13 +127,13 @@ check_sampling_rate_changes <- function() {
                 cat("You have chosen to reset back to the sampling rate of", sampling_rate, "\n")
             } else if (answer == "continue") {
                 cat("Continuing with new sampling rate of", sampling_rate, "\n")
+                sampling_rate_changed <- 1
             } else {
                 cat("It seems you have typed an incorrect answer!\n")
                 check_sampling_rate_changes()
             }
         }
     }
-
 }
 
 
@@ -294,4 +296,40 @@ inject_fcs <- function(input, filter_features, asinh_transform, cofac, sampling_
 
     sample_counts <<- sample_counts
     return(exprs_set)
+}
+
+
+check_feature_input_changes <- function() {
+    if (sum(grepl(paste0("first_run_sampling_rate"), dir(output_data_sub)) == TRUE) > 0) {
+        previous_feature_input <- as.numeric(read.csv(paste0(output_data_sub, "first_run_clust_feature_markers.csv"))[-1])
+        feature_input_changed <- 0
+        if (clustering_feature_markers != previous_feature_input) {
+            cat("Sampling rate has changed since the first run!\n",
+            "Restoring previous clustering and UMAP results will not be possible!\n")
+
+            if (interactive()) {
+                answer <- readline(paste0("Do you wish to proceed? New clustering and UMAP will be calculated!\n",
+                                "If yes, type \"continue\"\n",
+                                "If not, type \"backup\" to automatically set the old sampling_rate\n"))
+            } else {
+                answer <- "continue"
+                cat("\n\n****************************************************\n",
+                    "ATTENTION! NEW CLUSTERING AND UMAP WILL BE CALCULATED!\n",
+                    "STOP NOW IF YOU DO NOT WISH TO OVERWRITE THE RESULTS!",
+                    "\n****************************************************\n\n")
+                feature_input_changed <- 1
+            }
+
+            if (answer == "backup") {
+                sampling_rate <- previous_sampling_rate
+                cat("You have chosen to reset back to the sampling rate of", sampling_rate, "\n")
+            } else if (answer == "continue") {
+                cat("Continuing with new sampling rate of", sampling_rate, "\n")
+                feature_input_changed <- 1
+            } else {
+                cat("It seems you have typed an incorrect answer!\n")
+                check_feature_input_changes()
+            }
+        }
+    }
 }

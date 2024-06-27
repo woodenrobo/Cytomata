@@ -37,6 +37,7 @@ source("./analysis/analysis_plots.R")
 
 
 data_sub_counter <- 0
+data_sub <- data_subsets[1] #FOR TESTING, REMOVE LATER
 for (data_sub in data_subsets) {
     cat(paste0("\n DATA SUBSET SELECTED IS: ", data_sub, "\n"))
     setwd(subset_folder)
@@ -108,12 +109,15 @@ for (data_sub in data_subsets) {
             exprs_set$sample_state[exprs_set$sample %in% filtered_meta$fcs[filtered_meta$analysis < 1]] <- "dropped"
         }
 
+        first_run_mode_check()
 
         #SET FEATURES TO BE USED FOR CLUSTERING AND AUTOMATIC VISUALIZATION ######
         #this is also used for ordering of features in plots
         if (length(dir(meta_folder, pattern = "subset_feature_selection.xlsx")) > 0) {
             subset_feature_selection <- read_xlsx(paste0(meta_folder, "subset_feature_selection.xlsx"))
             clustering_feature_markers <- unlist(strsplit(subset_feature_selection[subset_feature_selection$subset == data_sub, ] %>% pull(features), split = ", ", fixed = TRUE))
+            cat("\n Features were set from subset_feature_selection.xlsx table \n")
+            cat("\n Features selected for clustering are:\n", clustering_feature_markers, "\n")
         } else if (low_var_feature_removal[1] == 1) {
             ## REMOVE FEATURES WITH LOW VARIANCE ##########################################
             #remove features with low variability from clustering
@@ -121,17 +125,18 @@ for (data_sub in data_subsets) {
             variances <- apply(exprs_set[, !names(exprs_set) %in% c('sample')],
                                 FUN = var, MARGIN=2)
             variances <- variances[order(variances, decreasing = TRUE)]
-            
+            cat("\n Features are pre-selected based on variance due to low_var_feature_removal setting \n")
             cat('\n TOP', high_var_top, 'variable markers are:\n')
             print(variances[1:top_var_features])
-            
             cat('\n Features removed due to low variance are:\n', names(variances[-(1:high_var_top)]),'\n')
             remove <- names(variances[-(1:top_var_features)])
             clustering_feature_markers <- setdiff(x = feature_markers, y = remove)
         } else {
             clustering_feature_markers <- feature_markers
         }
-
+        if (first_run_mode > 0) {
+            write.csv(clustering_feature_markers, paste0(meta_folder, data_sub, "_first_run_features.csv"), row.names = FALSE)
+        }
 
 
         
