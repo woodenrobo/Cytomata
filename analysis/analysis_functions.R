@@ -90,15 +90,18 @@ set_clustering_mode <- function() {
         cat("Warning: Sampling rate was changed, clustering will be repeated!\n")
         clustering_mode <- "do_clustering"
     }
-
+    return(clustering_mode)
 }
 
 
 drop_resampled_events <- function() {
     if (sampling_rate > 1) {
-        exprs_set <- exprs_set[!which(exprs_set$resampled == "yes"), ]
+        output <- exprs_set[!which(exprs_set$resampled == "yes"), ]
         cat("Resampled events were removed\n")
+    } else {
+        output <- exprs_set
     }
+    return(output)
 }
 
 
@@ -251,13 +254,15 @@ do_clustering <- function() {
             colnames(codes) <- c(sprintf("som%s", k), sprintf("meta%s", mcs))
 
             #storing SOM and metacluster assignments using optimal k
-            exprs_set$som_cluster_id <- factor(som$map$mapping[, 1])
-            exprs_set$meta_cluster_id <- NA
+            cluster_ids <- c()
+            cluster_ids$som_cluster_id <- factor(som$map$mapping[, 1])
+            cluster_ids$meta_cluster_id <- NA
             for (som_clust in seq(k)){
-                exprs_set$meta_cluster_id[exprs_set$som_cluster_id == som_clust] <- codes[codes$som100 == som_clust, paste0("meta", optimal_k)]
+                cluster_ids$meta_cluster_id[cluster_ids$som_cluster_id == som_clust] <- codes[codes$som100 == som_clust, paste0("meta", optimal_k)]
             }
+            cluster_ids <- as.data.frame(cluster_ids)
 
-            drop_resampled_events()
+            cluster_assignment <- cluster_ids$meta_cluster_id
 
             cat("Optimal k of", optimal_k, "detected, please refer to", clustering_engine, "mode consensus folder for diagnostics\n")
             cat("Cluster assignment saved for faster post-processing (adjusting figures etc.) runs\n")
@@ -286,18 +291,20 @@ do_clustering <- function() {
             codes <- mutate_all(codes, function(u) factor(u, levels = sort(unique(u))))
             colnames(codes) <- c(sprintf("som%s", k), sprintf("meta%s", mcs))
 
-            #storing SOM and metacluster assignments
-            exprs_set$som_cluster_id <- factor(som$map$mapping[, 1])
-            exprs_set$meta_cluster_id <- NA
+            #storing SOM and metacluster assignments using optimal k
+            cluster_ids <- c()
+            cluster_ids$som_cluster_id <- factor(som$map$mapping[, 1])
+            cluster_ids$meta_cluster_id <- NA
             for (som_clust in seq(k)){
-                exprs_set$meta_cluster_id[exprs_set$som_cluster_id == som_clust] <- codes[codes$som100 == som_clust, paste0("meta", clustering_k)]
+                cluster_ids$meta_cluster_id[cluster_ids$som_cluster_id == som_clust] <- codes[codes$som100 == som_clust, paste0("meta", optimal_k)]
             }
+            cluster_ids <- as.data.frame(cluster_ids)
 
-            drop_resampled_events()
+            cluster_assignment <- cluster_ids$meta_cluster_id
 
             cat("K of", clustering_k, "was selected in settings, please refer to", clustering_engine, "mode consensus folder for diagnostics\n")
             cat("Cluster assignment saved for faster post-processing (adjusting figures etc.) runs\n")
-            write.csv(exprs_set$meta_cluster_id, file = paste0(output_data_sub, "clustering_", clustering_engine, ".csv"))
+            write.csv(cluster_assignment, file = paste0(output_data_sub, "clustering_", clustering_engine, ".csv"))
             write.csv(sampling_rate, file = paste0(output_data_sub, "first_run_sampling_rate.csv"))
         }
         if (clustering_engine == "pg") {
@@ -306,10 +313,8 @@ do_clustering <- function() {
             cluster_assignment <- cytof_cluster(xdata = exprs_set[, colnames(exprs_set) %in% clustering_feature_markers], method = "Rphenograph", Rphenograph_k = clustering_k)
             cat(length(unique(cluster_assignment)), "clusters were detected\n")
 
-            drop_resampled_events()
-
             cat("Cluster assignment saved for faster post-processing (adjusting figures etc.) runs\n")
-            write.csv(exprs_set$meta_cluster_id, file = paste0(output_data_sub, "clustering_", clustering_engine, ".csv"))
+            write.csv(cluster_assignment, file = paste0(output_data_sub, "clustering_", clustering_engine, ".csv"))
             write.csv(sampling_rate, file = paste0(output_data_sub, "first_run_sampling_rate.csv"))
         }
     }

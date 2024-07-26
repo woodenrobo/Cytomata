@@ -4,13 +4,15 @@ sink(file = paste0(log_folder, date, "_", project_name, "_clustering_log.txt"), 
 #checks folders for presence of clustering results from previous runs
 #checks whether analysis column in meta contains "0" or "2" (ad-hoc removal or addition of samples after the first round of clustering)
 #sets clustering mode accordingly
-set_clustering_mode()
+clustering_mode <- set_clustering_mode()
 
 #restores previous clustering, if available
 #reuses available clustering (reuses mapping from FlowSOM or does KNN classification with automatic parameter tuning) if clustering available and new samples were added
 #(if analysis column in meta contains "2")
 #does clustering with selected clustering engine if above is not true
-do_clustering()
+cluster_assignment <- do_clustering()
+
+exprs_set <- drop_resampled_events()
 
 #produces plots for cluster characterization and diagnostics
 do_clustering_diagnostics()
