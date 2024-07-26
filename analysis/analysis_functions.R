@@ -106,8 +106,7 @@ drop_resampled_events <- function() {
 
 
 merge_exprs_and_clusters <- function() {
-    temp <- cbind(exprs_set, cluster_assignment)
-    colnames(temp)[colnames(temp) %in% "sample"] <- "fcs"
+    temp <- left_join(exprs_set, cluster_ids, by = "cell_id")
     return(temp)
 }
 
@@ -374,7 +373,7 @@ continue_or_recluster <- function() {
 
 
 merge_and_annotate <- function() {
-    if (first_run_mode > 0) {
+    if (first_run_mode > 0 && sum(dir(output_data_sub)[grepl("cluster_merging_and_annotation.xlsx", dir(output_data_sub))] == 0)) {
         cat("Creating cluster merging and annotation file\n")
         cluster_annot <- as.data.frame(seq_along(unique(exprs_set$meta_cluster_id)))
         colnames(cluster_annot) <- "original_clusters"
@@ -394,6 +393,7 @@ merge_and_annotate <- function() {
 
 
 skip_or_merge_and_annotate <- function() {
+
     if (interactive() && first_run_mode > 0) {
         answer <- readline(paste0("Do you want to manually merge, delete or annotate clusters?\n",
                         "If yes, go to <project_folder>/output/analysis/<data_subset>/cluster_merging_and_annotation.xlsx\n",
@@ -407,8 +407,8 @@ skip_or_merge_and_annotate <- function() {
     if (answer == "continue") {
         cluster_annot <- readxl::read_excel(paste0(output_data_sub, "cluster_merging_and_annotation.xlsx"))[-1]
         cat("Cluster annotations, merging and deletion parameters have been applied, if set.\n")
-        apply_annotation()
-        merge_or_delete_clusters()
+        apply_annotation(cluster_annot)
+        merge_or_delete_clusters(cluster_annot)
     } else if (answer == "skip") {
         cat("Continuing without merging, deleting or annotating\n")
     } else {
@@ -426,30 +426,33 @@ skip_or_merge_and_annotate <- function() {
 }
 
 
-apply_annotation <- function() {
+apply_annotation <- function(cluster_annot) {
     for (i in cluster_annot$original_clusters) {
         exprs_set$meta_cluster_annotation[exprs_set$meta_cluster_id == i] <- cluster_annot[cluster_annot$original_clusters == i, "annotation"]
     }
 }
 
 
-merge_or_delete_clusters <- function() {
+merge_or_delete_clusters <- function(cluster_annot) {
     rev_cluster_annot <- cluster_annot[sort(cluster_annot$original_clusters, decreasing = TRUE), ]
     rev_cluster_annot$merge_with <- as.numeric(rev_cluster_annot$merge_with)
     #exprs_set$temp <- exprs_set$meta_cluster_id
     for (i in rev_cluster_annot$original_clusters) {
         from <- i
-        to <- rev_cluster_annot[rev_cluster_annot$original_clusters == i, "merge_with"]
+        to <- unlist(rev_cluster_annot[rev_cluster_annot$original_clusters == i, "merge_with"])
         if (is.na(to) == FALSE && to != 0) {
             exprs_set$meta_cluster_id[exprs_set$meta_cluster_id == to | exprs_set$meta_cluster_id == from] <- to
             exprs_set$meta_cluster_id[exprs_set$meta_cluster_id > from] <- exprs_set$meta_cluster_id[exprs_set$meta_cluster_id > from] - 1
-        } else if (to == 0) {
+        } else if (is.na(to) == FALSE && to == 0) {
             exprs_set$meta_cluster_id[exprs_set$meta_cluster_id == from] <- to
             exprs_set$meta_cluster_id[exprs_set$meta_cluster_id > from] <- exprs_set$meta_cluster_id[exprs_set$meta_cluster_id > from] - 1           
         }
     }
-    dropped_events <- grep("^0$", exprs_set$meta_cluster_id)
-    exprs_set <- exprs_set[-dropped_events, ]
+    if (sum(grepl("^0$", exprs_set$meta_cluster_id)) > 0) {
+        dropped_events <<- exprs_set$cell_id[grepl("^0$", exprs_set$meta_cluster_id)]
+        exprs_set <- exprs_set[!exprs_set$cell_id %in% dropped_events, ]
+    }
+
 }
 
 

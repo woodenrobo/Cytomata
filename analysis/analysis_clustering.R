@@ -10,9 +10,11 @@ clustering_mode <- set_clustering_mode()
 #reuses available clustering (reuses mapping from FlowSOM or does KNN classification with automatic parameter tuning) if clustering available and new samples were added
 #(if analysis column in meta contains "2")
 #does clustering with selected clustering engine if above is not true
-cluster_assignment <- do_clustering()
+cluster_ids <- do_clustering()
 
 exprs_set <- drop_resampled_events()
+
+exprs_set <- merge_exprs_and_clusters()
 
 #produces plots for cluster characterization and diagnostics
 do_clustering_diagnostics()
@@ -24,7 +26,6 @@ continue_or_recluster()
 
 merge_and_annotate()
 
-merge_exprs_and_clusters() #WIP!!!!!!!!
 
 
 sink()

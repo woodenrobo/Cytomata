@@ -89,7 +89,7 @@ for (data_sub in data_subsets) {
 
         sampling_rate <- sampling_factors[data_sub_counter]
 
-        check_sampling_rate_changes()
+        sampling_rate_changed <- check_sampling_rate_changes()
 
         #settings for transformation
         asinh_transform <- TRUE
@@ -138,7 +138,7 @@ for (data_sub in data_subsets) {
             write.csv(clustering_feature_markers, paste0(meta_folder, data_sub, "_first_run_features.csv"), row.names = FALSE)
         }
 
-        check_feature_input_changes()
+        feature_input_changed <- check_feature_input_changes()
 
         
         ## z-normalize the expression levels #########################

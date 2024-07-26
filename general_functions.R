@@ -134,6 +134,7 @@ check_sampling_rate_changes <- function() {
         }
     }
     answer <- NULL
+    return(sampling_rate_changed)
 }
 
 
@@ -348,4 +349,5 @@ check_feature_input_changes <- function() {
         }
     }
     answer <- NULL
+    return(feature_input_changed)
 }
