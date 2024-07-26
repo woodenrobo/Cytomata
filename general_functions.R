@@ -102,7 +102,7 @@ load_panel <- function(...) {
 
 
 check_sampling_rate_changes <- function() {
-    sampling_rate_changed <<- 0
+    sampling_rate_changed <- 0
     if (sum(grepl(paste0("first_run_sampling_rate"), dir(output_data_sub)) == TRUE) > 0) {
         previous_sampling_rate <- as.numeric(read.csv(paste0(output_data_sub, "first_run_sampling_rate.csv"))[-1])
         if (sampling_rate != previous_sampling_rate) {
@@ -122,7 +122,7 @@ check_sampling_rate_changes <- function() {
                 cat("You have chosen to reset back to the sampling rate of", sampling_rate, "\n")
             } else if (answer == "continue") {
                 cat("Continuing with new sampling rate of", sampling_rate, "\n")
-                sampling_rate_changed <<- 1
+                sampling_rate_changed <- 1
                 cat("\n\n****************************************************\n",
                     "ATTENTION! NEW CLUSTERING AND UMAP WILL BE CALCULATED!\n",
                     "STOP NOW IF YOU DO NOT WISH TO OVERWRITE THE RESULTS!",
@@ -133,7 +133,7 @@ check_sampling_rate_changes <- function() {
             }
         }
     }
-    answer <<- NULL
+    answer <- NULL
 }
 
 
@@ -165,8 +165,8 @@ inject_fcs <- function(input, filter_features, asinh_transform, cofac, sampling_
     
     for (f in input) {
         fcs <- read.FCS(filename = f, transformation = FALSE, truncate_max_range = FALSE)
-        fcs_channel_desc <<- as.vector(fcs@parameters@data$desc)
-        fcs_channel_name <<- as.vector(fcs@parameters@data$name)
+        fcs_channel_desc <- as.vector(fcs@parameters@data$desc)
+        fcs_channel_name <- as.vector(fcs@parameters@data$name)
         exprs <- as.data.frame(fcs@exprs)
         cat(nrow(exprs), "events in", rep(basename(f)), "\n")
         markers <- gsub(pattern = "^.*?_", replacement = "", x = as.vector(fcs@parameters@data$desc))
@@ -294,13 +294,13 @@ inject_fcs <- function(input, filter_features, asinh_transform, cofac, sampling_
     }
 
 
-    sample_counts <<- sample_counts
+    sample_counts <- sample_counts
     return(exprs_set)
 }
 
 
 check_feature_input_changes <- function() {
-    feature_input_changed <<- 0
+    feature_input_changed <- 0
     if (sum(grepl(paste0(data_sub, "_first_run_features.csv"), dir(meta_folder)) == TRUE) > 0) {
         
         previous_feature_input <- unlist(read.csv(paste0(meta_folder, data_sub, "_first_run_features.csv")))
@@ -325,7 +325,7 @@ check_feature_input_changes <- function() {
                     "ATTENTION! NEW CLUSTERING AND UMAP WILL BE CALCULATED!\n",
                     "STOP NOW IF YOU DO NOT WISH TO OVERWRITE THE RESULTS!",
                     "\n****************************************************\n\n")
-                feature_input_changed <<- 1
+                feature_input_changed <- 1
 
                 cat("\n\n****************************************************\n",
                     "ATTENTION! SELECTED FEATURES ARE THE NEW DEFAULT!\n",
@@ -334,11 +334,11 @@ check_feature_input_changes <- function() {
                 write.csv(clustering_feature_markers, paste0(meta_folder, data_sub, "_first_run_features.csv"), row.names = FALSE)
 
             } else if (answer == "backup") {
-                clustering_feature_markers <<- previous_feature_input
+                clustering_feature_markers <- previous_feature_input
                 cat("You have chosen to reset back to old feature_markers\n")
             } else if (answer == "restore") {
                 cat("You have chosen to restore clustering and UMAPs\n")
-                feature_input_changed <<- 2
+                feature_input_changed <- 2
             } else if (answer != "continue") {
                 cat("\n\nIt seems you have typed an incorrect answer!\n\n")
                 check_feature_input_changes()
@@ -346,5 +346,5 @@ check_feature_input_changes <- function() {
 
         }
     }
-    answer <<- NULL
+    answer <- NULL
 }

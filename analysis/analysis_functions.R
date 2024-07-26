@@ -21,12 +21,12 @@ first_run_mode_check <- function() {
 
     if (answer == "continue") {
         cat("Analysis continues with new or dropped samples\n")
-        first_run_mode <<- 0
+        first_run_mode <- 0
     } else if (answer != "skip") {
         cat("\n\nIt seems you have typed an incorrect answer!\n\n")
         first_run_mode_check()
     }
-    answer <<- NULL
+    answer <- NULL
 }
 
 set_clustering_mode <- function() {
@@ -36,21 +36,21 @@ set_clustering_mode <- function() {
 
     #restore previous ad-hoc clustering if already done
     if (sum(grepl(paste0("clustering_ad_hoc_", clustering_engine, ".csv"), dir(output_data_sub)) == TRUE) > 0 && new_samples_mode == FALSE) {
-        clustering_mode <<- "restore_ad_hoc"
+        clustering_mode <- "restore_ad_hoc"
     #restore previous clustering if already done
     } else if (sum(grepl(paste0("clustering_", clustering_engine, ".csv"), dir(output_data_sub)) == TRUE) > 0 && new_samples_mode == FALSE) {
-        clustering_mode <<- "restore_clustering"
+        clustering_mode <- "restore_clustering"
     #repeat previous ad-hoc clustering if even more samples are added
     } else if (sum(grepl(paste0("clustering_ad_hoc_", clustering_engine, ".csv"), dir(output_data_sub)) == TRUE) > 0 && new_samples_mode == TRUE) {
-        clustering_mode <<- "repeat_ad_hoc"
+        clustering_mode <- "repeat_ad_hoc"
     #do ad-hoc (after first clustering) clustering if more samples are added and clusters need to be preserved
     #column "analysis" in metafile has to contain "2" for samples that were added after the first round of clustering
     #if clustering does not need to be preserved, remove old clustering results from "Cytomata_data/<project_name>/output/analysis/<data_subset>/" folder
     #(or change the sampling rate and see how it feels when a script starts screaming at you)
     } else if (sum(grepl(paste0("clustering_", clustering_engine, ".csv"), dir(output_data_sub)) == TRUE) > 0 && new_samples_mode == TRUE) {
-        clustering_mode <<- "do_ad_hoc"
+        clustering_mode <- "do_ad_hoc"
     } else if (sum(grepl(paste0("clustering_", clustering_engine, ".csv"), dir(output_data_sub)) == TRUE) == 0) {
-        clustering_mode <<- "do_clustering"
+        clustering_mode <- "do_clustering"
     }
 
     if (sum(grepl(paste0("clustering_", clustering_engine, ".csv"), dir(output_data_sub)) == TRUE) == 0 && sum(grepl(paste0("clustering"), dir(output_data_sub)) == TRUE) > 0) {
@@ -63,21 +63,21 @@ set_clustering_mode <- function() {
         if (feature_input_changed == 1) {
             cat("Clustering will be repeated de novo!\n")
             if (sum(grepl(paste0("clustering_", clustering_engine, ".csv"), dir(output_data_sub)) == TRUE) > 0 && new_samples_mode == TRUE) {
-                clustering_mode <<- "do_ad_hoc"
+                clustering_mode <- "do_ad_hoc"
             } else if (sum(grepl(paste0("clustering_", clustering_engine, ".csv"), dir(output_data_sub)) == TRUE) == 0) {
-                clustering_mode <<- "do_clustering"
+                clustering_mode <- "do_clustering"
             }
         }
         if (feature_input_changed == 2) {
             cat("Clustering will be restored but plots will use new features!\n")
             if (sum(grepl(paste0("clustering_ad_hoc_", clustering_engine, ".csv"), dir(output_data_sub)) == TRUE) > 0 && new_samples_mode == FALSE) {
-                clustering_mode <<- "restore_ad_hoc"
+                clustering_mode <- "restore_ad_hoc"
             #restore previous clustering if already done
             } else if (sum(grepl(paste0("clustering_", clustering_engine, ".csv"), dir(output_data_sub)) == TRUE) > 0 && new_samples_mode == FALSE) {
-                clustering_mode <<- "restore_clustering"
+                clustering_mode <- "restore_clustering"
             #repeat previous ad-hoc clustering if even more samples are added
             } else if (sum(grepl(paste0("clustering_ad_hoc_", clustering_engine, ".csv"), dir(output_data_sub)) == TRUE) > 0 && new_samples_mode == TRUE) {
-                clustering_mode <<- "repeat_ad_hoc"
+                clustering_mode <- "repeat_ad_hoc"
             #do ad-hoc (after first clustering) clustering if more samples are added and clusters need to be preserved
             #column "analysis" in metafile has to contain "2" for samples that were added after the first round of clustering
             #if clustering does not need to be preserved, remove old clustering results from "Cytomata_data/<project_name>/output/analysis/<data_subset>/" folder
@@ -88,7 +88,7 @@ set_clustering_mode <- function() {
 
     if (sampling_rate_changed > 0) {
         cat("Warning: Sampling rate was changed, clustering will be repeated!\n")
-        clustering_mode <<- "do_clustering"
+        clustering_mode <- "do_clustering"
     }
 
 }
@@ -103,7 +103,7 @@ drop_resampled_events <- function() {
 
 
 merge_exprs_and_clusters <- function() {
-    temp <- cbind(exprs_set, clusters)
+    temp <- cbind(exprs_set, cluster_assignment)
     colnames(temp)[colnames(temp) %in% "sample"] <- "fcs"
     return(temp)
 }
@@ -113,12 +113,12 @@ do_clustering <- function() {
     if (clustering_mode == "restore_ad_hoc") {
         cat("Using", clustering_engine, "clustering engine\n")
         cat("\nClustering results restored from ad-hoc clustering\n")
-        clusters <- read.csv(dir(output_data_sub)[grepl(paste0("clustering_ad_hoc_", clustering_engine, ".csv"), dir(output_data_sub))])[, 2]
+        cluster_assignment <- read.csv(dir(output_data_sub, full.names = TRUE)[grepl(paste0("clustering_ad_hoc_", clustering_engine, ".csv"), dir(output_data_sub))])[, 2]
     }
     if (clustering_mode == "restore_clustering") {
         cat("Using", clustering_engine, "clustering engine\n")
         cat("\nClustering results restored\n")
-        clusters <- read.csv(dir(output_data_sub)[grepl(paste0("clustering_", clustering_engine, ".csv"), dir(output_data_sub))])[, 2]
+        cluster_assignment <- read.csv(dir(output_data_sub, full.names = TRUE)[grepl(paste0("clustering_", clustering_engine, ".csv"), dir(output_data_sub))])[, 2]
     }
     if (clustering_mode == "repeat_ad_hoc") {
         cat("Using", clustering_engine, "clustering engine\n")
@@ -137,13 +137,13 @@ do_clustering <- function() {
             #https://shihchingfu.github.io/knn-caret-example/
 
             train_data <- exprs_set_trans[!grepl(paste(new_samples, collapse='|'), exprs_set_trans$sample),]
-            true_classes <- clusters
+            true_classes <- cluster_assignment
             test_data <- exprs_set_trans[grepl(paste(new_samples, collapse='|'), exprs_set_trans$sample),]
             train_data <- train_data[, !names(train_data) %in% c('sample')]
             test_data <- test_data[, !names(test_data) %in% c('sample')]
             new_classes <- class::knn(train_data, test_data, true_classes)
             #knn_model <- class::knn(train_data, test_data, true_classes)
-            clusters <- c(true_classes, new_classes)
+            cluster_assignment <- c(true_classes, new_classes)
             #tab <- table(new_classes,true_classes)
         }
 
@@ -172,13 +172,13 @@ do_clustering <- function() {
             #WIP *************************************************************************************************************
 
             train_data <- exprs_set_trans[!grepl(paste(new_samples, collapse='|'), exprs_set_trans$sample),]
-            true_classes <- clusters
+            true_classes <- cluster_assignment
             test_data <- exprs_set_trans[grepl(paste(new_samples, collapse='|'), exprs_set_trans$sample),]
             train_data <- train_data[,!names(train_data) %in% c('sample')]
             test_data <- test_data[,!names(test_data) %in% c('sample')]
             new_classes <- class::knn(train_data, test_data, true_classes)
             #knn_model <- class::knn(train_data, test_data, true_classes)
-            clusters <- c(true_classes, new_classes)
+            cluster_assignment <- c(true_classes, new_classes)
             #tab <- table(new_classes,true_classes)
         }
 
@@ -251,17 +251,17 @@ do_clustering <- function() {
             colnames(codes) <- c(sprintf("som%s", k), sprintf("meta%s", mcs))
 
             #storing SOM and metacluster assignments using optimal k
-            exprs_set$som_cluster_id <<- factor(som$map$mapping[, 1])
-            exprs_set$meta_cluster_id <<- NA
+            exprs_set$som_cluster_id <- factor(som$map$mapping[, 1])
+            exprs_set$meta_cluster_id <- NA
             for (som_clust in seq(k)){
-                exprs_set$meta_cluster_id[exprs_set$som_cluster_id == som_clust] <<- codes[codes$som100 == som_clust, paste0("meta", optimal_k)]
+                exprs_set$meta_cluster_id[exprs_set$som_cluster_id == som_clust] <- codes[codes$som100 == som_clust, paste0("meta", optimal_k)]
             }
 
             drop_resampled_events()
 
             cat("Optimal k of", optimal_k, "detected, please refer to", clustering_engine, "mode consensus folder for diagnostics\n")
             cat("Cluster assignment saved for faster post-processing (adjusting figures etc.) runs\n")
-            write.csv(exprs_set$meta_cluster_id, file = paste0(output_data_sub, "clustering_", clustering_engine, ".csv"))
+            write.csv(cluster_assignment, file = paste0(output_data_sub, "clustering_", clustering_engine, ".csv"))
             write.csv(sampling_rate, file = paste0(output_data_sub, "first_run_sampling_rate.csv"))
             write.csv(optimal_k, file = paste0(output_data_sub, "first_run_fs_optimal_k.csv"))
         }
@@ -287,10 +287,10 @@ do_clustering <- function() {
             colnames(codes) <- c(sprintf("som%s", k), sprintf("meta%s", mcs))
 
             #storing SOM and metacluster assignments
-            exprs_set$som_cluster_id <<- factor(som$map$mapping[, 1])
-            exprs_set$meta_cluster_id <<- NA
+            exprs_set$som_cluster_id <- factor(som$map$mapping[, 1])
+            exprs_set$meta_cluster_id <- NA
             for (som_clust in seq(k)){
-                exprs_set$meta_cluster_id[exprs_set$som_cluster_id == som_clust] <<- codes[codes$som100 == som_clust, paste0("meta", clustering_k)]
+                exprs_set$meta_cluster_id[exprs_set$som_cluster_id == som_clust] <- codes[codes$som100 == som_clust, paste0("meta", clustering_k)]
             }
 
             drop_resampled_events()
@@ -303,8 +303,8 @@ do_clustering <- function() {
         if (clustering_engine == "pg") {
             cat("\nClustering with PhenoGraph\n")
             cat("K nearest neighbors of", clustering_k, "was selected in settings\n")
-            exprs_set$meta_cluster_id <<- cytof_cluster(xdata = exprs_set[, colnames(exprs_set) %in% clustering_feature_markers], method = "Rphenograph", Rphenograph_k = clustering_k)
-            cat(length(unique(meta_cluster_id)), "clusters were detected\n")
+            cluster_assignment <- cytof_cluster(xdata = exprs_set[, colnames(exprs_set) %in% clustering_feature_markers], method = "Rphenograph", Rphenograph_k = clustering_k)
+            cat(length(unique(cluster_assignment)), "clusters were detected\n")
 
             drop_resampled_events()
 
@@ -313,6 +313,7 @@ do_clustering <- function() {
             write.csv(sampling_rate, file = paste0(output_data_sub, "first_run_sampling_rate.csv"))
         }
     }
+    return(cluster_assignment)
 }
 
 
@@ -358,7 +359,7 @@ continue_or_recluster <- function() {
         cat("\n\nIt seems you have typed an incorrect answer!\n\n")
         continue_or_recluster()
     }
-    answer <<- NULL
+    answer <- NULL
 }
 
 
@@ -411,7 +412,7 @@ skip_or_merge_and_annotate <- function() {
         apply_annotation()
         merge_or_delete_clusters()
     }
-    answer <<- NULL
+    answer <- NULL
 }
 
 
@@ -437,7 +438,7 @@ merge_or_delete_clusters <- function() {
             exprs_set$meta_cluster_id[exprs_set$meta_cluster_id > from] <- exprs_set$meta_cluster_id[exprs_set$meta_cluster_id > from] - 1           
         }
     }
-    dropped_events <<- grep("^0$", exprs_set$meta_cluster_id)
+    dropped_events <- grep("^0$", exprs_set$meta_cluster_id)
     exprs_set <- exprs_set[-dropped_events, ]
 }
 
