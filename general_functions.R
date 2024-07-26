@@ -115,11 +115,6 @@ check_sampling_rate_changes <- function() {
                                 "If not, type \"backup\" to automatically set the old sampling_rate\n"))
             } else {
                 answer <- "continue"
-                cat("\n\n****************************************************\n",
-                    "ATTENTION! NEW CLUSTERING AND UMAP WILL BE CALCULATED!\n",
-                    "STOP NOW IF YOU DO NOT WISH TO OVERWRITE THE RESULTS!",
-                    "\n****************************************************\n\n")
-                sampling_rate_changed <<- 1
             }
 
             if (answer == "backup") {
@@ -128,8 +123,12 @@ check_sampling_rate_changes <- function() {
             } else if (answer == "continue") {
                 cat("Continuing with new sampling rate of", sampling_rate, "\n")
                 sampling_rate_changed <<- 1
+                cat("\n\n****************************************************\n",
+                    "ATTENTION! NEW CLUSTERING AND UMAP WILL BE CALCULATED!\n",
+                    "STOP NOW IF YOU DO NOT WISH TO OVERWRITE THE RESULTS!",
+                    "\n****************************************************\n\n")
             } else {
-                cat("It seems you have typed an incorrect answer!\n")
+                cat("\n\nIt seems you have typed an incorrect answer!\n\n")
                 check_sampling_rate_changes()
             }
         }
@@ -302,37 +301,48 @@ inject_fcs <- function(input, filter_features, asinh_transform, cofac, sampling_
 
 check_feature_input_changes <- function() {
     feature_input_changed <<- 0
-    if (sum(grepl(paste0("first_run_sampling_rate"), dir(output_data_sub)) == TRUE) > 0) {
+    if (sum(grepl(paste0(data_sub, "_first_run_features.csv"), dir(meta_folder)) == TRUE) > 0) {
         
-        previous_feature_input <- as.numeric(read.csv(paste0(meta_folder, data_sub, "_first_run_features.csv"))[-1])
-        write.csv(clustering_feature_markers, paste0(meta_folder, data_sub, "_first_run_features.csv"), row.names = FALSE)
-        if (clustering_feature_markers != previous_feature_input) {
-            cat("Sampling rate has changed since the first run!\n",
-            "Restoring previous clustering and UMAP results will not be possible!\n")
+        previous_feature_input <- unlist(read.csv(paste0(meta_folder, data_sub, "_first_run_features.csv")))
+        if (sum(clustering_feature_markers != previous_feature_input) > 0) {
+            cat("Feature markers have changed since the first run!\n",
+            "Restoring previous clustering and UMAP results is NOT RECOMMENDED!\n")
+
+            cat("Old feature markers were:\n", previous_feature_input, "\n",
+                "New feature markers are:\n", clustering_feature_markers, "\n")
 
             if (interactive()) {
-                answer <- readline(paste0("Do you wish to proceed? New clustering and UMAP will be calculated!\n",
+                answer <- readline(paste0("Do you wish to calculate new clustering and UMAP?\n",
                                 "If yes, type \"continue\"\n",
-                                "If not, type \"backup\" to automatically set the old sampling_rate\n"))
+                                "Type \"backup\" to automatically set the old feature_markers\nand restore clustering and UMAPs\n",
+                                "Type \"restore\" to restore clustering and UMAPs but plot using new feature_markers\n"))
             } else {
                 answer <- "continue"
+            }
+
+            if (answer == "continue") {
                 cat("\n\n****************************************************\n",
                     "ATTENTION! NEW CLUSTERING AND UMAP WILL BE CALCULATED!\n",
                     "STOP NOW IF YOU DO NOT WISH TO OVERWRITE THE RESULTS!",
                     "\n****************************************************\n\n")
                 feature_input_changed <<- 1
-            }
 
-            if (answer == "backup") {
-                sampling_rate <- previous_sampling_rate
-                cat("You have chosen to reset back to the sampling rate of", sampling_rate, "\n")
-            } else if (answer == "continue") {
-                cat("Continuing with new sampling rate of", sampling_rate, "\n")
-                feature_input_changed <<- 1
-            } else {
-                cat("It seems you have typed an incorrect answer!\n")
+                cat("\n\n****************************************************\n",
+                    "ATTENTION! SELECTED FEATURES ARE THE NEW DEFAULT!\n",
+                    "YOU WILL NOT BE PROMPTED NEXT TIME!",
+                    "\n****************************************************\n\n")
+                write.csv(clustering_feature_markers, paste0(meta_folder, data_sub, "_first_run_features.csv"), row.names = FALSE)
+
+            } else if (answer == "backup") {
+                clustering_feature_markers <<- previous_feature_input
+                cat("You have chosen to reset back to old feature_markers\n")
+            } else if (answer == "restore") {
+                cat("You have chosen to restore clustering and UMAPs\n")
+            } else if (answer != "continue") {
+                cat("\n\nIt seems you have typed an incorrect answer!\n\n")
                 check_feature_input_changes()
             }
+
         }
     }
     answer <<- NULL

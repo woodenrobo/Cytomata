@@ -12,7 +12,7 @@ sample_size_bars <- function() {
       width = 4,
       height = 2 + (length(unique(exprs_set$sample)) * 0.07))
   print(ggplot(exprs_set,
-    aes(x = factor(exprs_set$sample, levels = stringr::str_sort(unique(exprs_set$sample), numeric = TRUE)))) +
+    aes(x = factor(sample, levels = stringr::str_sort(unique(sample), numeric = TRUE)))) +
     {
       if (sampling_rate > 1) geom_bar(aes(fill = resampled)) else geom_bar(fill = "darkorange")
     } +

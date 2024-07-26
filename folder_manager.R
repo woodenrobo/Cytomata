@@ -1,12 +1,10 @@
 #prepares folder structure for each new project
 
+project_folder <- paste0(path_to_data_folder, project_name, "/")
 if (!dir.exists(project_folder)) {
     cat("Folders for project    ||", project_name, "||    were successfully created\n", sep = "\t")
 }
-
-project_folder <- paste0(path_to_data_folder, project_name, "/")
 ifelse(!dir.exists(project_folder), dir.create(project_folder), FALSE)
-
 
 fcs_folder <- paste0(project_folder, "fcs", "/")
 ifelse(!dir.exists(fcs_folder), dir.create(fcs_folder ), FALSE)

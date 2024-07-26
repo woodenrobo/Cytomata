@@ -13,13 +13,17 @@ first_run_mode_check <- function() {
     } else if (first_run_mode > 0 && new_samples_mode > 0 || first_run_mode > 0 && dropped_samples_mode > 0) {
         cat("New or dropped samples detected in meta. You forgot to switch off first_run_mode! We will switch it off for you.\n")
         answer <- "continue"
+    } else if (first_run_mode > 0 && new_samples_mode == 0 && dropped_samples_mode == 0) {
+        answer <- "skip"
+    } else {
+        answer <- "continue"
     }
 
     if (answer == "continue") {
         cat("Analysis continues with new or dropped samples\n")
         first_run_mode <<- 0
-    } else {
-        cat("It seems you have typed an incorrect answer!\n")
+    } else if (answer != "skip") {
+        cat("\n\nIt seems you have typed an incorrect answer!\n\n")
         first_run_mode_check()
     }
     answer <<- NULL
@@ -328,7 +332,7 @@ continue_or_recluster <- function() {
     } else if (answer == "continue") {
         cat("Continuing with current clustering results\n")
     } else {
-        cat("It seems you have typed an incorrect answer!\n")
+        cat("\n\nIt seems you have typed an incorrect answer!\n\n")
         continue_or_recluster()
     }
     answer <<- NULL
@@ -374,7 +378,7 @@ skip_or_merge_and_annotate <- function() {
     } else if (answer == "skip") {
         cat("Continuing without merging, deleting or annotating\n")
     } else {
-        cat("It seems you have typed an incorrect answer!\n")
+        cat("\n\nIt seems you have typed an incorrect answer!\n\n")
         skip_or_merge_and_annotate()
     }
 

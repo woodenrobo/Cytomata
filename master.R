@@ -57,7 +57,7 @@ feature_markers <- panel$antigen[panel$feature == 1]
 #CLEANING AND DEBARCODING  ################
 #sadly, this part is best done in a cloud-based solution like OMIQ or Cytobank due to the massive data and the fact that gating is still best done manually
 #upload your raw data, remove calibration beads, gate on DNA channels and assign barcode identities
-#also a good place to MAKE SURE ALL CHANNELS HAVE THE SAME NAME
+#also a good place to MAKE SURE ALL CHANNELS HAVE THE SAME NAME BETWEEN BATCHES
 #export and put the files into Cytomata_data/<project_name>/fcs/2_debarcoded/. folder
 
 
