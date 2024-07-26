@@ -116,12 +116,12 @@ do_clustering <- function() {
     if (clustering_mode == "restore_ad_hoc") {
         cat("Using", clustering_engine, "clustering engine\n")
         cat("\nClustering results restored from ad-hoc clustering\n")
-        cluster_assignment <- read.csv(dir(output_data_sub, full.names = TRUE)[grepl(paste0("clustering_ad_hoc_", clustering_engine, ".csv"), dir(output_data_sub))])[, 2]
+        cluster_ids <- read.csv(dir(output_data_sub, full.names = TRUE)[grepl(paste0("clustering_ad_hoc_", clustering_engine, ".csv"), dir(output_data_sub))])[, 2]
     }
     if (clustering_mode == "restore_clustering") {
         cat("Using", clustering_engine, "clustering engine\n")
         cat("\nClustering results restored\n")
-        cluster_assignment <- read.csv(dir(output_data_sub, full.names = TRUE)[grepl(paste0("clustering_", clustering_engine, ".csv"), dir(output_data_sub))])[, 2]
+        cluster_ids <- read.csv(dir(output_data_sub, full.names = TRUE)[grepl(paste0("clustering_", clustering_engine, ".csv"), dir(output_data_sub))])[, 2]
     }
     if (clustering_mode == "repeat_ad_hoc") {
         cat("Using", clustering_engine, "clustering engine\n")
@@ -139,9 +139,9 @@ do_clustering <- function() {
             #use THIS to implement properly
             #https://shihchingfu.github.io/knn-caret-example/
 
-            train_data <- exprs_set_trans[!grepl(paste(new_samples, collapse='|'), exprs_set_trans$sample),]
+            train_data <- exprs_set[!grepl(paste(new_samples, collapse='|'), exprs_set$sample),]
             true_classes <- cluster_assignment
-            test_data <- exprs_set_trans[grepl(paste(new_samples, collapse='|'), exprs_set_trans$sample),]
+            test_data <- exprs_set[grepl(paste(new_samples, collapse='|'), exprs_set$sample),]
             train_data <- train_data[, !names(train_data) %in% c('sample')]
             test_data <- test_data[, !names(test_data) %in% c('sample')]
             new_classes <- class::knn(train_data, test_data, true_classes)
@@ -174,9 +174,9 @@ do_clustering <- function() {
 
             #WIP *************************************************************************************************************
 
-            train_data <- exprs_set_trans[!grepl(paste(new_samples, collapse='|'), exprs_set_trans$sample),]
+            train_data <- exprs_set[!grepl(paste(new_samples, collapse='|'), exprs_set$sample),]
             true_classes <- cluster_assignment
-            test_data <- exprs_set_trans[grepl(paste(new_samples, collapse='|'), exprs_set_trans$sample),]
+            test_data <- exprs_set[grepl(paste(new_samples, collapse='|'), exprs_set$sample),]
             train_data <- train_data[,!names(train_data) %in% c('sample')]
             test_data <- test_data[,!names(test_data) %in% c('sample')]
             new_classes <- class::knn(train_data, test_data, true_classes)
@@ -260,13 +260,13 @@ do_clustering <- function() {
             for (som_clust in seq(k)){
                 cluster_ids$meta_cluster_id[cluster_ids$som_cluster_id == som_clust] <- codes[codes$som100 == som_clust, paste0("meta", optimal_k)]
             }
+            cluster_ids$cell_id <- exprs_set$cell_id
             cluster_ids <- as.data.frame(cluster_ids)
 
-            cluster_assignment <- cluster_ids$meta_cluster_id
 
             cat("Optimal k of", optimal_k, "detected, please refer to", clustering_engine, "mode consensus folder for diagnostics\n")
             cat("Cluster assignment saved for faster post-processing (adjusting figures etc.) runs\n")
-            write.csv(cluster_assignment, file = paste0(output_data_sub, "clustering_", clustering_engine, ".csv"))
+            write.csv(cluster_ids, file = paste0(output_data_sub, "clustering_", clustering_engine, ".csv"))
             write.csv(sampling_rate, file = paste0(output_data_sub, "first_run_sampling_rate.csv"))
             write.csv(optimal_k, file = paste0(output_data_sub, "first_run_fs_optimal_k.csv"))
         }
@@ -298,13 +298,12 @@ do_clustering <- function() {
             for (som_clust in seq(k)){
                 cluster_ids$meta_cluster_id[cluster_ids$som_cluster_id == som_clust] <- codes[codes$som100 == som_clust, paste0("meta", optimal_k)]
             }
+            cluster_ids$cell_id <- exprs_set$cell_id
             cluster_ids <- as.data.frame(cluster_ids)
-
-            cluster_assignment <- cluster_ids$meta_cluster_id
 
             cat("K of", clustering_k, "was selected in settings, please refer to", clustering_engine, "mode consensus folder for diagnostics\n")
             cat("Cluster assignment saved for faster post-processing (adjusting figures etc.) runs\n")
-            write.csv(cluster_assignment, file = paste0(output_data_sub, "clustering_", clustering_engine, ".csv"))
+            write.csv(cluster_ids, file = paste0(output_data_sub, "clustering_", clustering_engine, ".csv"))
             write.csv(sampling_rate, file = paste0(output_data_sub, "first_run_sampling_rate.csv"))
         }
         if (clustering_engine == "pg") {
@@ -313,12 +312,18 @@ do_clustering <- function() {
             cluster_assignment <- cytof_cluster(xdata = exprs_set[, colnames(exprs_set) %in% clustering_feature_markers], method = "Rphenograph", Rphenograph_k = clustering_k)
             cat(length(unique(cluster_assignment)), "clusters were detected\n")
 
+            cluster_ids <- c()
+            cluster_ids$meta_cluster_id <- cluster_assignment
+            cluster_ids$cell_id <- exprs_set$cell_id
+            cluster_ids <- as.data.frame(cluster_ids)
+
+
             cat("Cluster assignment saved for faster post-processing (adjusting figures etc.) runs\n")
-            write.csv(cluster_assignment, file = paste0(output_data_sub, "clustering_", clustering_engine, ".csv"))
+            write.csv(cluster_ids, file = paste0(output_data_sub, "clustering_", clustering_engine, ".csv"))
             write.csv(sampling_rate, file = paste0(output_data_sub, "first_run_sampling_rate.csv"))
         }
     }
-    return(cluster_assignment)
+    return(cluster_ids)
 }
 
 

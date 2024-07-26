@@ -289,6 +289,7 @@ inject_fcs <- function(input, filter_features, asinh_transform, cofac, sampling_
         pb$tick()
         }
         exprs_set <- temp_set
+        exprs_set$cell_id <- 1:nrow(exprs_set)
         rm(exprs_sample, temp_set)
         gc()
     }
