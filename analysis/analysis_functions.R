@@ -58,13 +58,36 @@ set_clustering_mode <- function() {
         cat("Clustering engine", clustering_engine, "will be used\n")
     }
 
-    if (sampling_rate_changed > 0) {
-        cat("Warning: Sampling rate was changed, clustering will be repeated!\n")
-        clustering_mode <<- "do_clustering"
+    if (feature_input_changed > 0) {
+        cat("Warning: Features selected have changed!\n")
+        if (feature_input_changed == 1) {
+            cat("Clustering will be repeated de novo!\n")
+            if (sum(grepl(paste0("clustering", clustering_engine, ".csv"), dir(output_data_sub)) == TRUE) > 0 && new_samples_mode == TRUE) {
+                clustering_mode <<- "do_ad_hoc"
+            } else if (sum(grepl(paste0("clustering", clustering_engine, ".csv"), dir(output_data_sub)) == TRUE) == 0) {
+                clustering_mode <<- "do_clustering"
+            }
+        }
+        if (feature_input_changed == 2) {
+            cat("Clustering will be restored but plots will use new features!\n")
+            if (sum(grepl(paste0("clustering_ad_hoc_", clustering_engine, ".csv"), dir(output_data_sub)) == TRUE) > 0 && new_samples_mode == FALSE) {
+                clustering_mode <<- "restore_ad_hoc"
+            #restore previous clustering if already done
+            } else if (sum(grepl(paste0("clustering_", clustering_engine, ".csv"), dir(output_data_sub)) == TRUE) > 0 && new_samples_mode == FALSE) {
+                clustering_mode <<- "restore_clustering"
+            #repeat previous ad-hoc clustering if even more samples are added
+            } else if (sum(grepl(paste0("clustering_ad_hoc_", clustering_engine, ".csv"), dir(output_data_sub)) == TRUE) > 0 && new_samples_mode == TRUE) {
+                clustering_mode <<- "repeat_ad_hoc"
+            #do ad-hoc (after first clustering) clustering if more samples are added and clusters need to be preserved
+            #column "analysis" in metafile has to contain "2" for samples that were added after the first round of clustering
+            #if clustering does not need to be preserved, remove old clustering results from "Cytomata_data/<project_name>/output/analysis/<data_subset>/" folder
+            #(or change the sampling rate and see how it feels when a script starts screaming at you)
+            }
+        }
     }
 
-    if (feature_input_changed > 0) {
-        cat("Warning: Features selected have changed, clustering will be repeated!\n")
+    if (sampling_rate_changed > 0) {
+        cat("Warning: Sampling rate was changed, clustering will be repeated!\n")
         clustering_mode <<- "do_clustering"
     }
 
