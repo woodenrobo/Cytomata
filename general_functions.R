@@ -338,6 +338,7 @@ check_feature_input_changes <- function() {
                 cat("You have chosen to reset back to old feature_markers\n")
             } else if (answer == "restore") {
                 cat("You have chosen to restore clustering and UMAPs\n")
+                feature_input_changed <<- 2
             } else if (answer != "continue") {
                 cat("\n\nIt seems you have typed an incorrect answer!\n\n")
                 check_feature_input_changes()

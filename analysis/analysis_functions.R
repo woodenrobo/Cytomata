@@ -47,13 +47,13 @@ set_clustering_mode <- function() {
     #column "analysis" in metafile has to contain "2" for samples that were added after the first round of clustering
     #if clustering does not need to be preserved, remove old clustering results from "Cytomata_data/<project_name>/output/analysis/<data_subset>/" folder
     #(or change the sampling rate and see how it feels when a script starts screaming at you)
-    } else if (sum(grepl(paste0("clustering", clustering_engine, ".csv"), dir(output_data_sub)) == TRUE) > 0 && new_samples_mode == TRUE) {
+    } else if (sum(grepl(paste0("clustering_", clustering_engine, ".csv"), dir(output_data_sub)) == TRUE) > 0 && new_samples_mode == TRUE) {
         clustering_mode <<- "do_ad_hoc"
-    } else if (sum(grepl(paste0("clustering", clustering_engine, ".csv"), dir(output_data_sub)) == TRUE) == 0) {
+    } else if (sum(grepl(paste0("clustering_", clustering_engine, ".csv"), dir(output_data_sub)) == TRUE) == 0) {
         clustering_mode <<- "do_clustering"
     }
 
-    if (sum(grepl(paste0("clustering", clustering_engine, ".csv"), dir(output_data_sub)) == TRUE) == 0 && sum(grepl(paste0("clustering"), dir(output_data_sub)) == TRUE) > 0) {
+    if (sum(grepl(paste0("clustering_", clustering_engine, ".csv"), dir(output_data_sub)) == TRUE) == 0 && sum(grepl(paste0("clustering"), dir(output_data_sub)) == TRUE) > 0) {
         cat("Warning: Clustering engine chosen is different from the one, which already has results present in <data_subset> folder\n")
         cat("Clustering engine", clustering_engine, "will be used\n")
     }
@@ -62,9 +62,9 @@ set_clustering_mode <- function() {
         cat("Warning: Features selected have changed!\n")
         if (feature_input_changed == 1) {
             cat("Clustering will be repeated de novo!\n")
-            if (sum(grepl(paste0("clustering", clustering_engine, ".csv"), dir(output_data_sub)) == TRUE) > 0 && new_samples_mode == TRUE) {
+            if (sum(grepl(paste0("clustering_", clustering_engine, ".csv"), dir(output_data_sub)) == TRUE) > 0 && new_samples_mode == TRUE) {
                 clustering_mode <<- "do_ad_hoc"
-            } else if (sum(grepl(paste0("clustering", clustering_engine, ".csv"), dir(output_data_sub)) == TRUE) == 0) {
+            } else if (sum(grepl(paste0("clustering_", clustering_engine, ".csv"), dir(output_data_sub)) == TRUE) == 0) {
                 clustering_mode <<- "do_clustering"
             }
         }
