@@ -23,7 +23,7 @@ do_clustering_diagnostics()
 #reclusters data with new parameters if user is not satisfied with results
 continue_or_recluster()
 
-
+#gives the possibility to annotate, merge and delete clusters
 merge_and_annotate()
 
 

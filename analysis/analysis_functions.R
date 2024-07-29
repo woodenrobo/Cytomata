@@ -115,12 +115,12 @@ do_clustering <- function() {
     if (clustering_mode == "restore_ad_hoc") {
         cat("Using", clustering_engine, "clustering engine\n")
         cat("\nClustering results restored from ad-hoc clustering\n")
-        cluster_ids <- read.csv(dir(output_data_sub, full.names = TRUE)[grepl(paste0("clustering_ad_hoc_", clustering_engine, ".csv"), dir(output_data_sub))])[, 2]
+        cluster_ids <- read.csv(dir(output_data_sub, full.names = TRUE)[grepl(paste0("clustering_ad_hoc_", clustering_engine, ".csv"), dir(output_data_sub))]) %>% subset(select = -X)
     }
     if (clustering_mode == "restore_clustering") {
         cat("Using", clustering_engine, "clustering engine\n")
         cat("\nClustering results restored\n")
-        cluster_ids <- read.csv(dir(output_data_sub, full.names = TRUE)[grepl(paste0("clustering_", clustering_engine, ".csv"), dir(output_data_sub))])[, 2]
+        cluster_ids <- read.csv(dir(output_data_sub, full.names = TRUE)[grepl(paste0("clustering_", clustering_engine, ".csv"), dir(output_data_sub))]) %>% subset(select = -X)
     }
     if (clustering_mode == "repeat_ad_hoc") {
         cat("Using", clustering_engine, "clustering engine\n")
@@ -340,6 +340,19 @@ do_clustering_diagnostics <- function() {
 
 }
 
+do_clustering_diagnostics_no_dropped <- function() {
+    
+    cluster_size_bars(after_dropping = TRUE)
+    cluster_prop_bars(after_dropping = TRUE)
+
+    cluster_expr_heatmap(expression_setting = "means", scale = TRUE, after_dropping = TRUE)
+    cluster_expr_heatmap(expression_setting = "means", scale = FALSE, after_dropping = TRUE)
+    cluster_expr_heatmap(expression_setting = "medians", scale = TRUE, after_dropping = TRUE)
+    cluster_expr_heatmap(expression_setting = "medians", scale = FALSE, after_dropping = TRUE)
+
+    cluster_expr_densities(after_dropping = TRUE)
+
+}
 
 continue_or_recluster <- function() {
     if (interactive() && first_run_mode > 0) {
@@ -398,8 +411,7 @@ skip_or_merge_and_annotate <- function() {
         answer <- readline(paste0("Do you want to manually merge, delete or annotate clusters?\n",
                         "If yes, go to <project_folder>/output/analysis/<data_subset>/cluster_merging_and_annotation.xlsx\n",
                         "Type \"continue\" when you are ready\n",
-                        "Or type \"skip\" to skip this step\n",
-                        "You can skip it now and do it after inspecting other analysis results.\n"))
+                        "Or type \"skip\" to skip this step for now\n"))
     } else {
         answer <- "skip"
     }
@@ -450,10 +462,130 @@ merge_or_delete_clusters <- function(cluster_annot) {
     }
     if (sum(grepl("^0$", exprs_set$meta_cluster_id)) > 0) {
         dropped_events <<- exprs_set$cell_id[grepl("^0$", exprs_set$meta_cluster_id)]
-        exprs_set <- exprs_set[!exprs_set$cell_id %in% dropped_events, ]
     }
 
 }
 
+do_pca <- function() {
+    pca <- prcomp(exprs_set[, colnames(exprs_set) %in% clustering_feature_markers], scale. = FALSE)
+    pca_coords <- as.data.frame(pca$x)
+    pca_coords$cell_id <- exprs_set$cell_id
+
+    return(pca_coords)
+}
+
+merge_exprs_and_pca <- function() {
+    temp <- left_join(exprs_set, pca_coords[, c("PC1", "PC2", "PC3", "PC4", "cell_id")], by = "cell_id")
+    return(temp)
+}
+
+do_umap <- function() {
 
 
+    if (sum(grepl(paste0("umap_coords.csv"), dir(output_data_sub)) == TRUE) > 0 && new_samples_mode == FALSE) {
+        umap_mode <- "restore_umap"
+    } else {
+        umap_mode <- "do_umap"
+    }
+
+    if (feature_input_changed > 0) {
+        cat("Warning: Features selected have changed!\n")
+        if (feature_input_changed == 1) {
+            cat("UMAP will be repeated de novo!\n")
+            umap_mode <- "do_umap"
+        }
+        if (feature_input_changed == 2) {
+            if (sum(grepl(paste0("umap_coords.csv"), dir(output_data_sub)) == TRUE) > 0 && new_samples_mode == FALSE) {
+                cat("UMAP will be restored but plots will use new features!\n")
+                umap_mode <- "restore_umap"
+            } else {
+                umap_mode <- "do_umap"
+            }
+        }
+    }
+
+    if (sampling_rate_changed > 0) {
+        cat("Warning: Sampling rate was changed, UMAP will be recalculated!\n")
+        umap_mode <- "do_umap"
+    }
+
+
+
+    #restore UMAP from .csv if available
+    if (umap_mode == "do_umap"){
+        cat('Calculating UMAP\n')
+        set.seed(1234)
+        umap_coords <- data.frame(uwot::umap(exprs_set[, colnames(exprs_set) %in% clustering_feature_markers], n_neighbors = umap_n, min_dist = umap_min_dist, metric = 'euclidean'))
+        colnames(umap_coords) <- c('UMAP1','UMAP2')
+        cat('UMAP done\n')
+        umap_coords$cell_id <- exprs_set$cell_id
+        write.csv(umap_coords, paste0(output_data_sub, "umap_coords.csv"))
+    } else if (umap_mode == "restore_umap") {
+        cat('\nUMAP restored from .csv\n')
+        umap_coords <- read.csv(paste0(output_data_sub, "umap_coords.csv"))[, -1]
+    }
+
+    return(umap_coords)
+}
+
+merge_exprs_and_umap <- function() {
+    temp <- left_join(exprs_set, umap_coords, by = "cell_id")
+    return(temp)
+}
+
+
+remove_dropped_events <- function() {
+    if (length(dropped_events) > 0) {
+        temp <- exprs_set[!exprs_set$cell_id %in% dropped_events, ]
+        cat(paste0(length(dropped_events)," events from deleted clusters removed\n"))
+    }
+
+    if (dropped_samples_mode > 0) {
+        temp <- temp[!temp$sample_state == "dropped", ]
+        cat(paste0(sum(exprs_set$sample_state == "dropped"), " events from deleted samples removed\n"))
+    }
+
+    return(temp)
+}
+
+
+
+
+
+
+do_umap_diagnostics <- function() {
+
+
+
+}
+
+
+continue_or_recalculate_umap <- function() {
+    # if (interactive() && first_run_mode > 0) {
+    #     answer <- readline(paste0("Are you satisfied with clustering results?\n",
+    #                     "If yes, type \"continue\"\n",
+    #                     "If not, change clustering settings table in\n",
+    #                     "<Cytomata_folder>/\n",
+    #                     "and type \"recluster\" when you are ready\n"))
+    # } else {
+    #     answer <- "continue"
+    # }
+
+    # if (answer == "recluster") {
+    #     clustering_mode <- "do_clustering"
+    #     update_settings()
+    #     clustering_engine <- settings$value[settings$setting == "clustering_engine"]
+    #     clustering_k <- as.numeric(unlist(strsplit(settings$value[settings$setting == "clustering_k"], split = ", ", fixed = TRUE)))
+    #     fs_n_dims <- as.numeric(settings$value[settings$setting == "fs_n_dims"])
+    #     ccp_delta_cutoff <- as.numeric(settings$value[settings$setting == "ccp_delta_cutoff"])
+    #     do_clustering()
+    #     do_clustering_diagnostics()
+    #     continue_or_recluster()
+    # } else if (answer == "continue") {
+    #     cat("Continuing with current clustering results\n")
+    # } else {
+    #     cat("\n\nIt seems you have typed an incorrect answer!\n\n")
+    #     continue_or_recluster()
+    # }
+    # answer <- NULL
+}

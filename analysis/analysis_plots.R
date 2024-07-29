@@ -87,14 +87,26 @@ make_palette <- function(variable_name) {
 
 
 
-cluster_size_bars <- function() {
+cluster_size_bars <- function(after_dropping = FALSE) {
   count_table <- as.data.frame(table(factor(exprs_set$meta_cluster_id, levels = stringr::str_sort(unique(exprs_set$meta_cluster_id), numeric = TRUE))))
   setwd(output_clustering)
-  write.csv(x = count_table, file = paste0(data_sub, "_cluster_count_table.csv"))
-
-  pdf(file = paste0(output_clustering, "events_per_cluster_", date, ".pdf"),
+  if (after_dropping == TRUE) {
+    write.csv(x = count_table, file = paste0(data_sub, "_cluster_count_table_DROPPED_EVENTS.csv"))
+  } else {
+    write.csv(x = count_table, file = paste0(data_sub, "_cluster_count_table.csv"))
+  }
+  
+  if (after_dropping == TRUE) {
+    pdf(file = paste0(output_clustering, "events_per_cluster_", date, "_DROPPED_EVENTS.pdf"),
       width = 4,
       height = 2 + (length(unique(exprs_set$meta_cluster_id)) * 0.07))
+  } else {
+    pdf(file = paste0(output_clustering, "events_per_cluster_", date, ".pdf"),
+      width = 4,
+      height = 2 + (length(unique(exprs_set$meta_cluster_id)) * 0.07))
+  }
+
+  
   print(ggplot(exprs_set,
     aes(x = factor(meta_cluster_id, levels = stringr::str_sort(unique(meta_cluster_id), numeric = TRUE)))) +
     geom_bar(fill = "darkorange") +
@@ -118,14 +130,26 @@ cluster_size_bars <- function() {
 }
 
 
-cluster_prop_bars <- function() {
+cluster_prop_bars <- function(after_dropping = FALSE) {
   count_table <- as.data.frame(table(factor(exprs_set$meta_cluster_id, levels = stringr::str_sort(unique(exprs_set$meta_cluster_id), numeric = TRUE))))
   setwd(output_clustering)
-  write.csv(x = count_table, file = paste0(data_sub, "_cluster_prop_table.csv"))
-
-  pdf(file = paste0(output_clustering, "events_per_cluster_prop_", date, ".pdf"),
+  
+  if (after_dropping == TRUE) {
+    write.csv(x = count_table, file = paste0(data_sub, "_cluster_prop_table_DROPPED_EVENTS.csv"))
+  } else {
+    write.csv(x = count_table, file = paste0(data_sub, "_cluster_prop_table.csv"))
+  }
+  
+  if (after_dropping == TRUE) {
+    pdf(file = paste0(output_clustering, "events_per_cluster_prop_", date, "_DROPPED_EVENTS.pdf"),
       width = 4,
       height = 2 + (length(unique(exprs_set$meta_cluster_id)) * 0.07))
+  } else {
+    pdf(file = paste0(output_clustering, "events_per_cluster_prop_", date, ".pdf"),
+      width = 4,
+      height = 2 + (length(unique(exprs_set$meta_cluster_id)) * 0.07))
+  }
+
   print(ggplot(exprs_set,
     aes(x = factor(meta_cluster_id, levels = stringr::str_sort(unique(meta_cluster_id), numeric = TRUE)))) +
     geom_bar(fill = "darkorange") +
@@ -149,7 +173,7 @@ cluster_prop_bars <- function() {
 }
 
 
-cluster_expr_heatmap <- function(expression_setting, scale) {
+cluster_expr_heatmap <- function(expression_setting, scale, after_dropping = FALSE) {
   #exprs_metric can be either means or medians
   if (expression_setting == "means"){
     cluster_matrix <- NULL
@@ -184,12 +208,20 @@ cluster_expr_heatmap <- function(expression_setting, scale) {
 
   cluster_cols <- make_palette("meta_cluster_id")
   names(cluster_cols) <- c(paste0("C", names(cluster_cols)))
-
-  if (scale == TRUE) {
-  pdf(file = paste0(output_clustering, "heatmap_cluster_expr_", expression_setting, "_scaled", ".pdf"), width = 0.85 * (nrow(cluster_matrix)), height = 0.7 * (length(clustering_feature_markers)))
+  if (after_dropping == TRUE){
+    if (scale == TRUE) {
+      pdf(file = paste0(output_clustering, "heatmap_cluster_expr_", expression_setting, "_scaled_DROPPED_EVENTS", ".pdf"), width = 0.85 * (nrow(cluster_matrix)), height = 0.7 * (length(clustering_feature_markers)))
+    } else {
+      pdf(file = paste0(output_clustering, "heatmap_cluster_expr_", expression_setting, "_DROPPED_EVENTS.pdf"), width = 0.85 * (nrow(cluster_matrix)), height = 0.7 * (length(clustering_feature_markers)))
+    }
   } else {
-  pdf(file = paste0(output_clustering, "heatmap_cluster_expr_", expression_setting, ".pdf"), width = 0.85 * (nrow(cluster_matrix)), height = 0.7 * (length(clustering_feature_markers)))
+    if (scale == TRUE) {
+      pdf(file = paste0(output_clustering, "heatmap_cluster_expr_", expression_setting, "_scaled", ".pdf"), width = 0.85 * (nrow(cluster_matrix)), height = 0.7 * (length(clustering_feature_markers)))
+    } else {
+      pdf(file = paste0(output_clustering, "heatmap_cluster_expr_", expression_setting, ".pdf"), width = 0.85 * (nrow(cluster_matrix)), height = 0.7 * (length(clustering_feature_markers)))
+    }
   }
+
   column_ha <- HeatmapAnnotation(cluster = rownames(cluster_matrix),
                                   annotation_legend_param = list(cluster = list(ncol = 2, 
                                                                                 title = "Cluster",
@@ -228,9 +260,15 @@ cluster_expr_heatmap <- function(expression_setting, scale) {
 }
 
 
-cluster_expr_densities <- function() {
+cluster_expr_densities <- function(after_dropping = FALSE) {
   col_number <- 5
-  pdf(file = paste0(output_clustering, "density_cluster_exprs.pdf"), width = 4 * col_number, height = 3 * ceiling(length(clustering_feature_markers) / col_number))
+  
+  if (after_dropping == TRUE) {
+    pdf(file = paste0(output_clustering, "density_cluster_exprs_DROPPED_EVENTS.pdf"), width = 4 * col_number, height = 3 * ceiling(length(clustering_feature_markers) / col_number))
+  } else {
+    pdf(file = paste0(output_clustering, "density_cluster_exprs.pdf"), width = 4 * col_number, height = 3 * ceiling(length(clustering_feature_markers) / col_number))
+  }
+
   for (i in seq_along(unique(exprs_set$meta_cluster_id))) {
     gg_df <- tidyr::pivot_longer(exprs_set[exprs_set$meta_cluster_id == i, c(clustering_feature_markers)], cols = all_of(clustering_feature_markers), names_to = "antigen") %>%
               mutate(antigen = factor(antigen, levels = c(clustering_feature_markers), ordered = TRUE))
