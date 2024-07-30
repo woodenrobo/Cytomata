@@ -475,22 +475,33 @@ merge_or_delete_clusters <- function(cluster_annot) {
     return(exprs_set)
 }
 
-do_pca <- function() {
-    pca <- prcomp(exprs_set[, colnames(exprs_set) %in% clustering_feature_markers], scale. = FALSE)
-    pca_coords <- as.data.frame(pca$x)
-    pca_coords$cell_id <- exprs_set$cell_id
 
-    return(pca_coords)
+do_pca <- function() {
+    pca <- prcomp(exprs_set[, colnames(exprs_set) %in% clustering_feature_markers], scale. = TRUE, center = TRUE)
+    return(pca)
 }
 
+
 merge_exprs_and_pca <- function() {
+    pca_coords <- as.data.frame(pca$x)
+    pca_coords$cell_id <- exprs_set$cell_id
     temp <- left_join(exprs_set, pca_coords[, c("PC1", "PC2", "PC3", "PC4", "cell_id")], by = "cell_id")
     return(temp)
 }
 
+
+do_pca_plots <- function() {
+    pca_biplot(grouping_var = "batch", dims = c(1, 2), module = "exploration")
+    pca_biplot(grouping_var = "batch", dims = c(3, 4), module = "exploration")
+    pca_biplot(grouping_var = "id", dims = c(1, 2), module = "exploration")
+    pca_biplot(grouping_var = "id", dims = c(3, 4), module = "exploration")
+    pca_biplot(grouping_var = "meta_cluster_id", dims = c(1, 2), module = "exploration")
+    pca_biplot(grouping_var = "meta_cluster_id", dims = c(3, 4), module = "exploration")
+    
+}
+
+
 do_umap <- function() {
-
-
     if (sum(grepl(paste0("umap_coords.csv"), dir(output_data_sub)) == TRUE) > 0 && new_samples_mode == FALSE) {
         umap_mode <- "restore_umap"
     } else {

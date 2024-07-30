@@ -289,3 +289,117 @@ cluster_expr_densities <- function(after_dropping = FALSE) {
   }
   dev.off()
 }
+
+
+pca_biplot <- function(grouping_var, dims, module) {
+  averaged_pca <- c()
+  for (i in unique(exprs_set[, grouping_var])) {
+    temp1 <- apply(exprs_set[exprs_set[, grouping_var] == i, paste0("PC", rep(dims))], FUN = mean, MARGIN = 2)
+    temp2 <- unique(as.character(exprs_set[exprs_set[, grouping_var] == i, grouping_var]))
+    temp1$group <- temp2
+    temp1 <- as.data.frame(temp1)
+    averaged_pca <- rbind(averaged_pca, temp1)
+  }
+
+  temp_pca <- pca
+  # temp_pca$sdev <- pca$sdev[dims]
+  temp_pca$rotation <- pca$rotation[, dims]
+  temp_pca$x <- as.matrix(averaged_pca[, paste0("PC", rep(dims))])
+  
+  cols <- make_palette(grouping_var)
+  if (module == "exploration"){
+    folder <- output_exploration
+  } else if (module == "core"){
+    folder <- output_core
+  }
+  pdf(paste0(folder, "PCA_", grouping_var, "_PC_", paste0(dims, collapse = "_"), ".pdf"),
+    width = 13,
+    height = 10
+  )
+
+print(autoplot(temp_pca, data = averaged_pca["group"], color = "group",
+               x = dims[1],
+               y = dims[2],
+               loadings = TRUE, loadings.colour = 'black',
+               loadings.label.colour = 'black', loadings.label = TRUE, loadings.label.size = 10,
+               loadings.label.repel = TRUE) +
+        geom_point(aes(color = group), size = 3.5, alpha = 1,) +
+        stat_ellipse(type = "norm", level = 0.68, size = 2, alpha = 0.8, aes(color = group, fill = group)) +
+        theme_cowplot() +
+        scale_color_manual(values = cols, limits = force) +
+        labs(color = grouping_var)+ 
+        theme(text=element_text(size=25),
+              plot.title = element_text(size=20),
+              #legend.position="none",
+              axis.text.x = element_text(color = "black", size = 20
+                                         , angle = 0, hjust = 0.5, vjust = 0.5, face = "plain"),
+              axis.text.y = element_text(color = "black", size = 20
+                                         , angle = 0, hjust = 0.5, vjust = 0.5, face = "plain"),
+              axis.title.x.bottom = element_text(margin = margin(t = 10, r = 0, b = 0, l = 0),
+                                                 size = 25),
+              axis.title.y.left = element_text(margin = margin(t = 0, r = 10, b = 0, l = 0),
+                                               size = 25)
+        )
+)
+invisible(dev.off())
+
+}
+
+
+
+
+module_pca <- prcomp(exprs_set[,feature_markers], center=T, scale=T)
+
+conditions_pca <- c()
+average_pca <- c()
+
+for (i in unique(exprs_set$id)){
+  if (nrow(exprs_set[exprs_set$id==i,]) > 1){
+    temp1 <- unique(as.character(exprs_set[exprs_set$id==i, 'sev_age_timepoint']))
+    conditions_pca <- c(conditions_pca, temp1)
+    temp2 <- apply(module_pca$x[exprs_set$id==i,], FUN=mean, MARGIN=2)
+    average_pca <- rbind(average_pca, temp2)
+  }
+}
+
+module_pca$x <- average_pca
+
+if (grepl('T_Cell', subset_name)==TRUE){
+  pca_high_cor <- unique(c(names(module_pca$rotation[,'PC1'][order(abs(module_pca$rotation[,'PC1']), decreasing=T)][1:10]), names(module_pca$rotation[,'PC2'][order(abs(module_pca$rotation[,'PC2']), decreasing=T)][1:10]), 'CRTH2', 'CCR6'))
+} else {
+  pca_high_cor <- unique(c(names(module_pca$rotation[,'PC1'][order(abs(module_pca$rotation[,'PC1']), decreasing=T)][1:10]), names(module_pca$rotation[,'PC2'][order(abs(module_pca$rotation[,'PC2']), decreasing=T)][1:10])))
+}
+
+module_pca$rotation <- module_pca$rotation[pca_high_cor,]
+module_pca$scale <- module_pca$scale[pca_high_cor]
+module_pca$center <- module_pca$center[pca_high_cor]
+
+pdf(file=paste0(naming,'_PCA_analysis_1_2_updated','.pdf'),
+    width = 13,
+    height = 10
+)
+print(autoplot(module_pca, data = data.frame(unique(exprs_set$id), conditions_pca), color="conditions_pca",
+               x = 1,
+               y = 2,
+               loadings = TRUE, loadings.colour = 'black',
+               loadings.label.colour='black', loadings.label = TRUE, loadings.label.size = 12,
+               loadings.label.repel=TRUE)+
+        geom_point(aes(color=conditions_pca), size=3.5, alpha=1,)+
+        stat_ellipse(type = "norm", level=0.68, size=2, alpha=0.8, aes(color=conditions_pca, fill=conditions_pca))+
+        theme_cowplot()+
+        scale_color_manual(values=rainbow, limits=force)+
+        labs(color='Condition')+ 
+        theme(text=element_text(size=25),
+              plot.title = element_text(size=20),
+              #legend.position="none",
+              axis.text.x = element_text(color = "black", size = 20
+                                         , angle = 0, hjust = 0.5, vjust = 0.5, face = "plain"),
+              axis.text.y = element_text(color = "black", size = 20
+                                         , angle = 0, hjust = 0.5, vjust = 0.5, face = "plain"),
+              axis.title.x.bottom = element_text(margin = margin(t = 10, r = 0, b = 0, l = 0),
+                                                 size = 25),
+              axis.title.y.left = element_text(margin = margin(t = 0, r = 10, b = 0, l = 0),
+                                               size = 25)
+        )
+)
+invisible(dev.off())
