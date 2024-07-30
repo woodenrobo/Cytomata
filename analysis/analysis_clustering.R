@@ -24,9 +24,7 @@ do_clustering_diagnostics()
 continue_or_recluster()
 
 #gives the possibility to annotate, merge and delete clusters
-merge_and_annotate()
-
-
+exprs_set <- merge_and_annotate()
 
 sink()
 
