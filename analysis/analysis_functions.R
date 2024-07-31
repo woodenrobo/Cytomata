@@ -423,7 +423,7 @@ skip_or_merge_and_annotate <- function() {
         cluster_annot <- readxl::read_excel(paste0(output_data_sub, "cluster_merging_and_annotation.xlsx"))[-1]
         cat("Cluster annotations, merging and deletion parameters have been applied, if set.\n")
         exprs_set <- apply_annotation(cluster_annot)
-        exprs_set <- merge_or_delete_clusters(cluster_annot)
+        exprs_set <- merge_or_delete_clusters(exprs_set, cluster_annot)
     } else if (answer == "skip") {
         cat("Continuing without merging, deleting or annotating\n")
     } else {
@@ -435,7 +435,7 @@ skip_or_merge_and_annotate <- function() {
         cluster_annot <- readxl::read_excel(paste0(output_data_sub, "cluster_merging_and_annotation.xlsx"))[-1]
         cat("Cluster annotations, merging and deletion parameters have been applied, if set.\n")
         exprs_set <- apply_annotation(cluster_annot)
-        exprs_set <- merge_or_delete_clusters(cluster_annot)
+        exprs_set <- merge_or_delete_clusters(exprs_set, cluster_annot)
     }
     answer <- NULL
 
@@ -444,15 +444,18 @@ skip_or_merge_and_annotate <- function() {
 
 
 apply_annotation <- function(cluster_annot) {
-    exprs_set$meta_cluster_annotation <- "NA"
+    temp <- rep("NA", nrow(exprs_set))
     for (i in cluster_annot$original_clusters) {
-        exprs_set$meta_cluster_annotation[exprs_set$meta_cluster_id == i] <- cluster_annot[cluster_annot$original_clusters == i, "annotation"]
+        temp[exprs_set$meta_cluster_id == i] <- cluster_annot[cluster_annot$original_clusters == i, "annotation"]
     }
+    temp <- as.character(temp)
+    exprs_set$meta_cluster_annotation <- temp
+
     return(exprs_set)
 }
 
 
-merge_or_delete_clusters <- function(cluster_annot) {
+merge_or_delete_clusters <- function(exprs_set, cluster_annot) {
     rev_cluster_annot <- cluster_annot[sort(cluster_annot$original_clusters, decreasing = TRUE), ]
     rev_cluster_annot$merge_with <- as.numeric(rev_cluster_annot$merge_with)
     temp <- exprs_set$meta_cluster_id
@@ -490,13 +493,13 @@ merge_exprs_and_pca <- function() {
 }
 
 
-do_pca_plots <- function() {
-    pca_biplot(grouping_var = "batch", dims = c(1, 2), module = "exploration")
-    pca_biplot(grouping_var = "batch", dims = c(3, 4), module = "exploration")
-    pca_biplot(grouping_var = "id", dims = c(1, 2), module = "exploration")
-    pca_biplot(grouping_var = "id", dims = c(3, 4), module = "exploration")
-    pca_biplot(grouping_var = "meta_cluster_id", dims = c(1, 2), module = "exploration")
-    pca_biplot(grouping_var = "meta_cluster_id", dims = c(3, 4), module = "exploration")
+do_pca_plots <- function(module) {
+    pca_biplot(grouping_var = "batch", dims = c(1, 2), module = module)
+    pca_biplot(grouping_var = "batch", dims = c(3, 4), module = module)
+    pca_biplot(grouping_var = "id", dims = c(1, 2), module = module)
+    pca_biplot(grouping_var = "id", dims = c(3, 4), module = module)
+    pca_biplot(grouping_var = "meta_cluster_id", dims = c(1, 2), module = module)
+    pca_biplot(grouping_var = "meta_cluster_id", dims = c(3, 4), module = module)
     
 }
 
@@ -569,13 +572,28 @@ remove_dropped_events <- function() {
 }
 
 
+do_umap_plots <- function(module) {
+    if (module == "exploration") {
+        umap_plot(grouping_var = "batch", module = module, labels = TRUE)
+        umap_plot(grouping_var = "id", module = module, labels = FALSE)
+        umap_plot(grouping_var = "meta_cluster_id", module = module, labels = TRUE)
+        umap_plot(grouping_var = "meta_cluster_annotation", module = module, labels = TRUE)
 
+        umap_facet(grouping_var = "batch", module = module, column_number = 4, equal_sampling = FALSE)
+        umap_facet(grouping_var = "meta_cluster_id", module = module, column_number = 4, equal_sampling = FALSE)
+        umap_facet(grouping_var = "meta_cluster_annotation", module = module, column_number = 4, equal_sampling = FALSE)
 
+        umap_expressions(grouping_var = NULL, module = module, column_number = 4)
+        umap_expressions(grouping_var = "batch", module = module, column_number = 4)
 
+        if (new_samples_mode > 0) {
+            umap_plot(grouping_var = "analysis", module = module, labels = TRUE)
+            umap_facet(grouping_var = "analysis", module = module, equal_sampling = FALSE)
+        }
 
-do_umap_diagnostics <- function() {
-
-
+    } else if (module == "analysis") {
+        #umap_facet(grouping_var = "blah", module = module, equal_sampling = TRUE)
+    }
 
 }
 

@@ -210,15 +210,15 @@ cluster_expr_heatmap <- function(expression_setting, scale, after_dropping = FAL
   names(cluster_cols) <- c(paste0("C", names(cluster_cols)))
   if (after_dropping == TRUE){
     if (scale == TRUE) {
-      pdf(file = paste0(output_clustering, "heatmap_cluster_expr_", expression_setting, "_scaled_DROPPED_EVENTS", ".pdf"), width = 0.85 * (nrow(cluster_matrix)), height = 0.7 * (length(clustering_feature_markers)))
+      pdf(file = paste0(output_clustering, "heatmap_cluster_expr_", expression_setting, "_scaled_DROPPED_EVENTS", ".pdf"), width = 1 * (nrow(cluster_matrix)), height = 0.7 * (length(clustering_feature_markers)))
     } else {
-      pdf(file = paste0(output_clustering, "heatmap_cluster_expr_", expression_setting, "_DROPPED_EVENTS.pdf"), width = 0.85 * (nrow(cluster_matrix)), height = 0.7 * (length(clustering_feature_markers)))
+      pdf(file = paste0(output_clustering, "heatmap_cluster_expr_", expression_setting, "_DROPPED_EVENTS.pdf"), width = 1 * (nrow(cluster_matrix)), height = 0.7 * (length(clustering_feature_markers)))
     }
   } else {
     if (scale == TRUE) {
-      pdf(file = paste0(output_clustering, "heatmap_cluster_expr_", expression_setting, "_scaled", ".pdf"), width = 0.85 * (nrow(cluster_matrix)), height = 0.7 * (length(clustering_feature_markers)))
+      pdf(file = paste0(output_clustering, "heatmap_cluster_expr_", expression_setting, "_scaled", ".pdf"), width = 1 * (nrow(cluster_matrix)), height = 0.7 * (length(clustering_feature_markers)))
     } else {
-      pdf(file = paste0(output_clustering, "heatmap_cluster_expr_", expression_setting, ".pdf"), width = 0.85 * (nrow(cluster_matrix)), height = 0.7 * (length(clustering_feature_markers)))
+      pdf(file = paste0(output_clustering, "heatmap_cluster_expr_", expression_setting, ".pdf"), width = 1 * (nrow(cluster_matrix)), height = 0.7 * (length(clustering_feature_markers)))
     }
   }
 
@@ -292,6 +292,7 @@ cluster_expr_densities <- function(after_dropping = FALSE) {
 
 
 pca_biplot <- function(grouping_var, dims, module) {
+  options(warn = 1)
   averaged_pca <- c()
   for (i in unique(exprs_set[, grouping_var])) {
     temp1 <- apply(exprs_set[exprs_set[, grouping_var] == i, paste0("PC", rep(dims))], FUN = mean, MARGIN = 2)
@@ -317,16 +318,17 @@ pca_biplot <- function(grouping_var, dims, module) {
     height = 10
   )
 
-print(autoplot(temp_pca, data = averaged_pca["group"], color = "group",
+  print(autoplot(temp_pca, data = averaged_pca["group"], color = "group",
                x = dims[1],
                y = dims[2],
                loadings = TRUE, loadings.colour = 'black',
                loadings.label.colour = 'black', loadings.label = TRUE, loadings.label.size = 10,
                loadings.label.repel = TRUE) +
-        geom_point(aes(color = group), size = 3.5, alpha = 1,) +
         stat_ellipse(type = "norm", level = 0.68, size = 2, alpha = 0.8, aes(color = group, fill = group)) +
+        stat_ellipse(geom = "polygon", alpha = 0.3, aes(fill = group)) +
+        geom_point(aes(color = group), size = 3.5, alpha = 1,) +
         theme_cowplot() +
-        scale_color_manual(values = cols, limits = force) +
+        scale_color_manual(values = cols, limits = force, labels = scales::label_wrap(25)) +
         labs(color = grouping_var)+ 
         theme(text=element_text(size=25),
               plot.title = element_text(size=20),
@@ -340,66 +342,201 @@ print(autoplot(temp_pca, data = averaged_pca["group"], color = "group",
               axis.title.y.left = element_text(margin = margin(t = 0, r = 10, b = 0, l = 0),
                                                size = 25)
         )
-)
-invisible(dev.off())
+  )
+  invisible(dev.off())
 
 }
 
 
+get_contrasting_text_color <- function(hex_color) {
+  rgb <- col2rgb(hex_color) / 255
+  luminance <- unname(0.2126 * rgb[1, ] + 0.7152 * rgb[2, ] + 0.0722 * rgb[3, ])
+  ifelse(luminance > 0.5, "black", "white")
+}
 
 
-module_pca <- prcomp(exprs_set[,feature_markers], center=T, scale=T)
+umap_plot <- function(grouping_var, module, labels = TRUE) {
+  cols <- make_palette(grouping_var)
+  text_colors <- sapply(cols, get_contrasting_text_color)
 
-conditions_pca <- c()
-average_pca <- c()
-
-for (i in unique(exprs_set$id)){
-  if (nrow(exprs_set[exprs_set$id==i,]) > 1){
-    temp1 <- unique(as.character(exprs_set[exprs_set$id==i, 'sev_age_timepoint']))
-    conditions_pca <- c(conditions_pca, temp1)
-    temp2 <- apply(module_pca$x[exprs_set$id==i,], FUN=mean, MARGIN=2)
-    average_pca <- rbind(average_pca, temp2)
+  if (module == "exploration"){
+    folder <- output_exploration
+  } else if (module == "core"){
+    folder <- output_core
   }
-}
 
-module_pca$x <- average_pca
-
-if (grepl('T_Cell', subset_name)==TRUE){
-  pca_high_cor <- unique(c(names(module_pca$rotation[,'PC1'][order(abs(module_pca$rotation[,'PC1']), decreasing=T)][1:10]), names(module_pca$rotation[,'PC2'][order(abs(module_pca$rotation[,'PC2']), decreasing=T)][1:10]), 'CRTH2', 'CCR6'))
-} else {
-  pca_high_cor <- unique(c(names(module_pca$rotation[,'PC1'][order(abs(module_pca$rotation[,'PC1']), decreasing=T)][1:10]), names(module_pca$rotation[,'PC2'][order(abs(module_pca$rotation[,'PC2']), decreasing=T)][1:10])))
-}
-
-module_pca$rotation <- module_pca$rotation[pca_high_cor,]
-module_pca$scale <- module_pca$scale[pca_high_cor]
-module_pca$center <- module_pca$center[pca_high_cor]
-
-pdf(file=paste0(naming,'_PCA_analysis_1_2_updated','.pdf'),
+  pdf(paste0(folder, "UMAP_", grouping_var, ".pdf"),
     width = 13,
     height = 10
-)
-print(autoplot(module_pca, data = data.frame(unique(exprs_set$id), conditions_pca), color="conditions_pca",
-               x = 1,
-               y = 2,
-               loadings = TRUE, loadings.colour = 'black',
-               loadings.label.colour='black', loadings.label = TRUE, loadings.label.size = 12,
-               loadings.label.repel=TRUE)+
-        geom_point(aes(color=conditions_pca), size=3.5, alpha=1,)+
-        stat_ellipse(type = "norm", level=0.68, size=2, alpha=0.8, aes(color=conditions_pca, fill=conditions_pca))+
-        theme_cowplot()+
-        scale_color_manual(values=rainbow, limits=force)+
-        labs(color='Condition')+ 
-        theme(text=element_text(size=25),
-              plot.title = element_text(size=20),
-              #legend.position="none",
-              axis.text.x = element_text(color = "black", size = 20
-                                         , angle = 0, hjust = 0.5, vjust = 0.5, face = "plain"),
-              axis.text.y = element_text(color = "black", size = 20
-                                         , angle = 0, hjust = 0.5, vjust = 0.5, face = "plain"),
-              axis.title.x.bottom = element_text(margin = margin(t = 10, r = 0, b = 0, l = 0),
-                                                 size = 25),
-              axis.title.y.left = element_text(margin = margin(t = 0, r = 10, b = 0, l = 0),
-                                               size = 25)
+  )
+
+  p <- ggplot(exprs_set, aes(x = UMAP1, y = UMAP2)) +
+        rasterise(geom_point(aes(color = as.factor(.data[[grouping_var]])), alpha = 0.5, size = 1, shape = 19)) +
+        # size = 0.5 to restore old version with big points 
+        # shape = "." to optimize for execution speed
+        guides(colour = guide_legend(override.aes = list(alpha = 1, size = 3, shape = 19), title = grouping_var)) +
+        scale_color_manual(values = cols, labels = scales::label_wrap(25)) +
+        theme_cowplot() +
+        theme(text = element_text(size = 25),
+              axis.text.x = element_text(color = "black", size = 20, angle = 0, hjust = 0.5, vjust = 0.5, face = "plain"),
+              axis.text.y = element_text(color = "black", size = 20, angle = 0, hjust = 0.5, vjust = 0.5, face = "plain"),
+              axis.title.x = element_text(margin = margin(10, 0, 0, 0)),
+              axis.title.y = element_text(margin = margin(0, 10, 0, 0))
         )
-)
-invisible(dev.off())
+
+  if (labels == TRUE) {
+    # Calculate mean coordinates for each group
+    mean_coords <- exprs_set %>%
+      group_by(.data[[grouping_var]]) %>%
+      summarize(UMAP1 = mean(UMAP1), UMAP2 = mean(UMAP2))
+    p <- p + 
+          ggnewscale::new_scale_color() +
+          geom_label_repel(data = mean_coords, 
+            aes(label = str_wrap(.data[[grouping_var]], width = 25),
+             fill = as.factor(.data[[grouping_var]]),
+             color = as.factor(mean_coords[[grouping_var]])),
+            size = 10, max.overlaps = Inf) +
+          scale_fill_manual(values = cols) +
+          scale_color_manual(values = text_colors) +
+          guides(fill = "none", color = "none")
+  }
+  print(p)
+  invisible(dev.off())
+
+
+}
+
+
+umap_facet <- function(grouping_var, module, column_number = 4, equal_sampling = FALSE) {
+  cols <- make_palette(grouping_var)
+
+  if (module == "exploration") {
+    folder <- output_exploration
+  } else if (module == "core") {
+    folder <- output_core
+  }
+
+  singles_output <- paste0(folder, "UMAP_facet_", grouping_var, "/")
+  dir.create(singles_output, showWarnings = FALSE)
+
+  if (equal_sampling == TRUE) {
+    max_equal_sampling <- min(table(exprs_set[[grouping_var]]))
+    plot_df  <- exprs_set %>% group_by(.data[[grouping_var]]) %>% slice_sample(n = max_equal_sampling)
+    plot_df[[grouping_var]] <- factor(plot_df[[grouping_var]])
+  } else {
+    plot_df <- exprs_set
+  }
+
+  grouping_levels <- levels(plot_df[[grouping_var]])
+
+  p <- list()
+  for (s in seq(grouping_levels)) {
+    plotted_group <- grouping_levels[s]
+    p[[s]] <- ggplot(plot_df[plot_df[[grouping_var]] == plotted_group, ], aes(x = UMAP1, y = UMAP2)) +
+      rasterise(geom_point(data = plot_df, color = '#aeaeae', alpha = 0.5, size = 1, shape = 19)) + 
+      rasterise(geom_point(aes(color = !!sym(grouping_var)), alpha = 0.5, size = 1, shape = 19, show.legend = F)) + 
+      scale_color_manual(values = cols) +
+      ggtitle(paste(plotted_group)) + 
+      theme_cowplot() +
+      theme(text = element_text(size = 25),
+            axis.text.x = element_text(color = "black", size = 20, angle = 0, hjust = 0.5, vjust = 0.5, face = "plain"),
+            axis.text.y = element_text(color = "black", size = 20, angle = 0, hjust = 0.5, vjust = 0.5, face = "plain"),
+            axis.title.x = element_text(margin = margin(10, 0, 0, 0)),
+            axis.title.y = element_text(margin = margin(0, 10, 0, 0))
+      )
+    pdf(paste0(singles_output, "UMAP_", grouping_var, "_", plotted_group, ".pdf"),
+    width = 11,
+    height = 10
+    )
+  print(p[[s]])
+  invisible(dev.off())
+  }
+
+  pdf(paste0(folder, "UMAP_facet_", grouping_var, ".pdf"),
+    width = 11 * column_number,
+    height = 10 * ceiling(length(grouping_levels) / column_number)
+  )
+  print(plot_grid(plotlist = p, ncol = column_number))
+  invisible(dev.off())
+
+}
+
+
+umap_expressions <- function(grouping_var = NULL, module, column_number = 4) {
+  
+  if (module == "exploration") {
+    folder <- output_exploration
+  } else if (module == "core") {
+    folder <- output_core
+  }
+
+  singles_output <- paste0(folder, "UMAP_expressions/")
+  dir.create(singles_output, showWarnings = FALSE)
+
+  plot_df <- exprs_set
+
+  p <- list()
+  for (s in seq(clustering_feature_markers)) {
+    plotted_marker <- clustering_feature_markers[s]
+    p[[s]] <- ggplot(plot_df %>% arrange(!!sym(plotted_marker)), aes(x = UMAP1, y = UMAP2)) +
+      rasterise(geom_point(aes(color = !!sym(plotted_marker)), alpha = 1, size = 1, shape = 19)) + 
+      scale_colour_gradient2(low = "blue", mid = "white", high = "red", midpoint = 0) +
+      ggtitle(paste(plotted_marker)) + 
+      theme_cowplot() +
+      theme(text = element_text(size = 25),
+            axis.text.x = element_text(color = "black", size = 20, angle = 0, hjust = 0.5, vjust = 0.5, face = "plain"),
+            axis.text.y = element_text(color = "black", size = 20, angle = 0, hjust = 0.5, vjust = 0.5, face = "plain"),
+            axis.title.x = element_text(margin = margin(10, 0, 0, 0)),
+            axis.title.y = element_text(margin = margin(0, 10, 0, 0)),
+            legend.key.size = unit(3, "lines"),
+            panel.background = element_rect(fill = "#bdbdbd", color = "black"),  # Background color of the plot area
+            plot.background = element_rect(fill = "#ffffff", color = NA)
+      )
+    
+    if (!is.null(grouping_var)) {
+      plot_df[[grouping_var]] <- factor(plot_df[[grouping_var]])
+      grouping_levels <- levels(plot_df[[grouping_var]])
+
+      p[[s]] <- p[[s]] +
+                  facet_wrap(~ .data[[grouping_var]], ncol = column_number) +
+                  theme(strip.background = element_rect(fill = "#ffffff"))
+      
+      if (length(grouping_levels) < column_number) {
+        column_n_single <- length(grouping_levels)
+      } else {
+        column_n_single <- column_number
+      }
+      pdf(paste0(singles_output, "UMAP_", grouping_var, "_", plotted_marker, ".pdf"),
+        width = 11 * column_n_single,
+        height = 10 * ceiling(length(grouping_levels) / column_n_single)
+      )
+    } else {
+      pdf(paste0(singles_output, "UMAP_", plotted_marker, ".pdf"),
+        width = 11,
+        height = 10
+      )
+    }
+
+    print(p[[s]])
+    invisible(dev.off())
+  }
+
+
+  if (!is.null(grouping_var)) {
+    pdf(paste0(folder, "UMAP_expressions_", grouping_var, ".pdf"),
+      width = 11 * column_number * 2,
+      height = 10 * ceiling(length(clustering_feature_markers) / column_number)
+    )
+
+
+  } else {
+    pdf(paste0(folder, "UMAP_expressions.pdf"),
+      width = 11 * column_number,
+      height = 10 * ceiling(length(clustering_feature_markers) / column_number)
+    )
+  }
+
+  print(plot_grid(plotlist = p, ncol = column_number))
+  invisible(dev.off())
+
+}
