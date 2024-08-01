@@ -641,3 +641,52 @@ continue_or_recalculate_umap <- function() {
     # }
     # answer <- NULL
 }
+
+
+summary_table <- function(data = exprs_set, grouping_var, selected_features = NULL, stat = "mean") {
+  
+  if (stat == "mean") {
+    temp <- data %>% 
+      group_by(across(all_of(grouping_var))) %>% 
+      summarise(across(all_of(selected_features), mean, na.rm = TRUE), .groups = 'drop')
+      return(temp)
+  } else if (stat == "median") {
+    temp <- data %>% 
+      group_by(across(all_of(grouping_var))) %>% 
+      summarise(across(all_of(selected_features), median, na.rm = TRUE), .groups = 'drop')
+      return(temp)
+  } else if (stat == "count") {
+    temp <- data %>% 
+      group_by(across(all_of(grouping_var))) %>% 
+      summarise(count = n(), .groups = 'drop')
+      return(temp)
+  } else if (stat == "n_size") {
+    temp <- data %>% 
+      group_by(across(all_of(grouping_var))) %>% 
+      summarise(n_size = n_distinct(id), .groups = 'drop')
+      return(temp)
+  } else {
+    cat("Incorrect options set\n")
+  }
+}
+
+
+calculate_cluster_proportions <- function(cluster_var = "meta_cluster_id", selected_clusters = unique(exprs_set[[cluster_var]])) {
+    cluster_proportions <- summary_table(exprs_set, c(group, "id", cluster_var), selected_features = NULL, "count") %>%
+    dplyr::filter(!!sym(cluster_var) %in% selected_clusters) %>%
+    group_by(id) %>%
+    mutate(prop = count / sum(count) * 100) %>%
+    ungroup()
+    return(cluster_proportions)
+}
+
+
+summary_table(exprs_set, c(group), selected_features = NULL, "n_size")
+summary_table(exprs_set, c(group, "id"), selected_features = clustering_feature_markers, "mean")
+summary_table(exprs_set, c(group, "id"), selected_features = clustering_feature_markers, "median")
+
+cluster_var <- "meta_cluster_id"
+calculate_cluster_proportions(cluster_var = cluster_var, selected_clusters = unique(exprs_set[[cluster_var]]))
+cluster_var <- "meta_cluster_annotation"
+calculate_cluster_proportions(cluster_var = cluster_var, selected_clusters = unique(exprs_set[[cluster_var]]))
+
