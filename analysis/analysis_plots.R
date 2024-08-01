@@ -371,7 +371,7 @@ umap_plot <- function(grouping_var, module, labels = TRUE) {
   )
 
   p <- ggplot(exprs_set, aes(x = UMAP1, y = UMAP2)) +
-        rasterise(geom_point(aes(color = as.factor(.data[[grouping_var]])), alpha = 0.5, size = 1, shape = 19)) +
+        ggrastr::rasterise(geom_point(aes(color = as.factor(.data[[grouping_var]])), alpha = 0.5, size = 1, shape = 19)) +
         # size = 0.5 to restore old version with big points 
         # shape = "." to optimize for execution speed
         guides(colour = guide_legend(override.aes = list(alpha = 1, size = 3, shape = 19), title = grouping_var)) +
@@ -422,19 +422,19 @@ umap_facet <- function(grouping_var, module, column_number = 4, equal_sampling =
   if (equal_sampling == TRUE) {
     max_equal_sampling <- min(table(exprs_set[[grouping_var]]))
     plot_df  <- exprs_set %>% group_by(.data[[grouping_var]]) %>% slice_sample(n = max_equal_sampling)
-    plot_df[[grouping_var]] <- factor(plot_df[[grouping_var]])
   } else {
     plot_df <- exprs_set
   }
-
+  
+  plot_df[[grouping_var]] <- factor(plot_df[[grouping_var]])
   grouping_levels <- levels(plot_df[[grouping_var]])
 
   p <- list()
   for (s in seq(grouping_levels)) {
     plotted_group <- grouping_levels[s]
     p[[s]] <- ggplot(plot_df[plot_df[[grouping_var]] == plotted_group, ], aes(x = UMAP1, y = UMAP2)) +
-      rasterise(geom_point(data = plot_df, color = '#aeaeae', alpha = 0.5, size = 1, shape = 19)) + 
-      rasterise(geom_point(aes(color = !!sym(grouping_var)), alpha = 0.5, size = 1, shape = 19, show.legend = F)) + 
+      ggrastr::rasterise(geom_point(data = plot_df, color = '#aeaeae', alpha = 0.5, size = 1, shape = 19)) + 
+      ggrastr::rasterise(geom_point(aes(color = !!sym(grouping_var)), alpha = 0.5, size = 1, shape = 19, show.legend = F)) + 
       scale_color_manual(values = cols) +
       ggtitle(paste(plotted_group)) + 
       theme_cowplot() +
@@ -479,7 +479,7 @@ umap_expressions <- function(grouping_var = NULL, module, column_number = 4) {
   for (s in seq(clustering_feature_markers)) {
     plotted_marker <- clustering_feature_markers[s]
     p[[s]] <- ggplot(plot_df %>% arrange(!!sym(plotted_marker)), aes(x = UMAP1, y = UMAP2)) +
-      rasterise(geom_point(aes(color = !!sym(plotted_marker)), alpha = 1, size = 1, shape = 19)) + 
+      ggrastr::rasterise(geom_point(aes(color = !!sym(plotted_marker)), alpha = 1, size = 1, shape = 19)) + 
       scale_colour_gradient2(low = "blue", mid = "white", high = "red", midpoint = 0) +
       ggtitle(paste(plotted_marker)) + 
       theme_cowplot() +

@@ -172,6 +172,7 @@ for (data_sub in data_subsets) {
         source("./analysis/analysis_exploration_addons.R")
 
         for (group in grouping_columns) {
+            group <- grouping_columns[1] #FOR TESTING, REMOVE LATER
             setwd(path_to_cytomata)
             source("./analysis/analysis_core.R")
             setwd(path_to_cytomata)

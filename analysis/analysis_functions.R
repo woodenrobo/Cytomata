@@ -106,7 +106,11 @@ drop_resampled_events <- function() {
 
 
 merge_exprs_and_clusters <- function() {
-    temp <- left_join(exprs_set, cluster_ids, by = "cell_id")
+    if ("meta_cluster_id" %in% colnames(exprs_set) == FALSE) {
+        temp <- left_join(exprs_set, cluster_ids, by = "cell_id")
+    } else {
+        temp <- exprs_set
+    }
     return(temp)
 }
 
@@ -488,7 +492,12 @@ do_pca <- function() {
 merge_exprs_and_pca <- function() {
     pca_coords <- as.data.frame(pca$x)
     pca_coords$cell_id <- exprs_set$cell_id
-    temp <- left_join(exprs_set, pca_coords[, c("PC1", "PC2", "PC3", "PC4", "cell_id")], by = "cell_id")
+    if ("PC1" %in% colnames(exprs_set) == FALSE) {
+        temp <- left_join(exprs_set, pca_coords[, c("PC1", "PC2", "PC3", "PC4", "cell_id")], by = "cell_id")
+    } else {
+        temp <- exprs_set
+    }
+
     return(temp)
 }
 
@@ -552,7 +561,12 @@ do_umap <- function() {
 }
 
 merge_exprs_and_umap <- function() {
-    temp <- left_join(exprs_set, umap_coords, by = "cell_id")
+    if ("UMAP1" %in% colnames(exprs_set) == FALSE) {
+        temp <- left_join(exprs_set, umap_coords, by = "cell_id")
+    } else {
+        temp <- exprs_set
+    }
+
     return(temp)
 }
 
@@ -560,7 +574,7 @@ merge_exprs_and_umap <- function() {
 remove_dropped_events <- function() {
     if (length(dropped_events) > 0) {
         temp <- exprs_set[!exprs_set$cell_id %in% dropped_events, ]
-        cat(paste0(length(dropped_events)," events from deleted clusters removed\n"))
+        cat(paste0(length(dropped_events), " events from deleted clusters removed\n"))
     }
 
     if (dropped_samples_mode > 0) {
