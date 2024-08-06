@@ -567,7 +567,7 @@ umap_expressions <- function(grouping_var = NULL, module, column_number = 4) {
 
 do_boxplots <- function(data, testing_results = testing_results, grouping_var = group, features, group_by_clusters = TRUE,
                         cluster_var = cluster_var, selected_clusters = NULL, column_number = 4, show_testing = TRUE,
-                        show_pvalues = TRUE, show_outliers = TRUE) {
+                        show_pvalues = TRUE, show_outliers = TRUE, prefix) {
 
   if (group_by_clusters == TRUE && length(features) > 1) {
     stop("When grouping by clusters, only one feature can be plotted at a time.")
@@ -617,7 +617,7 @@ do_boxplots <- function(data, testing_results = testing_results, grouping_var = 
         }
         testing_results$y.position <- y_positions
         testing_results$p.adj <- round(testing_results$p.adj, 3)
-        p <- p + stat_pvalue_manual(testing_results, label = "p.adj", hide.ns = FALSE, size = 8, tip.length = 0.02)
+        p <- p + stat_pvalue_manual(testing_results, label = "p.adj", hide.ns = FALSE, size = 8, tip.length = 0.01)
       } else {
         y_positions <- c()
         for (i in unique(testing_results[["feature"]])) {
@@ -642,12 +642,18 @@ do_boxplots <- function(data, testing_results = testing_results, grouping_var = 
            }
           }
           testing_results <- filtered_testing
-          p <- p + stat_pvalue_manual(testing_results, label = "p.adj.signif", hide.ns = FALSE, size = 12, tip.length = 0.02)
+          p <- p + stat_pvalue_manual(testing_results, label = "p.adj.signif", hide.ns = FALSE, size = 15, tip.length = 0.01)
         }
       }
     }
+  n_features <- length(features)
+  pdf(paste0(output_group, prefix, "_", "boxplot_grid", ".pdf"),
+    width = 8 * column_number,
+    height = 10 * ceiling(n_features / column_number)
+  )
+  print(p)
+  invisible(dev.off())
 
-    print(p)
 
   } else if (group_by_clusters == TRUE && length(features) == 1) {
     data <- data %>%
@@ -691,7 +697,7 @@ do_boxplots <- function(data, testing_results = testing_results, grouping_var = 
         }
         testing_results$y.position <- y_positions
         testing_results$p.adj <- round(testing_results$p.adj, 3)
-        p <- p + stat_pvalue_manual(testing_results, label = "p.adj", hide.ns = FALSE, size = 8, tip.length = 0.02)
+        p <- p + stat_pvalue_manual(testing_results, label = "p.adj", hide.ns = FALSE, size = 8, tip.length = 0.01)
 
       } else {
         y_positions <- c()
@@ -700,7 +706,7 @@ do_boxplots <- function(data, testing_results = testing_results, grouping_var = 
           y_positions <- c(y_positions, temp)
         }
         testing_results$y.position <- y_positions
-        
+
         nrow_signif <- testing_results %>%
                       group_by(.data[[cluster_var]]) %>%
                       summarise(n_signif = sum(p.adj.signif != "ns"))
@@ -717,13 +723,19 @@ do_boxplots <- function(data, testing_results = testing_results, grouping_var = 
            }
           }
           testing_results <- filtered_testing
-          p <- p + stat_pvalue_manual(testing_results, label = "p.adj.signif", hide.ns = FALSE, size = 12, tip.length = 0.02)
+          p <- p + stat_pvalue_manual(testing_results, label = "p.adj.signif", hide.ns = FALSE, size = 15, tip.length = 0.01)
         }
       }
     }
-
-    print(p)
+  n_clusters <- length(unique(data[[cluster_var]]))
+  pdf(paste0(output_group, prefix, "_", "boxplot_grid", ".pdf"),
+    width = 8 * column_number,
+    height = 10 * ceiling(n_clusters / column_number)
+  )
+  print(p)
+  invisible(dev.off())
   }
+  
   }
 
 
