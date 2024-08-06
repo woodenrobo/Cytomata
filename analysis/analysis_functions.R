@@ -372,7 +372,6 @@ continue_or_recluster <- function() {
 
     if (answer == "recluster") {
         clustering_mode <- "do_clustering"
-        update_settings()
         clustering_engine <- settings$value[settings$setting == "clustering_engine"]
         clustering_k <- as.numeric(unlist(strsplit(settings$value[settings$setting == "clustering_k"], split = ", ", fixed = TRUE)))
         fs_n_dims <- as.numeric(settings$value[settings$setting == "fs_n_dims"])
@@ -605,8 +604,9 @@ do_umap_plots <- function(module) {
             umap_facet(grouping_var = "analysis", module = module, equal_sampling = FALSE)
         }
 
-    } else if (module == "analysis") {
-        #umap_facet(grouping_var = "blah", module = module, equal_sampling = TRUE)
+    } else if (module == "core") {
+        umap_facet(grouping_var = group, module = module, equal_sampling = TRUE)
+        umap_expressions(grouping_var = group, module = module, column_number = 4)
     }
 
 }
@@ -671,15 +671,165 @@ summary_table <- function(data = exprs_set, grouping_var, selected_features = NU
 }
 
 
-calculate_cluster_proportions <- function(cluster_var = "meta_cluster_id", selected_clusters = unique(exprs_set[[cluster_var]])) {
-    cluster_proportions <- summary_table(exprs_set, c(group, "id", cluster_var), selected_features = NULL, "count") %>%
-    dplyr::filter(!!sym(cluster_var) %in% selected_clusters) %>%
-    group_by(id) %>%
-    mutate(prop = count / sum(count) * 100) %>%
-    ungroup()
+calculate_cluster_proportions <- function(cluster_var = "meta_cluster_id", selected_clusters = NULL) {
+    if (is.null(selected_clusters)) {
+            cluster_proportions <- summary_table(exprs_set, c(group, "id", cluster_var), selected_features = NULL, "count") %>%
+                                    group_by(id) %>%
+                                    mutate(prop = count / sum(count) * 100) %>%
+                                    ungroup()
+    } else {
+            cluster_proportions <- summary_table(exprs_set, c(group, "id", cluster_var), selected_features = NULL, "count") %>%
+                                    dplyr::filter(!!sym(cluster_var) %in% selected_clusters) %>%
+                                    group_by(id) %>%
+                                    mutate(prop = count / sum(count) * 100) %>%
+                                    ungroup()
+    }
+
     return(cluster_proportions)
 }
 
 
+
+do_testing <- function(data, grouping_var, module, features, group_by_clusters, cluster_var = cluster_var, selected_clusters = NULL,
+                        column_number = 4, parametric_testing = FALSE, paired = FALSE, manual_comparisons = NULL, prefix = NULL) {
+  if (is.null(manual_comparisons)) {
+    unique_groups <- unique(data[[grouping_var]])
+    n_unique_groups <- length(unique(data[[grouping_var]]))
+  } else {
+    unique_groups <- manual_comparisons
+    n_unique_groups <- length(manual_comparisons)
+  }
+
+  if (group_by_clusters == TRUE) {
+      n_number <- data %>%
+                group_by(!!sym(grouping_var), !!sym(cluster_var)) %>%
+                summarise(n = n())
+  } else {
+    n_number <- data %>%
+                group_by(!!sym(grouping_var)) %>%
+                summarise(n = n())
+  }
+
+  min_n_number <- min(n_number$n)
+
+  if (min_n_number < 2) {
+    stop("At least two samples in each group are required for testing.")
+  }
+
+  temp <- data
+
+  if (n_unique_groups == 2) {
+    comparisons <- list(c(unique_groups))
+
+    if (parametric_testing == TRUE) {
+      testing_type <- "parametric"
+
+      if (group_by_clusters == TRUE) {
+        temp <- temp %>% group_by(!!sym(cluster_var))
+      }
+      if (!is.null(selected_clusters)) {
+          temp <- temp %>% filter(!!sym(cluster_var) %in% selected_clusters)
+      }
+      collector <- c()
+      for (f in seq_along(features)) {
+        feature <- features[f]
+        test_result <- temp %>% rstatix::t_test(as.formula(paste(feature, "~", grouping_var)), paired = paired, p.adjust.method = "none")
+        collector <- rbind(collector, test_result)
+      }
+      collector <- collector %>% rstatix::adjust_pvalue(method = "BH")
+    } else {
+      testing_type <- "nonparametric"
+
+      if (group_by_clusters == TRUE) {
+        temp <- temp %>% group_by(!!sym(cluster_var))
+      }
+      if (!is.null(selected_clusters)) {
+        temp <- temp %>% filter(!!sym(cluster_var) %in% selected_clusters)
+      }
+      collector <- c()
+      for (f in seq_along(features)) {
+        feature <- features[f]
+        test_result <- temp %>% rstatix::pairwise_wilcox_test(as.formula(paste(feature, "~", grouping_var)), paired = paired, p.adjust.method = "none")
+        collector <- rbind(collector, test_result)
+      }
+      collector <- collector %>% rstatix::adjust_pvalue(method = "BH")
+      collector$p.adj.signif <- symnum(collector$p.adj, cutpoints = c(0, 0.0001, 0.001, 0.01, 0.05, 1), symbols = c("****", "***", "**", "*", "ns"))
+    }
+    
+  } else if (n_unique_groups > 2) {
+    comparisons <- combn(unique(data[[grouping_var]]), 2, simplify = TRUE)
+
+    if (paired == TRUE) {
+      stop("Paired testing is not supported for more than two groups.")
+    }
+
+    if (parametric_testing == TRUE) {
+        testing_type <- "parametric"
+
+      if (group_by_clusters == TRUE) {
+        temp <- temp %>% group_by(!!sym(cluster_var))
+      }
+      if (!is.null(selected_clusters)) {
+        temp <- temp %>% dplyr::filter(!!sym(cluster_var) %in% selected_clusters)
+      }
+      omnibus_collector <- c()
+      collector <- c()
+      for (f in seq_along(features)) {
+        feature <- features[f]
+        omnibus_result <- temp %>% rstatix::anova_test(as.formula(paste(feature, "~", grouping_var)))
+        
+        if (group_by_clusters == TRUE) {
+          signif_clusters <- unlist(omnibus_result[omnibus_result$p < 0.05, cluster_var])
+          test_result <- temp %>% dplyr::filter(!!sym(cluster_var) %in% signif_clusters) %>% rstatix::t_test(as.formula(paste(feature, "~", grouping_var)), paired = paired, p.adjust.method = "none")
+        } else {
+          test_result <- temp %>% rstatix::t_test(as.formula(paste(feature, "~", grouping_var)), paired = paired, p.adjust.method = "none")
+        }
+        omnibus_collector <- rbind(omnibus_collector, omnibus_result)
+        collector <- rbind(collector, test_result)
+      }
+      write.csv(omnibus_collector, paste0(output_group, prefix, "_", testing_type, "_omnibus_testing_results.csv"))
+      collector <- collector %>% rstatix::adjust_pvalue(method = "BH")
+      collector$p.adj.signif <- symnum(collector$p.adj, cutpoints = c(0, 0.0001, 0.001, 0.01, 0.05, 1), symbols = c("****", "***", "**", "*", "ns"))
+    } else {
+      testing_type <- "nonparametric"
+
+      if (group_by_clusters == TRUE) {
+        temp <- temp %>% group_by(!!sym(cluster_var))
+      }
+      if (!is.null(selected_clusters)) {
+        temp <- temp %>% dplyr::filter(!!sym(cluster_var) %in% selected_clusters)
+      }
+      omnibus_collector <- c()
+      collector <- c()
+      for (f in seq_along(features)) {
+        feature <- features[f]
+        omnibus_result <- temp %>% rstatix::kruskal_test(as.formula(paste(feature, "~", grouping_var)))
+        
+        if (group_by_clusters == TRUE) {
+          signif_clusters <- unlist(omnibus_result[omnibus_result$p < 0.05, cluster_var])
+          test_result <- temp %>% dplyr::filter(!!sym(cluster_var) %in% signif_clusters) %>% rstatix::pairwise_wilcox_test(as.formula(paste(feature, "~", grouping_var)), paired = paired, p.adjust.method = "none")
+        } else {
+          test_result <- temp %>% rstatix::pairwise_wilcox_test(as.formula(paste(feature, "~", grouping_var)), paired = paired, p.adjust.method = "none")
+        }
+        omnibus_collector <- rbind(omnibus_collector, omnibus_result)
+        collector <- rbind(collector, test_result)
+      }
+      write.csv(omnibus_collector, paste0(output_group, prefix, "_", testing_type, "_omnibus_testing_results.csv"))
+      collector <- collector %>% rstatix::adjust_pvalue(method = "BH")
+      collector$p.adj.signif <- symnum(collector$p.adj, cutpoints = c(0, 0.0001, 0.001, 0.01, 0.05, 1), symbols = c("****", "***", "**", "*", "ns"))
+    }
+    
+  } else if (n_unique_groups < 2) {
+    stop("Only one group detected. Please check the data.")
+  }
+  
+  if (paired == TRUE) {
+    testing_size <- "pairwise"
+  }
+  
+  write.csv(collector, paste0(output_group, prefix, "_", testing_type, "_pairwise_testing_results.csv"))
+
+  return(collector)
+}
 
 

@@ -274,7 +274,8 @@ cluster_expr_densities <- function(after_dropping = FALSE) {
               mutate(antigen = factor(antigen, levels = c(clustering_feature_markers), ordered = TRUE))
     print(
       ggplot(gg_df, aes(x = value, y = after_stat(ndensity))) + 
-            facet_wrap(~ antigen, scales = "free_x", ncol = col_number) +
+            facet_wrap(~ antigen, scales = "free_x", ncol = col_number,
+              labeller = labeller(.cols = label_wrap_gen(width = 20))) +
             geom_density(fill = "darkorange") + 
             ylab("Normalized density") +
             ggtitle(paste0("Cluster ", i)) +
@@ -362,7 +363,7 @@ umap_plot <- function(grouping_var, module, labels = TRUE) {
   if (module == "exploration"){
     folder <- output_exploration
   } else if (module == "core"){
-    folder <- output_core
+    folder <- output_group
   }
 
   pdf(paste0(folder, "UMAP_", grouping_var, ".pdf"),
@@ -413,7 +414,7 @@ umap_facet <- function(grouping_var, module, column_number = 4, equal_sampling =
   if (module == "exploration") {
     folder <- output_exploration
   } else if (module == "core") {
-    folder <- output_core
+    folder <- output_group
   }
 
   singles_output <- paste0(folder, "UMAP_facet_", grouping_var, "/")
@@ -436,7 +437,7 @@ umap_facet <- function(grouping_var, module, column_number = 4, equal_sampling =
       ggrastr::rasterise(geom_point(data = plot_df, color = '#aeaeae', alpha = 0.5, size = 1, shape = 19)) + 
       ggrastr::rasterise(geom_point(aes(color = !!sym(grouping_var)), alpha = 0.5, size = 1, shape = 19, show.legend = F)) + 
       scale_color_manual(values = cols) +
-      ggtitle(paste(plotted_group)) + 
+      ggtitle(str_wrap(paste(plotted_group), width = 25)) + 
       theme_cowplot() +
       theme(text = element_text(size = 25),
             axis.text.x = element_text(color = "black", size = 20, angle = 0, hjust = 0.5, vjust = 0.5, face = "plain"),
@@ -467,7 +468,7 @@ umap_expressions <- function(grouping_var = NULL, module, column_number = 4) {
   if (module == "exploration") {
     folder <- output_exploration
   } else if (module == "core") {
-    folder <- output_core
+    folder <- output_group
   }
 
   singles_output <- paste0(folder, "UMAP_expressions/")
@@ -498,7 +499,8 @@ umap_expressions <- function(grouping_var = NULL, module, column_number = 4) {
       grouping_levels <- levels(plot_df[[grouping_var]])
 
       p[[s]] <- p[[s]] +
-                  facet_wrap(~ .data[[grouping_var]], ncol = column_number) +
+                  facet_wrap(~ .data[[grouping_var]], ncol = column_number,
+                    labeller = labeller(.cols = label_wrap_gen(width = 25))) +
                   theme(strip.background = element_rect(fill = "#ffffff"))
       
       if (length(grouping_levels) < column_number) {
@@ -540,3 +542,191 @@ umap_expressions <- function(grouping_var = NULL, module, column_number = 4) {
   invisible(dev.off())
 
 }
+
+
+
+
+# Calculate maximum value for each facet to set y-position
+
+# Merge max_values with stat_test to get y-positions for each comparison
+
+
+# data = cluster_proportions
+# testing_results = testing_results
+# grouping_var = group
+# features = c("prop")
+# group_by_clusters = TRUE
+# cluster_var = cluster_var
+# selected_clusters = NULL
+# column_number = 4
+# manual_comparisons = NULL
+
+# show_testing = TRUE
+# show_pvalues = TRUE
+# show_outliers = TRUE
+
+do_boxplots <- function(data, testing_results = testing_results, grouping_var = group, features, group_by_clusters = TRUE,
+                        cluster_var = cluster_var, selected_clusters = NULL, column_number = 4, show_testing = TRUE,
+                        show_pvalues = TRUE, show_outliers = TRUE) {
+
+  if (group_by_clusters == TRUE && length(features) > 1) {
+    stop("When grouping by clusters, only one feature can be plotted at a time.")
+
+
+  } else if (group_by_clusters == FALSE && length(features) > 1) {
+      data <- data %>%
+                tidyr::pivot_longer(cols = all_of(features), names_to = "feature", values_to = "value")
+
+      if (!is.null(selected_clusters)) {
+      data <- data %>% filter(!!sym(cluster_var) %in% selected_clusters)
+      }
+    if (show_outliers == FALSE) {
+      data <- data %>%
+        group_by(feature, !!sym(grouping_var)) %>%
+        dplyr::filter(
+          value >= quantile(value, 0.25) - 1.5 * IQR(value) &
+          value <= quantile(value, 0.75) + 1.5 * IQR(value)
+        ) %>%
+        ungroup()
+    }
+
+    p <- ggplot(data, aes(x = !!sym(grouping_var), y = value, color = !!sym(grouping_var))) +
+      geom_boxplot(size = 1, outlier.shape = NA) +
+      geom_jitter(size = 3, width = 0.1, alpha = 1) +
+      xlab(grouping_var) +
+      ylab('Cluster Abundance [%]') +
+      facet_wrap(~ feature, scales = "free", ncol = column_number,
+        labeller = labeller(.cols = label_wrap_gen(width = 25))) +
+      theme_cowplot() +
+      theme(
+        text = element_text(size = 45),
+        legend.position = "none",
+        axis.text.x = element_text(color = "black", size = 30, angle = 45, hjust = 1, vjust = 1, face = "plain"),
+        axis.text.y = element_text(color = "black", size = 45, angle = 0, hjust = .5, vjust = 0.5, face = "plain"),
+        plot.margin = margin(t = 0, r = 0, b = 0, l = 10),
+        strip.background = element_rect(fill = "#ffffff")
+      )
+
+    if (show_testing == TRUE) {
+      testing_results$feature <- testing_results$.y.
+      if (show_pvalues == TRUE) {
+        y_positions <- c()
+        for (i in unique(testing_results[["feature"]])) {
+          temp <- get_y_position(data[data$feature == i, ], reformulate(grouping_var, "value"), step.increase = 0.12, scales = "free")$y.position
+          y_positions <- c(y_positions, temp)
+        }
+        testing_results$y.position <- y_positions
+        testing_results$p.adj <- round(testing_results$p.adj, 3)
+        p <- p + stat_pvalue_manual(testing_results, label = "p.adj", hide.ns = FALSE, size = 8, tip.length = 0.02)
+      } else {
+        y_positions <- c()
+        for (i in unique(testing_results[["feature"]])) {
+          temp <- get_y_position(data[data$feature == i, ], reformulate(grouping_var, "value"), step.increase = 0.12, scales = "free")$y.position
+          y_positions <- c(y_positions, temp)
+        }
+        testing_results$y.position <- y_positions
+
+        nrow_signif <- testing_results %>%
+                      group_by(.data[["feature"]]) %>%
+                      summarise(n_signif = sum(p.adj.signif != "ns"))
+        
+        if (sum(nrow_signif$n_signif > 0) > 0) {
+          filtered_testing <- c()
+          for (i in unique(testing_results[["feature"]])) {
+           marker_nrow_signif <- nrow_signif$n_signif[nrow_signif[["feature"]] == i]
+           if (marker_nrow_signif > 0) {
+            temp_y_positions <- testing_results$y.position[testing_results[["feature"]] == i]
+            temp_testing <- testing_results %>% dplyr::filter(.data[["feature"]] == i & p.adj.signif != "ns")
+            temp_testing$y.position <- temp_y_positions[1:marker_nrow_signif]
+            filtered_testing <- rbind(filtered_testing, temp_testing)
+           }
+          }
+          testing_results <- filtered_testing
+          p <- p + stat_pvalue_manual(testing_results, label = "p.adj.signif", hide.ns = FALSE, size = 12, tip.length = 0.02)
+        }
+      }
+    }
+
+    print(p)
+
+  } else if (group_by_clusters == TRUE && length(features) == 1) {
+    data <- data %>%
+                tidyr::pivot_longer(cols = all_of(features), names_to = "feature", values_to = "value")
+    if (!is.null(selected_clusters)) {
+      data <- data %>% filter(!!sym(cluster_var) %in% selected_clusters)
+    }
+    if (show_outliers == FALSE) {
+      data <- data %>%
+        group_by(!!sym(cluster_var), !!sym(grouping_var)) %>%
+        dplyr::filter(
+          value >= quantile(value, 0.25) - 1.5 * IQR(value) &
+          value <= quantile(value, 0.75) + 1.5 * IQR(value)
+        ) %>%
+        ungroup()
+    }
+
+    p <- ggplot(data, aes(x = !!sym(grouping_var), y = value, color = !!sym(grouping_var))) +
+      geom_boxplot(size = 1, outlier.shape = NA) +
+      geom_jitter(size = 3, width = 0.1, alpha = 1) +
+      xlab(grouping_var) +
+      ylab('Cluster Abundance [%]') +
+      facet_wrap(~ .data[[cluster_var]], scales = "free", ncol = column_number,
+        labeller = labeller(.cols = label_wrap_gen(width = 25))) +
+      theme_cowplot() +
+      theme(
+        text = element_text(size = 45),
+        legend.position = "none",
+        axis.text.x = element_text(color = "black", size = 30, angle = 45, hjust = 1, vjust = 1, face = "plain"),
+        axis.text.y = element_text(color = "black", size = 45, angle = 0, hjust = .5, vjust = 0.5, face = "plain"),
+        plot.margin = margin(t = 0, r = 0, b = 0, l = 10),
+        strip.background = element_rect(fill = "#ffffff")
+      )
+
+    if (show_testing == TRUE) {
+      if (show_pvalues == TRUE) {
+        y_positions <- c()
+        for (i in unique(testing_results[[cluster_var]])) {
+          temp <- get_y_position(data[data[[cluster_var]] == i, ], reformulate(grouping_var, "value"), step.increase = 0.12, scales = "free")$y.position
+          y_positions <- c(y_positions, temp)
+        }
+        testing_results$y.position <- y_positions
+        testing_results$p.adj <- round(testing_results$p.adj, 3)
+        p <- p + stat_pvalue_manual(testing_results, label = "p.adj", hide.ns = FALSE, size = 8, tip.length = 0.02)
+
+      } else {
+        y_positions <- c()
+        for (i in unique(testing_results[[cluster_var]])) {
+          temp <- get_y_position(data[data[[cluster_var]] == i, ], reformulate(grouping_var, "value"), step.increase = 0.12, scales = "free")$y.position
+          y_positions <- c(y_positions, temp)
+        }
+        testing_results$y.position <- y_positions
+        
+        nrow_signif <- testing_results %>%
+                      group_by(.data[[cluster_var]]) %>%
+                      summarise(n_signif = sum(p.adj.signif != "ns"))
+        
+        if (sum(nrow_signif$n_signif > 0) > 0) {
+          filtered_testing <- c()
+          for (i in unique(testing_results[[cluster_var]])) {
+           cluster_nrow_signif <- nrow_signif$n_signif[nrow_signif[[cluster_var]] == i]
+           if (cluster_nrow_signif > 0) {
+            temp_y_positions <- testing_results$y.position[testing_results[[cluster_var]] == i]
+            temp_testing <- testing_results %>% dplyr::filter(.data[[cluster_var]] == i & p.adj.signif != "ns")
+            temp_testing$y.position <- temp_y_positions[1:cluster_nrow_signif]
+            filtered_testing <- rbind(filtered_testing, temp_testing)
+           }
+          }
+          testing_results <- filtered_testing
+          p <- p + stat_pvalue_manual(testing_results, label = "p.adj.signif", hide.ns = FALSE, size = 12, tip.length = 0.02)
+        }
+      }
+    }
+
+    print(p)
+  }
+  }
+
+
+
+
+
