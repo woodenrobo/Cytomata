@@ -13,3 +13,5 @@ do_clustering_diagnostics_no_dropped()
 do_pca_plots(module = "exploration")
 
 do_umap_plots(module = "exploration")
+
+do_corrplot()
