@@ -9,9 +9,10 @@ figure_text_scaling <- as.numeric(settings$value[settings$setting == "figure_tex
 #COLOR PALETTE SETTINGS
 automatic_palette <- as.numeric(settings$value[settings$setting == "automatic_palette"])
 
+
 if (automatic_palette < 1) {
-    #type your custom palette here
-    palette <- c("small_mouse" = "red", "big_mouse" = "blue")
+    #create a list of custom palletes for each grouping column here
+    custom_palette <- list(c("small_mouse" = "red", "big_mouse" = "blue"), c("small_mouse" = "red", "big_mouse" = "blue"), c("small_mouse" = "red", "big_mouse" = "blue"))
 }
 
 #DEFAULT THEMES PLACEHOLDER

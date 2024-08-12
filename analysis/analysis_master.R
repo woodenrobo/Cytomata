@@ -1,6 +1,7 @@
 #APPLYING SETTINGS ######
 first_run_mode <- as.numeric(settings$value[settings$setting == "first_run_mode"])
 grouping_columns <- unlist(strsplit(settings$value[settings$setting == "grouping_columns"], split = ", ", fixed = TRUE))
+grouping_orders <- unlist(strsplit(settings$value[settings$setting == "grouping_orders"], split = "; ", fixed = TRUE))
 data_subsets <- unlist(strsplit(settings$value[settings$setting == "data_subsets"], split = ", ", fixed = TRUE))
 sampling_factors <- as.numeric(unlist(strsplit(settings$value[settings$setting == "sampling"], split = ", ", fixed = TRUE)))
 event_cutoff <- as.numeric(settings$value[settings$setting == "event_cutoff"])
@@ -171,14 +172,36 @@ for (data_sub in data_subsets) {
         setwd(path_to_cytomata)
         source("./analysis/analysis_exploration_addons.R")
 
+        grouping_col_counter <- 0
         for (group in grouping_columns) {
-            group <- grouping_columns[2] #FOR TESTING, REMOVE LATER
+            grouping_col_counter <- grouping_col_counter + 1
+            group <- grouping_columns[3] #FOR TESTING, REMOVE LATER =============================================================================================================
+
+            if (grouping_orders[grouping_col_counter] == "NA") {
+                group_order <- gtools::mixedsort(unique(exprs_set[, group]))
+            } else {
+                group_order <- unlist(strsplit(grouping_orders[grouping_col_counter], split = ", ", fixed = TRUE))
+            }
+
+            exprs_set[, group] <- factor(exprs_set[, group], levels = group_order, ordered = TRUE)
+
+            if (automatic_palette < 1) {
+                group_cols <- unlist(custom_palette[grouping_col_counter])
+            } else {
+                group_cols <- make_palette_groups(group)
+            }
+
+
+
+
+            
+
             output_group <- paste0(output_core, group, "/")
             dir.create(output_group, showWarnings = FALSE)
             setwd(path_to_cytomata)
             source("./analysis/analysis_core.R")
             setwd(path_to_cytomata)
-            source("./analysis/analysis_addons.R")            
+            source("./analysis/analysis_core_addons.R")            
         }
 
     } else {

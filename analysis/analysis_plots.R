@@ -87,8 +87,8 @@ make_palette <- function(variable_name) {
 
 make_palette_groups <- function(variable_name) {
   set.seed(1234)
-  palette <- Polychrome::createPalette(length(unique(exprs_set[, variable_name])), c("#c42e00", "#9100c6"), M = 8500)
-  names(palette) <- gtools::mixedsort(unique(exprs_set[, variable_name]))
+  palette <- Polychrome::createPalette(length(unique(exprs_set[, variable_name])), c("#c42e00", "#9100c6"), M = 15000)
+  names(palette) <- gtools::mixedsort(levels(exprs_set[, variable_name]))
   return(palette)
 }
 
@@ -874,7 +874,7 @@ cluster_abundance_heatmaps <- function(data = data, grouping_var = group, featur
   rownames(abu_heat_mat) <- id_annot
 
   cols <- make_palette(cluster_var)
-  group_cols <- make_palette_groups(group)
+  
 
   column_ha <- HeatmapAnnotation(cluster = colnames(abu_heat_mat),
                                 # annotation_legend_param = list(
@@ -959,7 +959,6 @@ cluster_abundance_heatmaps <- function(data = data, grouping_var = group, featur
   abu_heat_mat <- apply(abu_heat_mat, MARGIN = 2, FUN = scale)
 
   cols <- make_palette(cluster_var)
-  group_cols <- make_palette_groups(group)
 
   column_ha <- HeatmapAnnotation(cluster = colnames(abu_heat_mat),
                                 # annotation_legend_param = list(
@@ -1050,7 +1049,7 @@ cluster_abundance_heatmaps <- function(data = data, grouping_var = group, featur
   rownames(abu_heat_mat) <- row_annot
 
   cols <- make_palette(cluster_var)
-  group_cols <- make_palette_groups(group)
+
 
   column_ha <- HeatmapAnnotation(cluster = colnames(abu_heat_mat),
                                 # annotation_legend_param = list(
@@ -1140,7 +1139,6 @@ cluster_abundance_heatmaps <- function(data = data, grouping_var = group, featur
   rownames(abu_heat_mat) <- row_annot
 
   cols <- make_palette(cluster_var)
-  group_cols <- make_palette_groups(group)
 
   column_ha <- HeatmapAnnotation(cluster = colnames(abu_heat_mat),
                                 # annotation_legend_param = list(
@@ -1213,7 +1211,8 @@ cluster_testing_heatmaps <- function(data = data, testing_results = testing_resu
   if (nrow(testing_results) > 0) {
     test_mat <- testing_results
     clusters_present <- as.character(unique(test_mat[[cluster_var]]))
-    test_mat_temp <- test_mat %>% tidyr::pivot_wider(names_from = c(!!sym(cluster_var)), values_from = "p.adj")
+    test_mat_temp <- test_mat %>% tidyr::pivot_wider(id_cols = c(group1, group2), names_from = c(!!sym(cluster_var)), values_from = "p.adj")
+    test_mat <- test_mat_temp
     test_mat_temp <- test_mat_temp %>% select(all_of(clusters_present)) %>% as.matrix()
     test_mat_temp[is.na(test_mat_temp)] <- 1
 
@@ -1246,7 +1245,7 @@ cluster_testing_heatmaps <- function(data = data, testing_results = testing_resu
     # } else {
     #   mat <- mat.temp[,rownames(cluster_matrix)]
 
-    group_cols <- make_palette_groups(group)
+
 
     pdf(file = paste0(output_group, prefix, "_testing_heatmap.pdf"), width = 10, height = 10)
 
