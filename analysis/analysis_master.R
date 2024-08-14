@@ -192,10 +192,6 @@ for (data_sub in data_subsets) {
             }
 
 
-
-
-            
-
             output_group <- paste0(output_core, group, "/")
             dir.create(output_group, showWarnings = FALSE)
             setwd(path_to_cytomata)

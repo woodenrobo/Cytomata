@@ -85,13 +85,40 @@ make_palette <- function(variable_name) {
   return(palette)
 }
 
-make_palette_groups <- function(variable_name) {
+
+make_palette_groups <- function(variable_name, add_luminance = -1.2) {
+
   set.seed(1234)
-  palette <- Polychrome::createPalette(length(unique(exprs_set[, variable_name])), c("#c42e00", "#9100c6"), M = 15000)
+  palette <- Polychrome::createPalette(length(levels(exprs_set[, variable_name])), c("#b55555", "#4080ab", "#9b4f89"), M = 7000)
   names(palette) <- gtools::mixedsort(levels(exprs_set[, variable_name]))
+
+  if (-2 < add_luminance && add_luminance < 2) {
+    # Get a matrix of values in the RGB color space
+    rgb_matrix <- t(grDevices::col2rgb(palette, alpha = TRUE)) / 255
+    # Obtain the alpha values
+    alpha <- rgb_matrix[, "alpha"]
+    # Get a matrix of values in the Luv color space
+    luv_matrix <- grDevices::convertColor(rgb_matrix[, 1:3], "sRGB", "Luv")
+    # Apply calculations to obtain values in the HCL color space
+    h <- atan2(luv_matrix[, "v"], luv_matrix[, "u"]) * 180 / pi
+    c <- sqrt(luv_matrix[, "u"]^2 + luv_matrix[, "v"]^2)
+    l <- luv_matrix[, "L"]
+    # Scale luminance to occupy [0, 1]
+    y <- l / 100.
+    # Obtain `x` positions of luminance values along a sigmoid function
+    x <- log(-(y / (y - 1)))
+    # Calculate new luminance values based on a fixed step-change in `x`
+    y_2 <- 1 / (1 + exp(-(x + add_luminance)))
+    # Rescale the new luminance values to [0, 100]
+    l <- y_2 * 100.
+    # Obtain hexadecimal colors from the modified HCL color values
+    palette <- grDevices::hcl(h, c, l, alpha = alpha)
+  } else {
+    warning("add_luminance must be between -2 and 2, ignoring the parameter")
+  }
+
   return(palette)
 }
-
 
 
 cluster_size_bars <- function(after_dropping = FALSE) {
@@ -327,6 +354,7 @@ pca_biplot <- function(grouping_var, dims, module) {
     folder <- output_exploration
   } else if (module == "core"){
     folder <- output_core
+    cols <- group_cols
   }
   pdf(paste0(folder, "PCA_", grouping_var, "_PC_", paste0(dims, collapse = "_"), ".pdf"),
     width = 13,
@@ -378,6 +406,7 @@ umap_plot <- function(grouping_var, module, labels = TRUE) {
     folder <- output_exploration
   } else if (module == "core"){
     folder <- output_group
+    cols <- group_cols
   }
 
   pdf(paste0(folder, "UMAP_", grouping_var, ".pdf"),
@@ -390,7 +419,7 @@ umap_plot <- function(grouping_var, module, labels = TRUE) {
         # size = 0.5 to restore old version with big points 
         # shape = "." to optimize for execution speed
         guides(colour = guide_legend(override.aes = list(alpha = 1, size = 3, shape = 19), title = grouping_var)) +
-        scale_color_manual(values = cols, labels = scales::label_wrap(25)) +
+        scale_color_manual(values = cols, labels = scales::label_wrap(25), limits = force) +
         theme_cowplot() +
         theme(text = element_text(size = 25),
               axis.text.x = element_text(color = "black", size = 20, angle = 0, hjust = 0.5, vjust = 0.5, face = "plain"),
@@ -411,7 +440,7 @@ umap_plot <- function(grouping_var, module, labels = TRUE) {
              fill = as.factor(.data[[grouping_var]]),
              color = as.factor(mean_coords[[grouping_var]])),
             size = 10, max.overlaps = Inf) +
-          scale_fill_manual(values = cols) +
+          scale_fill_manual(values = cols, limits = force) +
           scale_color_manual(values = text_colors) +
           guides(fill = "none", color = "none")
   }
@@ -429,6 +458,7 @@ umap_facet <- function(grouping_var, module, column_number = 4, equal_sampling =
     folder <- output_exploration
   } else if (module == "core") {
     folder <- output_group
+    cols <- group_cols
   }
 
   singles_output <- paste0(folder, "UMAP_facet_", grouping_var, "/")
@@ -450,7 +480,7 @@ umap_facet <- function(grouping_var, module, column_number = 4, equal_sampling =
     p[[s]] <- ggplot(plot_df[plot_df[[grouping_var]] == plotted_group, ], aes(x = UMAP1, y = UMAP2)) +
       ggrastr::rasterise(geom_point(data = plot_df, color = '#aeaeae', alpha = 0.5, size = 1, shape = 19)) + 
       ggrastr::rasterise(geom_point(aes(color = !!sym(grouping_var)), alpha = 0.5, size = 1, shape = 19, show.legend = F)) + 
-      scale_color_manual(values = cols) +
+      scale_color_manual(values = cols, limits = force) +
       ggtitle(str_wrap(paste(plotted_group), width = 25)) + 
       theme_cowplot() +
       theme(text = element_text(size = 25),
@@ -623,6 +653,7 @@ do_boxplots <- function(data, testing_results = testing_results, grouping_var = 
       geom_jitter(size = 5, width = 0.1, alpha = 1) +
       xlab(grouping_var) +
       ylab('Marker Expression') +
+      scale_color_manual(values = group_cols, limits = force) +
       facet_wrap(~ feature, scales = "free", ncol = column_number,
         labeller = labeller(.cols = label_wrap_gen(width = 25))) +
       theme_cowplot() +
@@ -695,6 +726,7 @@ do_boxplots <- function(data, testing_results = testing_results, grouping_var = 
         ggtitle(paste(facet)) +
         xlab(grouping_var) +
         ylab('Marker Expression') +
+        scale_color_manual(values = group_cols, limits = force) +
         theme_cowplot() +
         theme(
           text = element_text(size = 45),
@@ -745,6 +777,7 @@ do_boxplots <- function(data, testing_results = testing_results, grouping_var = 
       geom_jitter(size = 5, width = 0.1, alpha = 1) +
       xlab(grouping_var) +
       ylab('Cluster Abundance [%]') +
+      scale_color_manual(values = group_cols, limits = force) +
       facet_wrap(~ .data[[cluster_var]], scales = "free", ncol = column_number,
         labeller = labeller(.cols = label_wrap_gen(width = 25))) +
       theme_cowplot() +
@@ -816,6 +849,7 @@ do_boxplots <- function(data, testing_results = testing_results, grouping_var = 
         ggtitle(paste(facet)) +
         xlab(grouping_var) +
         ylab('Cluster Abundance [%]') +
+        scale_color_manual(values = group_cols, limits = force) +
         theme_cowplot() +
         theme(
           text = element_text(size = 45),
