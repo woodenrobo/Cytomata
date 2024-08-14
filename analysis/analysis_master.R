@@ -175,7 +175,7 @@ for (data_sub in data_subsets) {
         grouping_col_counter <- 0
         for (group in grouping_columns) {
             grouping_col_counter <- grouping_col_counter + 1
-            group <- grouping_columns[3] #FOR TESTING, REMOVE LATER =============================================================================================================
+            group <- grouping_columns[2] #FOR TESTING, REMOVE LATER =============================================================================================================
 
             if (grouping_orders[grouping_col_counter] == "NA") {
                 group_order <- gtools::mixedsort(unique(exprs_set[, group]))

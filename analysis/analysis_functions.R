@@ -717,7 +717,7 @@ do_testing <- function(data, grouping_var, module, features, group_by_clusters, 
   }
 
   temp <- data
-
+  temp[[grouping_var]] <- as.character(temp[[grouping_var]])
   if (n_unique_groups == 2) {
     comparisons <- list(c(unique_groups))
 
