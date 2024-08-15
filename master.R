@@ -53,7 +53,7 @@ meta <- load_metafile(meta_naming_scheme = settings$value[settings$setting == "m
 #common pre-processing channels are automatically set to 0
 panel <- load_panel()
 feature_markers <- panel$antigen[panel$feature == 1]
-
+feature_markers_gating <- panel$antigen[panel$gating_feature == 1]
 #CLEANING AND DEBARCODING  ################
 #sadly, this part is best done in a cloud-based solution like OMIQ or Cytobank due to the massive data and the fact that gating is still best done manually
 #upload your raw data, remove calibration beads, gate on DNA channels and assign barcode identities
