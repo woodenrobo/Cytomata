@@ -1,17 +1,24 @@
 #APPLYING SETTINGS ######
+first_run_mode <- as.numeric(settings$value[settings$setting == "first_run_mode"])
 grouping_columns <- unlist(strsplit(settings$value[settings$setting == "grouping_columns"], split = ", ", fixed = TRUE))
+grouping_orders <- unlist(strsplit(settings$value[settings$setting == "grouping_orders"], split = "; ", fixed = TRUE))
 data_subsets <- unlist(strsplit(settings$value[settings$setting == "data_subsets"], split = ", ", fixed = TRUE))
 sampling_factors <- as.numeric(unlist(strsplit(settings$value[settings$setting == "sampling"], split = ", ", fixed = TRUE)))
 event_cutoff <- as.numeric(settings$value[settings$setting == "event_cutoff"])
 low_var_feature_removal <- as.numeric(unlist(strsplit(settings$value[settings$setting == "low_var_feature_removal"], split = ", ", fixed = TRUE)))
-if (length(low_var_feature_removal) > 1 & low_var_feature_removal[1] == 1) {
+
+
+
+if (length(low_var_feature_removal) > 1 && low_var_feature_removal[1] == 1) {
     top_var_features <- low_var_feature_removal[2]
 }
-if (length(low_var_feature_removal) == 1 & low_var_feature_removal[1] == 1) {
+if (length(low_var_feature_removal) == 1 && low_var_feature_removal[1] == 1) {
     top_var_features <- 20
 }
 clustering_engine <- settings$value[settings$setting == "clustering_engine"]
 clustering_k <- as.numeric(unlist(strsplit(settings$value[settings$setting == "clustering_k"], split = ", ", fixed = TRUE)))
+fs_n_dims <- as.numeric(settings$value[settings$setting == "fs_n_dims"])
+ccp_delta_cutoff <- as.numeric(settings$value[settings$setting == "ccp_delta_cutoff"])
 umap_n <- as.numeric(unlist(strsplit(settings$value[settings$setting == "umap_n"], split = ", ", fixed = TRUE)))
 umap_min_dist <- as.numeric(unlist(strsplit(settings$value[settings$setting == "umap_min_dist"], split = ", ", fixed = TRUE)))
 
@@ -31,13 +38,16 @@ source("./analysis/analysis_plots.R")
 
 
 data_sub_counter <- 0
+data_sub <- data_subsets[1] #FOR TESTING, REMOVE LATER
 for (data_sub in data_subsets) {
     cat(paste0("\n DATA SUBSET SELECTED IS: ", data_sub, "\n"))
     setwd(subset_folder)
     if (grepl(data_sub, dir())) {
         data_sub_counter <- data_sub_counter + 1
 
-        output_data_sub_analysis <- paste0(output_analysis, data_sub, "/")
+        output_data_sub <- paste0(output_analysis, data_sub, "/")
+        ifelse(!dir.exists(output_data_sub), dir.create(output_data_sub), FALSE)
+        output_data_sub_analysis <- paste0(output_analysis, data_sub, "/", date, "/")
         ifelse(!dir.exists(output_data_sub_analysis), dir.create(output_data_sub_analysis), FALSE)
         output_clustering <- paste0(output_data_sub_analysis, "clustering", "/")
         ifelse(!dir.exists(output_clustering), dir.create(output_clustering), FALSE)
@@ -48,7 +58,7 @@ for (data_sub in data_subsets) {
 
 
 
-        input <- dir(recursive = TRUE, include.dirs = FALSE)[grepl(data_sub, dir(recursive = TRUE, include.dirs = FALSE))]
+        input <- dir(subset_folder, recursive = TRUE, include.dirs = FALSE)[grepl(data_sub, dir(subset_folder, recursive = TRUE, include.dirs = FALSE))]
         stripped_input <- gsub(paste0(data_sub, "/"), "", input)
         #DUE TO 0 CELLS IN SOME SAMPLES AFTER PRE-GATING
         #REMOVE ALL FILES SMALLER THAN 8 kB (normally 0 or 1 events)
@@ -79,6 +89,9 @@ for (data_sub in data_subsets) {
         final_input <- input[stripped_input %in% meta_input]
 
         sampling_rate <- sampling_factors[data_sub_counter]
+
+        sampling_rate_changed <- check_sampling_rate_changes()
+
         #settings for transformation
         asinh_transform <- TRUE
         cofac <- 5
@@ -97,12 +110,15 @@ for (data_sub in data_subsets) {
             exprs_set$sample_state[exprs_set$sample %in% filtered_meta$fcs[filtered_meta$analysis < 1]] <- "dropped"
         }
 
+        first_run_mode_check()
 
         #SET FEATURES TO BE USED FOR CLUSTERING AND AUTOMATIC VISUALIZATION ######
         #this is also used for ordering of features in plots
         if (length(dir(meta_folder, pattern = "subset_feature_selection.xlsx")) > 0) {
             subset_feature_selection <- read_xlsx(paste0(meta_folder, "subset_feature_selection.xlsx"))
             clustering_feature_markers <- unlist(strsplit(subset_feature_selection[subset_feature_selection$subset == data_sub, ] %>% pull(features), split = ", ", fixed = TRUE))
+            cat("\n Features were set from subset_feature_selection.xlsx table \n")
+            cat("\n Features selected for clustering are:\n", clustering_feature_markers, "\n")
         } else if (low_var_feature_removal[1] == 1) {
             ## REMOVE FEATURES WITH LOW VARIANCE ##########################################
             #remove features with low variability from clustering
@@ -110,18 +126,20 @@ for (data_sub in data_subsets) {
             variances <- apply(exprs_set[, !names(exprs_set) %in% c('sample')],
                                 FUN = var, MARGIN=2)
             variances <- variances[order(variances, decreasing = TRUE)]
-            
-            cat('\n TOP', high_var_top, 'variable markers are:\n')
+            cat("\n Features are pre-selected based on variance due to low_var_feature_removal setting \n")
+            cat('\n TOP', top_var_features, 'variable markers are:\n')
             print(variances[1:top_var_features])
-            
-            cat('\n Features removed due to low variance are:\n', names(variances[-(1:high_var_top)]),'\n')
+            cat('\n Features removed due to low variance are:\n', names(variances[-(1:top_var_features)]),'\n')
             remove <- names(variances[-(1:top_var_features)])
             clustering_feature_markers <- setdiff(x = feature_markers, y = remove)
         } else {
             clustering_feature_markers <- feature_markers
         }
+        if (first_run_mode > 0) {
+            write.csv(clustering_feature_markers, paste0(meta_folder, data_sub, "_first_run_features.csv"), row.names = FALSE)
+        }
 
-
+        feature_input_changed <- check_feature_input_changes()
 
         
         ## z-normalize the expression levels #########################
@@ -139,8 +157,12 @@ for (data_sub in data_subsets) {
         }
 
 
-    
+        #plotting samplesizes in absolute values, also export as a csv table
+        sample_size_bars()
 
+        exprs_set <- merge_exprs_and_meta()
+
+        batch_size_bars()
 
 
         setwd(path_to_cytomata)
@@ -150,11 +172,32 @@ for (data_sub in data_subsets) {
         setwd(path_to_cytomata)
         source("./analysis/analysis_exploration_addons.R")
 
+        grouping_col_counter <- 0
         for (group in grouping_columns) {
+            grouping_col_counter <- grouping_col_counter + 1
+            group <- grouping_columns[2] #FOR TESTING, REMOVE LATER =============================================================================================================
+
+            if (grouping_orders[grouping_col_counter] == "NA") {
+                group_order <- gtools::mixedsort(unique(exprs_set[, group]))
+            } else {
+                group_order <- unlist(strsplit(grouping_orders[grouping_col_counter], split = ", ", fixed = TRUE))
+            }
+
+            exprs_set[, group] <- factor(exprs_set[, group], levels = group_order, ordered = TRUE)
+
+            if (automatic_palette < 1) {
+                group_cols <- unlist(custom_palette[grouping_col_counter])
+            } else {
+                group_cols <- make_palette_groups(group)
+            }
+
+
+            output_group <- paste0(output_core, group, "/")
+            dir.create(output_group, showWarnings = FALSE)
             setwd(path_to_cytomata)
             source("./analysis/analysis_core.R")
             setwd(path_to_cytomata)
-            source("./analysis/analysis_addons.R")            
+            source("./analysis/analysis_core_addons.R")            
         }
 
     } else {

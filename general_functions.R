@@ -9,6 +9,7 @@ using <- function(...) {
     }
 }
 
+
 using_bioconductor <- function(...) {
     libs <- unlist(list(...))
     req <- unlist(lapply(libs, require, character.only = TRUE))
@@ -18,6 +19,7 @@ using_bioconductor <- function(...) {
         lapply(need, require, character.only = TRUE)
     }
 }
+
 
 using_github <- function(...) {
     libs <- unlist(list(...))
@@ -29,12 +31,31 @@ using_github <- function(...) {
     }
 }
 
+
 parse_settings <- function() {
     library(readxl)
     library(stringr)
     #looking for settings.xlsx in Cytomata root folder
     settings <- read_xlsx("settings.xlsx")
 }
+
+
+update_settings <- function(settings) {
+    library(readxl)
+    library(stringr)
+    #looking for settings.xlsx in Cytomata root folder
+    new_settings <- read_xlsx("settings.xlsx")
+    changed_settings <- unlist(new_settings[new_settings$value != settings$value & !is.na(new_settings$value), "setting"])
+    if (length(changed_settings) > 0) {
+        settings[settings$setting %in% changed_settings, "value"] <- new_settings[new_settings$setting %in% changed_settings, "value"]
+        cat("Changes found in settings:\n")
+        cat(paste(changed_settings, collapse = "\n"), "\n")
+        cat("New values applied\n")
+    } else {
+        cat("No changes found in settings.\n")
+    }
+}
+
 
 load_metafile <- function(meta_naming_scheme) {
     library(readxl)
@@ -56,6 +77,7 @@ load_panel <- function(...) {
         cat("Panel restored from .csv\n")
         return(p)
     } else {
+        excluded_channels <- paste0(unlist(strsplit(settings$value[settings$setting == "excluded_channels"], split = ", ", fixed = TRUE)), collapse = "|")
         #all features need to have the same name across the samples
         setwd(debar_folder)
         fcs <- dir(debar_folder)[1]
@@ -65,22 +87,58 @@ load_panel <- function(...) {
         p$antigen <- fs@parameters@data[,"desc"]
         p <- as.data.frame(p)
         p <- p[stringr::str_detect(p$fcs_colname, pattern = "[1-9]"),]
-        p$antigen <- stringr::str_split(p$antigen, pattern = "_") %>% sapply(function(x) x[2])
+        p$antigen <- stringr::str_split(p$antigen, pattern = "_", n = 2) %>% sapply(function(x) x[2])
         #remove pre-processing channels (pre-processing has already been done in OMIQ)
         p$feature <- 1
         p[is.na(p$antigen),  "feature"] <- 0
-        p[grepl("B2M|DNA|Bead|LD|Live|Dead|ID|Cell-ID", p$antigen, perl = TRUE), "feature"] <- 0
+        p[grepl(excluded_channels, p$antigen, perl = TRUE), "feature"] <- 0
         setwd(meta_folder)
         write.csv(p, "panel.csv", row.names = FALSE)
         cat("Panel extracted from .fcs, saved as .csv in project's /meta folder\n")
         cat("Please set \"feature\" variable to 0 for empty or unused channels\n")
         return(p)
     }
-
 }
 
 
-inject_fcs <- function(input, filter_features, asinh_transform, cofac, sampling_rate, silent = FALSE, event_cutoff) {
+check_sampling_rate_changes <- function() {
+    sampling_rate_changed <- 0
+    if (sum(grepl(paste0("first_run_sampling_rate"), dir(output_data_sub)) == TRUE) > 0) {
+        previous_sampling_rate <- as.numeric(read.csv(paste0(output_data_sub, "first_run_sampling_rate.csv"))[-1])
+        if (sampling_rate != previous_sampling_rate) {
+            cat("Sampling rate has changed since the first run!\n",
+            "Restoring previous clustering and UMAP results will not be possible!\n")
+
+            if (interactive()) {
+                answer <- readline(paste0("Do you wish to proceed? New clustering and UMAP will be calculated!\n",
+                                "If yes, type \"continue\"\n",
+                                "If not, type \"backup\" to automatically set the old sampling_rate\n"))
+            } else {
+                answer <- "continue"
+            }
+
+            if (answer == "backup") {
+                sampling_rate <- previous_sampling_rate
+                cat("You have chosen to reset back to the sampling rate of", sampling_rate, "\n")
+            } else if (answer == "continue") {
+                cat("Continuing with new sampling rate of", sampling_rate, "\n")
+                sampling_rate_changed <- 1
+                cat("\n\n****************************************************\n",
+                    "ATTENTION! NEW CLUSTERING AND UMAP WILL BE CALCULATED!\n",
+                    "STOP NOW IF YOU DO NOT WISH TO OVERWRITE THE RESULTS!",
+                    "\n****************************************************\n\n")
+            } else {
+                cat("\n\nIt seems you have typed an incorrect answer!\n\n")
+                check_sampling_rate_changes()
+            }
+        }
+    }
+    answer <- NULL
+    return(sampling_rate_changed)
+}
+
+
+inject_fcs <- function(input, filter_features, asinh_transform, cofac, sampling_rate = 1, silent = FALSE, event_cutoff = 0) {
     library(flowCore)
     library(progress)
     library(dplyr)
@@ -108,11 +166,11 @@ inject_fcs <- function(input, filter_features, asinh_transform, cofac, sampling_
     
     for (f in input) {
         fcs <- read.FCS(filename = f, transformation = FALSE, truncate_max_range = FALSE)
-        fcs_channel_desc <<- as.vector(fcs@parameters@data$desc)
-        fcs_channel_name <<- as.vector(fcs@parameters@data$name)
+        fcs_channel_desc <- as.vector(fcs@parameters@data$desc)
+        fcs_channel_name <- as.vector(fcs@parameters@data$name)
         exprs <- as.data.frame(fcs@exprs)
         cat(nrow(exprs), "events in", rep(basename(f)), "\n")
-        markers <- gsub(pattern = ".*_", replacement = "", x = as.vector(fcs@parameters@data$desc))
+        markers <- gsub(pattern = "^.*?_", replacement = "", x = as.vector(fcs@parameters@data$desc))
         colnames(exprs)[which(!is.na(markers))] <- markers[which(!is.na(markers))]
         if (filter_features == TRUE) {
             exprs <- exprs[, colnames(exprs) %in% feature_markers]
@@ -219,8 +277,8 @@ inject_fcs <- function(input, filter_features, asinh_transform, cofac, sampling_
                     added_event_number <- target_event_number - starting_event_number
                 } 
                 exprs_sample <- exprs_set[exprs_set$sample == s, ]
-                exprs_sample$resampled <- "no"
                 exprs_sample_resampled <- exprs_sample[sample(length(exprs_sample), size = added_event_number, replace = TRUE), ]
+                exprs_sample$resampled <- "no"
                 exprs_sample_resampled$resampled <- "yes"
                 exprs_sample <- rbind(exprs_sample, exprs_sample_resampled)
                 temp_set <- rbind(temp_set, exprs_sample)
@@ -237,7 +295,59 @@ inject_fcs <- function(input, filter_features, asinh_transform, cofac, sampling_
         gc()
     }
 
-
-
+    exprs_set$cell_id <- 1:nrow(exprs_set)
+    sample_counts <- sample_counts
     return(exprs_set)
+}
+
+
+check_feature_input_changes <- function() {
+    feature_input_changed <- 0
+    if (sum(grepl(paste0(data_sub, "_first_run_features.csv"), dir(meta_folder)) == TRUE) > 0) {
+        
+        previous_feature_input <- unlist(read.csv(paste0(meta_folder, data_sub, "_first_run_features.csv")))
+        if (sum(clustering_feature_markers != previous_feature_input) > 0) {
+            cat("Feature markers have changed since the first run!\n",
+            "Restoring previous clustering and UMAP results is NOT RECOMMENDED!\n")
+
+            cat("Old feature markers were:\n", previous_feature_input, "\n",
+                "New feature markers are:\n", clustering_feature_markers, "\n")
+
+            if (interactive()) {
+                answer <- readline(paste0("Do you wish to calculate new clustering and UMAP?\n",
+                                "If yes, type \"continue\"\n",
+                                "Type \"backup\" to automatically set the old feature_markers\nand restore clustering and UMAPs\n",
+                                "Type \"restore\" to restore clustering and UMAPs but plot using new feature_markers\n"))
+            } else {
+                answer <- "continue"
+            }
+
+            if (answer == "continue") {
+                cat("\n\n****************************************************\n",
+                    "ATTENTION! NEW CLUSTERING AND UMAP WILL BE CALCULATED!\n",
+                    "STOP NOW IF YOU DO NOT WISH TO OVERWRITE THE RESULTS!",
+                    "\n****************************************************\n\n")
+                feature_input_changed <- 1
+
+                cat("\n\n****************************************************\n",
+                    "ATTENTION! SELECTED FEATURES ARE THE NEW DEFAULT!\n",
+                    "YOU WILL NOT BE PROMPTED NEXT TIME!",
+                    "\n****************************************************\n\n")
+                write.csv(clustering_feature_markers, paste0(meta_folder, data_sub, "_first_run_features.csv"), row.names = FALSE)
+
+            } else if (answer == "backup") {
+                clustering_feature_markers <- previous_feature_input
+                cat("You have chosen to reset back to old feature_markers\n")
+            } else if (answer == "restore") {
+                cat("You have chosen to restore clustering and UMAPs\n")
+                feature_input_changed <- 2
+            } else if (answer != "continue") {
+                cat("\n\nIt seems you have typed an incorrect answer!\n\n")
+                check_feature_input_changes()
+            }
+
+        }
+    }
+    answer <- NULL
+    return(feature_input_changed)
 }
