@@ -134,6 +134,10 @@ testing_results <- do_testing(data = data, grouping_var = group, features = feat
                                 cluster_var = cluster_var, selected_clusters = selected_clusters, column_number = column_number,
                                 parametric_testing = parametric_testing, paired = paired, manual_comparisons = manual_comparisons, prefix = prefix)
 
+
+marker_average_heatmaps(data = data, grouping_var = group, features = features, prefix = prefix)
+
+
 show_testing <- TRUE
 show_pvalues <- FALSE
 show_outliers <- TRUE
