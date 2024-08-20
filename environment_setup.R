@@ -6,7 +6,7 @@ cran_packages <- c("arrow", "scales", "ggplot2", "dplyr", "ggridges", "RColorBre
                  "miscTools", "gplots", "Radviz", "igraph", "statmod", "devtools", "uwot", "cowplot", "limma",
                  "ggrepel", "circlize", "readxl", "ggpubr", "ggsignif", "ggfortify", "Polychrome", "progress",
                  "ggnewscale", "BiocManager", "rstatix", "raster",
-                 "provenance", "sp",
+                 "provenance", "sp", "ks",
                  "shiny", "shinythemes", "shinyFiles", "Cairo",
                  "shinytest2", "testthat", "plotly")
 
