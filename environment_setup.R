@@ -7,14 +7,15 @@ cran_packages <- c("arrow", "scales", "ggplot2", "dplyr", "ggridges", "RColorBre
                  "ggrepel", "circlize", "readxl", "ggpubr", "ggsignif", "ggfortify", "Polychrome", "progress",
                  "ggnewscale", "BiocManager", "rstatix", "raster",
                  "provenance", "sp", "ks",
-                 "shiny", "shinythemes", "shinyFiles", "Cairo",
-                 "shinytest2", "testthat", "plotly")
+                 "shiny", "shinythemes", "shinyFiles", "Cairo", "shinyjs", "base64enc", 
+                 "shinytest2", "testthat", "plotly",
+                 "parallel", "doParallel", "foreach")
 
 using(cran_packages)
 
 #From BioConductor:
 
-bioc_packages <- c("flowCore", "ConsensusClusterPlus", "cydar", "ncdfFlow", "edgeR",
+bioc_packages <- c("flowCore", "flowWorkspace", "ConsensusClusterPlus", "cydar", "ncdfFlow", "edgeR",
                   "ComplexHeatmap", "limma", "M3C")
 
 using_bioconductor(bioc_packages)
