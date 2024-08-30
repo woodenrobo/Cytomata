@@ -159,7 +159,7 @@ ctm$main_scatter <- ggplot(exprs, aes(x = !!sym(x_axis), y = !!sym(y_axis))) +
 
 
 
-setwd(gating_app_folder)
+
 
 # TESTING PLOT INTERACTION ################
 
@@ -171,8 +171,8 @@ ui <- fluidPage(
       plotOutput("main_scatter", height = plot_resolution,
         click = "scatter_click",
         brush = brushOpts(
-          id = "scatter_brush", fill = "NA",
-          stroke = "black", opacity = 0.2, delay = 100, delayType = c("debounce")
+          id = "scatter_brush", fill = "#ffa600",
+          stroke = "black", opacity = 0.3, delay = 100, delayType = c("debounce")
         )
       )
     )
