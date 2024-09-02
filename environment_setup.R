@@ -9,7 +9,8 @@ cran_packages <- c("arrow", "scales", "ggplot2", "dplyr", "ggridges", "RColorBre
                  "provenance", "sp", "ks",
                  "shiny", "shinythemes", "shinyFiles", "Cairo", "shinyjs", "base64enc", 
                  "shinytest2", "testthat", "plotly",
-                 "parallel", "doParallel", "foreach")
+                 "parallel", "doParallel", "foreach",
+                 "r2d3")
 
 using(cran_packages)
 

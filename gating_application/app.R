@@ -91,28 +91,20 @@ if (asinh_transform == TRUE) {
 }
 
 #creating a GatingSet
-gs <- GatingSet(cs)
+ctm$gs <- GatingSet(cs)
 
 
 
 # SELECTING SAMPLES MODULE ################
 #support for multiple samples
 
-#selecting samples
-samples <- sampleNames(gs)[1:2]
+#available samples
+samples <- sampleNames(ctm$gs)
 
-#setting ID of the samples
-sample_ids <- match(samples, file_names)
+
 
 # SELECTING GATE MODULE ################
-#setting active parent gate
-active_parent <- "root"
 
-
-# SELECTING CHANNELS MODULE ################
-#default channels
-x_axis <- channel_descriptions[1]
-y_axis <- channel_descriptions[10]
 
 
 # SELECTING AXIS LIMITS MODULE ################
@@ -123,41 +115,33 @@ y_limits <- NULL
 scatter_point_size <- 1
 plot_resolution <- 650
 
+
 gate_linewidth <- 2
 
-# PREPARING DATA FOR PLOT ################
-#extracting cytosets
-if (length(sample_ids) == 1) {
-    ff <- cytoframe_to_flowFrame(gs_pop_get_data(gs[sample_ids], parent = active_parent)[[1]])
-    exprs <- as.data.frame(ff@exprs)
-    colnames(exprs) <- channel_descriptions
-} else if (length(sample_ids) > 1) {
-    exprs <- data.frame()
-    for (samp_id in sample_ids) {
-        ff <- cytoframe_to_flowFrame(gs_pop_get_data(gs[samp_id], parent = active_parent)[[1]])
-        exprs_temp <- as.data.frame(ff@exprs)
-        exprs <- rbind(exprs, exprs_temp)
-    }
-    colnames(exprs) <- channel_descriptions
-}
+
 
 #setting colors for density scatter
 col <- c("#5E4FA2", "#3288BD", "#66C2A5", "#ABDDA4", "#E6F598",
             "#FFFFBF", "#FEE08B", "#FDAE61", "#F46D43", "#D53E4F",
             "#9E0142")
-colRamp <- colorRampPalette(col)
-
-#density color calculations
-density <- suppressWarnings(densCols(exprs[, x_axis], exprs[, y_axis], nbin = 128, colramp = colRamp))
-
-ctm$main_scatter <- ggplot(exprs, aes(x = !!sym(x_axis), y = !!sym(y_axis))) +
-                    scattermore::geom_scattermore(aes(color = density), pointsize = scatter_point_size, pixels = c(plot_resolution, plot_resolution)) +
-                    scale_color_identity() +
-                    theme_minimal() +
-                    theme(legend.position = "none")
+col_ramp <- colorRampPalette(col)
 
 
+# DENSITY SCATTER PLOT FUNCTION ################
+density_scatter <- function(exprs = ctm$exprs, x_axis = input$x_channel_select, y_axis = input$y_channel_select, scatter_point_size = scatter_point_size, plot_resolution = plot_resolution, col_ramp = col_ramp) {
+  #density color calculations
+  density <- suppressWarnings(densCols(exprs[, x_axis], exprs[, y_axis], nbin = 128, colramp = col_ramp))
 
+  main_scatter <- ggplot(exprs, aes(x = !!sym(x_axis), y = !!sym(y_axis))) +
+                      scattermore::geom_scattermore(aes(color = density), pointsize = scatter_point_size, pixels = c(plot_resolution, plot_resolution)) +
+                      scale_color_identity() +
+                      theme_cowplot() +
+                      theme(legend.position = "none",
+                            axis.title.x = element_blank(),
+                            axis.title.y = element_blank())
+  return(main_scatter)
+}
+  
 
 
 
@@ -165,51 +149,158 @@ ctm$main_scatter <- ggplot(exprs, aes(x = !!sym(x_axis), y = !!sym(y_axis))) +
 
 library(htmltools)
 ui <- fluidPage(
+
+  tags$head(
+    # CSS for select boxes
+    tags$style(HTML("
+      .selectize-input { min-height: 20px; padding: 2px 5px; }
+      .selectize-dropdown, .selectize-input { font-size: 12px; }
+      #y_channel_select { width: 200px; }
+      #x_channel_select { width: 200px; }
+    ")),
+
+    tags$style(HTML("
+      .centered-select select {
+        text-align-last: center;
+        text-align: center;
+        -ms-text-align-last: center;
+        -moz-text-align-last: center;
+      }
+      .centered-select select option {
+        text-align: left;
+      }
+      /* For Firefox */
+      @-moz-document url-prefix() {
+        .centered-select select { text-align: center; }
+      }
+      .y-axis-select {
+        transform: rotate(-90deg);
+        transform-origin: right center;
+        width: 200px;
+        position: absolute;
+        top: 50%;
+        left: -180px;  /* Adjust this value as needed */
+      }
+    "))
+
+  ),
   
   fluidRow(
-    column(width = 4,
-      plotOutput("main_scatter", height = plot_resolution,
-        click = "scatter_click",
-        brush = brushOpts(
-          id = "scatter_brush", fill = "#ffa600",
-          stroke = "black", opacity = 0.3, delay = 100, delayType = c("debounce")
-        )
-      )
-    )
+    column(width = 2,
+      selectInput("selected_samples", "Choose 1 or more samples", choices = samples, selected = samples[1], multiple = TRUE),
+    ),
+    column(width = 7,
+      uiOutput("plotUI")
+      ),
+    column(width = 3,
+      br())
   ),
+
   fluidRow(
-    column(width = 6,
+      column(width = 4,
       h4("Brushed points"),
       verbatimTextOutput("brush_info")
     ),
-        column(width = 6,
+      column(width = 4,
       h4("Rectangle coordinates"),
       verbatimTextOutput("mat")
+    ),
+    column(width = 4,
+      h4("Activated parent gate"),
+      verbatimTextOutput("active_parent")
     )
   )
 )
 
 server <- function(input, output, session) {
-    
-    output$main_scatter <- renderPlot({
-    main_scatter
-    })
 
-    observeEvent(input$scatter_brush, {
-        output$brush_info <- renderPrint({
-            brushedPoints(exprs, input$scatter_brush)
-        })
-        components <- c(input$scatter_brush$xmin,
-                        input$scatter_brush$xmax,
-                        input$scatter_brush$ymin,
-                        input$scatter_brush$ymax)
-        ctm$mat <- matrix(components, ncol = 2,
-                      dimnames = list(c("min", "max"), c(x_axis, y_axis)))
-        output$mat <- renderPrint({
-                            ctm$mat
-                    })
-        
+  observeEvent(input$selected_samples, {
+
+    #setting ID of the samples
+    sample_ids <- match(input$selected_samples, file_names)
+
+    #setting default active parent gate
+    active_parent <- "root"
+
+    # PREPARING DATA FOR PLOT ################
+    #extracting cytosets
+    if (length(sample_ids) == 1) {
+        ff <- cytoframe_to_flowFrame(gs_pop_get_data(ctm$gs[sample_ids], parent = active_parent)[[1]])
+        ctm$exprs <- as.data.frame(ff@exprs)
+        colnames(ctm$exprs) <- channel_descriptions
+    } else if (length(sample_ids) > 1) {
+        exprs <- data.frame()
+        for (samp_id in sample_ids) {
+            ff <- cytoframe_to_flowFrame(gs_pop_get_data(ctm$gs[samp_id], parent = active_parent)[[1]])
+            exprs_temp <- as.data.frame(ff@exprs)
+            exprs <- rbind(exprs, exprs_temp)
+        }
+        ctm$exprs <- exprs
+        colnames(ctm$exprs) <- channel_descriptions
+    }
+  })
+
+
+
+  output$plotUI <- renderUI({
+    tagList(
+      div(style = "display: flex; align-items: center;",
+        div(style = paste0("width: 30px; position: relative; margin-bottom: ", plot_resolution / 2, "px;"),
+          div(class = "centered-select y-axis-select",
+            selectInput("y_channel_select", NULL, choices = channel_descriptions, selected = channel_descriptions[2], multiple = FALSE, selectize = FALSE, width = "100%")
+          )
+        ),
+        div(style = "flex-grow: 1; margin-left: 10px;",
+          plotOutput("main_scatter", height = plot_resolution,
+            click = "scatter_click",
+            brush = brushOpts(
+              id = "scatter_brush", fill = "#ffa600",
+              stroke = "black", opacity = 0.3, delay = 100, delayType = c("debounce")
+            )
+          )
+        )
+      ),
+      div(style = "display: flex; justify-content: center; margin-top: 10px;",
+        div(style = "width: 200px;",
+          div(class = "centered-select",
+            selectInput("x_channel_select", NULL, choices = channel_descriptions, selected = channel_descriptions[1], multiple = FALSE, selectize = FALSE, width = "100%")
+          )
+        )
+      )
+    )
+  })
+
+
+
+
+  observeEvent(list(input$selected_samples, input$x_channel_select, input$y_channel_select), {
+    output$main_scatter <- renderPlot({
+      ctm$main_scatter <- density_scatter(exprs = ctm$exprs,
+                              x_axis = input$x_channel_select,
+                              y_axis = input$y_channel_select,
+                              scatter_point_size, plot_resolution, col_ramp)
+      ctm$main_scatter
     })
+  })
+
+
+
+
+  observeEvent(input$scatter_brush, {
+      output$brush_info <- renderPrint({
+          brushedPoints(ctm$exprs, input$scatter_brush)
+      })
+      components <- c(input$scatter_brush$xmin,
+                      input$scatter_brush$xmax,
+                      input$scatter_brush$ymin,
+                      input$scatter_brush$ymax)
+      ctm$mat <- matrix(components, ncol = 2,
+                    dimnames = list(c("min", "max"), c(input$x_channel_select, input$y_channel_select)))
+      output$mat <- renderPrint({
+                          ctm$mat
+                  })
+      
+  })
 
 
 
