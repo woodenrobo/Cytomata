@@ -7,7 +7,7 @@ cran_packages <- c("arrow", "scales", "ggplot2", "dplyr", "ggridges", "RColorBre
                  "ggrepel", "circlize", "readxl", "ggpubr", "ggsignif", "ggfortify", "Polychrome", "progress",
                  "ggnewscale", "BiocManager", "rstatix", "raster",
                  "provenance", "sp", "ks",
-                 "shiny", "shinythemes", "shinyFiles", "Cairo", "shinyjs", "base64enc", 
+                 "shiny", "shinythemes", "shinyFiles", "Cairo", "shinyjs", "base64enc", "bsplus",
                  "shinytest2", "testthat", "plotly",
                  "parallel", "doParallel", "foreach",
                  "r2d3")
