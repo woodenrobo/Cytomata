@@ -94,30 +94,9 @@ if (asinh_transform == TRUE) {
 #creating a GatingSet
 ctm$gs <- GatingSet(cs)
 
-
-
-# SELECTING SAMPLES MODULE ################
-#support for multiple samples
-
 #available samples
 samples <- sampleNames(ctm$gs)
 
-
-
-# SELECTING GATE MODULE ################
-
-
-
-# SELECTING AXIS LIMITS MODULE ################
-x_limits <- NULL
-y_limits <- NULL
-
-# CUSTOMIZING PLOT PRESENTATION ################
-# scatter_point_size <- 1
-# plot_resolution <- 650
-
-
-gate_linewidth <- 2
 
 
 
@@ -142,11 +121,10 @@ density_scatter <- function(exprs = ctm$exprs, x_axis = input$x_channel_select, 
                             axis.title.y = element_blank())
   return(main_scatter)
 }
-  
 
 
 
-# TESTING PLOT INTERACTION ################
+# SHINY APP ################
 
 
 ui <- fluidPage(
@@ -206,7 +184,41 @@ ui <- fluidPage(
       #polygon { background-image: url('polygon.png'); }
       #quadrant { background-image: url('quadrant.png'); }
       #interval { background-image: url('interval.png'); }
+    ")),
+
+    # adding D3 library
+    tags$script(src = "https://d3js.org/d3.v7.min.js"),
+
+    # JS code to wrap the plot in a container, create axis ticks
+    tags$script(HTML(paste0("
+    Shiny.addCustomMessageHandler('plot_resolution', function(plot_resolution) {
+      console.log('Received plot resolution from server:', plot_resolution);
+      #plot-container {
+        position: relative;
+        width: plot_resolution px;
+        height: plot_resolution px;
+      }
+      #d3_output {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: plot_resolution px;
+        height: plot_resolution px;
+        pointer-events: none; /* Allow clicks to pass through to the plot */
+      }
+    });
+      
+
+    "))),
+
+    # JS code to handle plot clicks
+    tags$script(HTML("
+      Shiny.addCustomMessageHandler('scatter_click', function(coords) {
+        console.log('Received coordinates from server:', coords);
+      });
+    
     "))
+
   ),
 
   fluidRow(
@@ -220,23 +232,26 @@ ui <- fluidPage(
           panel_type = "success", use_heading_link = TRUE
         ) %>%
         bs_append(
-          title = "Plot Settings",
+          title = "Session Control",
           content = tagList(
-            numericInput("scatter_point_size", "Scatter point size:", value = 1),
-            numericInput("plot_resolution", "Plot resolution:", value = 300)
+            actionButton("save_session", "Save session"),
+            actionButton("load_session", "Load session")
           )
         ) %>%
           bs_set_opts(
           panel_type = "success", use_heading_link = TRUE
         ) %>%
         bs_append(
-          title = "Session Settings",
+          title = "Plot Settings",
           content = tagList(
-            actionButton("save_session", "Save session"),
-            actionButton("load_session", "Load session")
+            numericInput("scatter_point_size", "Scatter point size:", value = 1),
+            numericInput("plot_resolution", "Plot resolution:", value = 300),
+            numericInput("x_axis_min", "X-axis min:", value = -1),
+            numericInput("x_axis_max", "X-axis max:", value = NULL),
+            numericInput("y_axis_min", "Y-axis min:", value = -1),
+            numericInput("y_axis_max", "Y-axis max:", value = NULL)
           )
         )
-
     ),
     column(width = 7,
       uiOutput("plotUI")
@@ -263,13 +278,13 @@ ui <- fluidPage(
 
 server <- function(input, output, session) {
 
-
+  #counting the number of selected samples
   selected_sample_count <- reactive({
     length(input$selected_samples)
   })
 
+  #observing changes in sample selection and update the data
   observeEvent(input$selected_samples, {
-
     #setting ID of the samples
     ctm$sample_ids <- match(input$selected_samples, file_names)
 
@@ -294,6 +309,8 @@ server <- function(input, output, session) {
     }
   })
 
+
+
   # render the sample switch buttons if there is only one sample selected
   output$sample_switch <- renderUI({
     if (selected_sample_count() == 1) {
@@ -309,6 +326,7 @@ server <- function(input, output, session) {
       NULL
     }
   })
+
 
   # switch between samples
   observeEvent(input$previous_sample, {
@@ -326,6 +344,7 @@ server <- function(input, output, session) {
   })
 
 
+  # render the plot UI
   output$plotUI <- renderUI({
     tagList(
       div(style = "display: inline-block; position: relative",
@@ -334,24 +353,27 @@ server <- function(input, output, session) {
           actionButton(inputId = "quadrant", label = "", class = "custom-btn"),
           actionButton(inputId = "interval", label = "", class = "custom-btn")
         ),
-
+      # Y-axis select box
       div(style = "display: flex; align-items: center;",
         div(style = paste0("width: 30px; position: relative; margin-bottom: ", input$plot_resolution / 2, "px;"),
           div(class = "centered-select y-axis-select",
             selectInput("y_channel_select", NULL, choices = channel_descriptions, selected = channel_descriptions[2], multiple = FALSE, selectize = FALSE, width = "100%")
           )
         ),
-        div(style = "flex-grow: 1; margin-left: 10px;",
+        # Plot output container
+        div(id = "plot-container", style = "flex-grow: 1; margin-left: 10px;",
           plotOutput("main_scatter", width = input$plot_resolution, height = input$plot_resolution,
             click = "scatter_click",
             brush = brushOpts(
               id = "scatter_brush", fill = "#5acef5",
               stroke = "black", opacity = 0.3, delay = 100, delayType = c("debounce")
             )
-          )
+          ),
+          #D3 overlay where the gates will be drawn
+          div(id = "d3_output")
         )
       ),
-
+      # X-axis select box
       div(style = "display: flex; margin-top: 10px;",
         div(style = paste0("width: 30px; margin-left: ", input$plot_resolution / 2 - 50, "px;"),
           div(class = "centered-select",
@@ -364,7 +386,7 @@ server <- function(input, output, session) {
 
 
 
-
+  # observe changes in the selected samples and the selected channels and update the plot output
   observeEvent(list(input$selected_samples, input$x_channel_select, input$y_channel_select), {
     output$main_scatter <- renderPlot({
       ctm$main_scatter <- density_scatter(exprs = ctm$exprs,
@@ -375,9 +397,21 @@ server <- function(input, output, session) {
     })
   })
 
+  # Observe resolution changes and send the new resolution to the plot container
+  observeEvent(input$plot_resolution, {
+    plot_resolution <- input$plot_resolution
+    session$sendCustomMessage("plot_resolution", plot_resolution)
+  })
 
 
+  # Observe click events and send coordinates to the client side
+  observeEvent(input$scatter_click, {
+    coords <- c(input$scatter_click$x, input$scatter_click$y)
+    print(paste("Clicked at: x =", coords[1], "y =", coords[2]))
+    session$sendCustomMessage("scatter_click", coords)
+  })
 
+  # Observe brush events
   observeEvent(input$scatter_brush, {
       output$brush_info <- renderPrint({
           brushedPoints(ctm$exprs, input$scatter_brush)
@@ -391,9 +425,7 @@ server <- function(input, output, session) {
       output$mat <- renderPrint({
                           ctm$mat
                   })
-      
   })
-
 
 
 }
