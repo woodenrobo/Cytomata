@@ -98,7 +98,7 @@ ctm$gs <- GatingSet(cs)
 samples <- sampleNames(ctm$gs)
 
 #table with channel limits
-ctm$axis_lims <- data.frame(channel_descriptions, rep(-1, length(channel_descriptions)),  rep("NULL", length(channel_descriptions)))
+ctm$axis_lims <- data.frame(channel_descriptions, rep(-1, length(channel_descriptions)),  rep("NA", length(channel_descriptions)))
 colnames(ctm$axis_lims) <- c("channel_name", "min", "max")
 
 
@@ -116,6 +116,8 @@ col_ramp <- colorRampPalette(col)
 ui <- fluidPage(
   theme = bslib::bs_theme(version = 4, preset = "yeti"),
 
+  useShinyjs(),
+
   tags$head(
     # CSS for select boxes
     tags$style(HTML("
@@ -124,6 +126,7 @@ ui <- fluidPage(
       #y_channel_select { width: 200px; }
       #x_channel_select { width: 200px; }
     ")),
+
     # CSS for centered select boxes
     tags$style(HTML("
       .centered-select select {
@@ -161,8 +164,13 @@ ui <- fluidPage(
         background-color: transparent !important;
         border: none;
       }
-      .custom-btn:hover, .custom-btn:focus, .custom-btn:active {
+      .custom-btn:hover{
         background-color: rgba(0,0,0,0.1) !important; /* Slight darkening on hover/focus/active */
+        outline: none !important;
+        box-shadow: none !important;
+      }
+      .custom-btn.active {
+        background-color: rgba(0,0,0,0.1) !important;
         outline: none !important;
         box-shadow: none !important;
       }
@@ -175,34 +183,37 @@ ui <- fluidPage(
     # adding D3 library
     tags$script(src = "https://d3js.org/d3.v7.min.js"),
 
-    # JS code to wrap the plot in a container, create axis ticks
-    tags$script(HTML(paste0("
-    Shiny.addCustomMessageHandler('plot_resolution', function(plot_resolution) {
-      console.log('Received plot resolution from server:', plot_resolution);
-      #plot-container {
-        position: relative;
-        width: plot_resolution px;
-        height: plot_resolution px;
-      }
-      #d3_output {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: plot_resolution px;
-        height: plot_resolution px;
-        pointer-events: none; /* Allow clicks to pass through to the plot */
-      }
-    });
-      
-
-    "))),
+    # JS code to resize the plot container
+    tags$script(HTML("
+      Shiny.addCustomMessageHandler('plot_resolution', function(plot_resolution) {
+        console.log('Received plot resolution from server:', plot_resolution);
+        
+      });
+    ")),
+    
+    # JS code to handle x axis ranges
+    tags$script(HTML("
+      Shiny.addCustomMessageHandler('x_axis_range', function(x_range) {
+        var x_axis_min = x_range[0];
+        var x_axis_max = x_range[1];
+        console.log('Received x axis range from server:', x_axis_min, x_axis_max);
+      });
+    ")),
+    
+    # JS code to handle y axis ranges
+    tags$script(HTML("
+      Shiny.addCustomMessageHandler('y_axis_range', function(y_range) {
+        var y_axis_min = y_range[0];
+        var y_axis_max = y_range[1];
+        console.log('Received y axis range from server:', y_axis_min, y_axis_max);
+      });
+    ")),
 
     # JS code to handle plot clicks
     tags$script(HTML("
       Shiny.addCustomMessageHandler('scatter_click', function(coords) {
         console.log('Received coordinates from server:', coords);
       });
-    
     "))
 
   ),
@@ -233,9 +244,9 @@ ui <- fluidPage(
             numericInput("scatter_point_size", "Scatter point size:", value = 1),
             numericInput("plot_resolution", "Plot resolution:", value = 300),
             numericInput("x_axis_min", "X-axis min:", value = -1),
-            numericInput("x_axis_max", "X-axis max:", value = NULL),
+            numericInput("x_axis_max", "X-axis max:", value = NA),
             numericInput("y_axis_min", "Y-axis min:", value = -1),
-            numericInput("y_axis_max", "Y-axis max:", value = NULL)
+            numericInput("y_axis_max", "Y-axis max:", value = NA)
           )
         )
     ),
@@ -273,11 +284,24 @@ server <- function(input, output, session) {
                         scattermore::geom_scattermore(aes(color = density), pointsize = scatter_point_size, pixels = c(plot_resolution, plot_resolution)) +
                         scale_color_identity() +
                         theme_cowplot() +
-                        xlim(input$x_axis_min, input$x_axis_max) +
-                        ylim(input$y_axis_min, input$y_axis_max) +
+                        xlim(as.numeric(input$x_axis_min), as.numeric(input$x_axis_max)) +
+                        ylim(as.numeric(input$y_axis_min), as.numeric(input$y_axis_max)) +
                         theme(legend.position = "none",
                               axis.title.x = element_blank(),
                               axis.title.y = element_blank())
+
+
+    # Build the plot
+    built <- ggplot_build(main_scatter)
+
+    # Extract x-axis parameters
+    ctm$ggplot_x_axis <- built$layout$panel_params[[1]]$x
+
+    # Extract y-axis parameters
+    ctm$ggplot_y_axis <- built$layout$panel_params[[1]]$y
+
+    # Print the extracted parameters
+    
     return(main_scatter)
   }
 
@@ -367,6 +391,7 @@ server <- function(input, output, session) {
         div(id = "plot-container", style = "flex-grow: 1; margin-left: 10px;",
           plotOutput("main_scatter", width = input$plot_resolution, height = input$plot_resolution,
             click = "scatter_click",
+
             brush = brushOpts(
               id = "scatter_brush", fill = "#5acef5",
               stroke = "black", opacity = 0.3, delay = 100, delayType = c("debounce")
@@ -387,6 +412,11 @@ server <- function(input, output, session) {
     )
   })
 
+
+
+  # AXES AND API ################
+
+
   # observe changes in selected axis channel and set the axis limits from a settings table
   observeEvent(list(input$x_channel_select, input$y_channel_select), {
     x_axis_min <- ctm$axis_lims[ctm$axis_lims$channel_name == input$x_channel_select, "min"]
@@ -398,6 +428,7 @@ server <- function(input, output, session) {
     updateNumericInput(session, "x_axis_max", value = x_axis_max)
     updateNumericInput(session, "y_axis_min", value = y_axis_min)
     updateNumericInput(session, "y_axis_max", value = y_axis_max)
+
   })
 
   # observe changes in the axis limits and update the settings table
@@ -406,11 +437,19 @@ server <- function(input, output, session) {
     ctm$axis_lims[ctm$axis_lims$channel_name == input$x_channel_select, "max"] <- input$x_axis_max
     ctm$axis_lims[ctm$axis_lims$channel_name == input$y_channel_select, "min"] <- input$y_axis_min
     ctm$axis_lims[ctm$axis_lims$channel_name == input$y_channel_select, "max"] <- input$y_axis_max
+
+
+    x_range <- ctm$ggplot_x_axis$continuous_range
+    y_range <- ctm$ggplot_y_axis$continuous_range
+
+    session$sendCustomMessage("x_axis_range", x_range)
+    session$sendCustomMessage("y_axis_range", y_range)
   })
 
 
 
   # observe changes in the selected samples and the selected channels and update the plot output
+  # send axes aesthetics to the client side
   observeEvent(list(input$selected_samples, input$x_channel_select, input$y_channel_select), {
     output$main_scatter <- renderPlot({
       ctm$main_scatter <- density_scatter(exprs = ctm$exprs,
@@ -419,7 +458,9 @@ server <- function(input, output, session) {
                               input$scatter_point_size, input$plot_resolution, col_ramp)
       ctm$main_scatter
     })
+
   })
+
 
   # Observe resolution changes and send the new resolution to the plot container
   observeEvent(input$plot_resolution, {
@@ -434,6 +475,55 @@ server <- function(input, output, session) {
     print(paste("Clicked at: x =", coords[1], "y =", coords[2]))
     session$sendCustomMessage("scatter_click", coords)
   })
+
+
+  # EVERYTHING TO DO WITH GATING ################
+
+  # Function to toggle gating modes
+  rv <- reactiveValues(current_gate_mode = "off")
+  
+  toggleGatingMode <- function(mode) {
+    if (rv$current_gate_mode == mode) {
+      rv$current_gate_mode <- "off"
+    } else {
+      rv$current_gate_mode <- mode
+    }
+    print(rv$current_gate_mode)
+  }
+
+  # switch between gating modes
+  observeEvent(input$rectangle, {
+    toggleGatingMode("rectangle")
+  })
+
+  observeEvent(input$polygon, {
+    toggleGatingMode("polygon")
+  })
+
+  observeEvent(input$quadrant, {
+    toggleGatingMode("quadrant")
+  })
+
+  observeEvent(input$interval, {
+    toggleGatingMode("interval")
+  })
+
+  # Function to update button appearances
+  updateButtonAppearance <- function(mode) {
+    lapply(c("rectangle", "polygon", "quadrant", "interval"), function(btn) {
+      if (btn == mode && mode != "off") {
+        shinyjs::addClass(btn, "active")
+      } else {
+        shinyjs::removeClass(btn, "active")
+      }
+    })
+  }
+
+  # Update button appearances when mode changes
+  observe({
+    updateButtonAppearance(rv$current_gate_mode)
+  })
+
 
   # Observe brush events
   observeEvent(input$scatter_brush, {
@@ -450,6 +540,28 @@ server <- function(input, output, session) {
                           ctm$mat
                   })
   })
+
+
+
+
+
+
+  # # CHANGE THIS TO ONLY SAVE THE GATE INFORMATION AND AXIS SETTINGS
+  # observeEvent(input$save_session, {
+  #   ctm$main_scatter < NULL
+  #   ctm$gs <- NULL
+  #   ctm$exprs <- NULL
+    
+  #   save(ctm, file = "ctm.RData")
+  # })
+
+  # observeEvent(input$load_session, {
+  #   ctm <- load("ctm.RData")
+  #   ctm$gs <- GatingSet(cs)
+  #   #available samples
+  #   samples <- sampleNames(ctm$gs)
+  # })
+
 
 
 }
