@@ -97,7 +97,9 @@ ctm$gs <- GatingSet(cs)
 #available samples
 samples <- sampleNames(ctm$gs)
 
-
+#table with channel limits
+ctm$axis_lims <- data.frame(channel_descriptions, rep(-1, length(channel_descriptions)),  rep("NULL", length(channel_descriptions)))
+colnames(ctm$axis_lims) <- c("channel_name", "min", "max")
 
 
 #setting colors for density scatter
@@ -105,22 +107,6 @@ col <- c("#5E4FA2", "#3288BD", "#66C2A5", "#ABDDA4", "#E6F598",
             "#FFFFBF", "#FEE08B", "#FDAE61", "#F46D43", "#D53E4F",
             "#9E0142")
 col_ramp <- colorRampPalette(col)
-
-
-# DENSITY SCATTER PLOT FUNCTION ################
-density_scatter <- function(exprs = ctm$exprs, x_axis = input$x_channel_select, y_axis = input$y_channel_select, scatter_point_size = input$scatter_point_size, plot_resolution = input$plot_resolution, col_ramp = col_ramp) {
-  #density color calculations
-  density <- suppressWarnings(densCols(exprs[, x_axis], exprs[, y_axis], nbin = 128, colramp = col_ramp))
-
-  main_scatter <- ggplot(exprs, aes(x = !!sym(x_axis), y = !!sym(y_axis))) +
-                      scattermore::geom_scattermore(aes(color = density), pointsize = scatter_point_size, pixels = c(plot_resolution, plot_resolution)) +
-                      scale_color_identity() +
-                      theme_cowplot() +
-                      theme(legend.position = "none",
-                            axis.title.x = element_blank(),
-                            axis.title.y = element_blank())
-  return(main_scatter)
-}
 
 
 
@@ -278,6 +264,23 @@ ui <- fluidPage(
 
 server <- function(input, output, session) {
 
+  # DENSITY SCATTER PLOT FUNCTION ################
+  density_scatter <- function(exprs = ctm$exprs, x_axis = input$x_channel_select, y_axis = input$y_channel_select, scatter_point_size = input$scatter_point_size, plot_resolution = input$plot_resolution, col_ramp = col_ramp) {
+    #density color calculations
+    density <- suppressWarnings(densCols(exprs[, x_axis], exprs[, y_axis], nbin = 128, colramp = col_ramp))
+
+    main_scatter <- ggplot(exprs, aes(x = !!sym(x_axis), y = !!sym(y_axis))) +
+                        scattermore::geom_scattermore(aes(color = density), pointsize = scatter_point_size, pixels = c(plot_resolution, plot_resolution)) +
+                        scale_color_identity() +
+                        theme_cowplot() +
+                        xlim(input$x_axis_min, input$x_axis_max) +
+                        ylim(input$y_axis_min, input$y_axis_max) +
+                        theme(legend.position = "none",
+                              axis.title.x = element_blank(),
+                              axis.title.y = element_blank())
+    return(main_scatter)
+  }
+
   #counting the number of selected samples
   selected_sample_count <- reactive({
     length(input$selected_samples)
@@ -382,6 +385,27 @@ server <- function(input, output, session) {
         )
       )
     )
+  })
+
+  # observe changes in selected axis channel and set the axis limits from a settings table
+  observeEvent(list(input$x_channel_select, input$y_channel_select), {
+    x_axis_min <- ctm$axis_lims[ctm$axis_lims$channel_name == input$x_channel_select, "min"]
+    x_axis_max <- ctm$axis_lims[ctm$axis_lims$channel_name == input$x_channel_select, "max"]
+    y_axis_min <- ctm$axis_lims[ctm$axis_lims$channel_name == input$y_channel_select, "min"]
+    y_axis_max <- ctm$axis_lims[ctm$axis_lims$channel_name == input$y_channel_select, "max"]
+
+    updateNumericInput(session, "x_axis_min", value = x_axis_min)
+    updateNumericInput(session, "x_axis_max", value = x_axis_max)
+    updateNumericInput(session, "y_axis_min", value = y_axis_min)
+    updateNumericInput(session, "y_axis_max", value = y_axis_max)
+  })
+
+  # observe changes in the axis limits and update the settings table
+  observeEvent(list(input$x_axis_min, input$x_axis_max, input$y_axis_min, input$y_axis_max), {
+    ctm$axis_lims[ctm$axis_lims$channel_name == input$x_channel_select, "min"] <- input$x_axis_min
+    ctm$axis_lims[ctm$axis_lims$channel_name == input$x_channel_select, "max"] <- input$x_axis_max
+    ctm$axis_lims[ctm$axis_lims$channel_name == input$y_channel_select, "min"] <- input$y_axis_min
+    ctm$axis_lims[ctm$axis_lims$channel_name == input$y_channel_select, "max"] <- input$y_axis_max
   })
 
 
