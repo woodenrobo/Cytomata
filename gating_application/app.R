@@ -208,22 +208,13 @@ ui <- fluidPage(
       });
     ")),
 
-    
-    # CSS to resize the plot container
-    tags$style(HTML("
-      #plot-container {
-        position: relative;
-        width: plotInfo.plot_res + 'px';
-        height: plotInfo.plot_res + 'px';
-      }
-      #d3_output {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: plotInfo.plot_res + 'px';
-        height: plotInfo.plot_res + 'px';
-        pointer-events: none; /* Allow clicks to pass through to the plot */
-      }
+    # append SVG element to the plot container
+    tags$script(HTML("
+      $(document).ready(function() {
+          plotInfo.svg = d3.select('#d3_output').append('svg')
+            .attr('width', '100%')
+            .attr('height', '100%');
+      });
     ")),
 
     # JS code to handle x axis ranges
@@ -254,19 +245,16 @@ ui <- fluidPage(
         plotInfo.cy = plotInfo.plot_res - ((coords[1] - plotInfo.y_axis_min) / plotInfo.y_total * plotInfo.plot_res);
         console.log('Calculated point coordinates x:', plotInfo.cx);
         console.log('Calculated point coordinates y:', plotInfo.cy);  
-      });
-    ")),
 
-    # JS code to draw polygons
-    tags$script(HTML("
-      plotInfo.svg = d3.select('#d3_output').select('svg');
-
-      const point = plotInfo.svg.append('circle')
-          .attr('cx', plotInfo.cx)  // Adjust for plot area and scale
-          .attr('cy', plotInfo.cy)  // Adjust for plot area and scale
+        plotInfo.svg.append('circle')
+          .attr('cx', plotInfo.cx)
+          .attr('cy', plotInfo.cy)
           .attr('r', 5)
           .attr('fill', 'red');
+
+      });
     "))
+
 
   ),
 
@@ -440,7 +428,7 @@ server <- function(input, output, session) {
           )
         ),
         # Plot output container
-        div(id = "p_container", style = "flex-grow: 1; margin-left: 10px;",
+        div(id = "plot_container", style = paste0("position: relative; margin-left: ", 20, "px; width: ", input$plot_resolution, "px; height: ", input$plot_resolution, "px;"),
           plotOutput("main_scatter", width = input$plot_resolution, height = input$plot_resolution,
             click = "scatter_click",
             brush = brushOpts(
@@ -449,7 +437,7 @@ server <- function(input, output, session) {
             )
           ),
           #D3 overlay where the gates will be drawn
-          div(id = "d3_output")
+          div(id = "d3_output", style = paste0("position: absolute; width: ", input$plot_resolution, "px; height: ", input$plot_resolution, "px; pointer-events: none;"))
         )
       ),
       # X-axis select box
