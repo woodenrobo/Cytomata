@@ -183,29 +183,66 @@ ui <- fluidPage(
     # adding D3 library
     tags$script(src = "https://d3js.org/d3.v7.min.js"),
 
+
+    # defining plot information container
+    tags$script(HTML("
+      var plotInfo = {
+        x_axis_min: 0,
+        x_axis_max: 0,
+        x_total: 0,
+        y_total: 0,
+        y_axis_min: 0,
+        y_axis_max: 0,
+        plot_res: 0,
+        cx: 0,
+        cy: 0,
+        svg: null
+      };
+    ")),
+    
     # JS code to resize the plot container
     tags$script(HTML("
       Shiny.addCustomMessageHandler('plot_resolution', function(plot_resolution) {
         console.log('Received plot resolution from server:', plot_resolution);
-        
+        plotInfo.plot_res = plot_resolution;
       });
     ")),
+
     
+    # CSS to resize the plot container
+    tags$style(HTML("
+      #plot-container {
+        position: relative;
+        width: plotInfo.plot_res + 'px';
+        height: plotInfo.plot_res + 'px';
+      }
+      #d3_output {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: plotInfo.plot_res + 'px';
+        height: plotInfo.plot_res + 'px';
+        pointer-events: none; /* Allow clicks to pass through to the plot */
+      }
+    ")),
+
     # JS code to handle x axis ranges
     tags$script(HTML("
       Shiny.addCustomMessageHandler('x_axis_range', function(x_range) {
-        var x_axis_min = x_range[0];
-        var x_axis_max = x_range[1];
-        console.log('Received x axis range from server:', x_axis_min, x_axis_max);
+        plotInfo.x_axis_min = x_range[0];
+        plotInfo.x_axis_max = x_range[1];
+        plotInfo.x_total = plotInfo.x_axis_max - plotInfo.x_axis_min;
+        console.log('Received x axis range from server:', plotInfo.x_axis_min, plotInfo.x_axis_max);
       });
     ")),
     
     # JS code to handle y axis ranges
     tags$script(HTML("
       Shiny.addCustomMessageHandler('y_axis_range', function(y_range) {
-        var y_axis_min = y_range[0];
-        var y_axis_max = y_range[1];
-        console.log('Received y axis range from server:', y_axis_min, y_axis_max);
+        plotInfo.y_axis_min = y_range[0];
+        plotInfo.y_axis_max = y_range[1];
+        plotInfo.y_total = plotInfo.y_axis_max - plotInfo.y_axis_min;
+        console.log('Received y axis range from server:', plotInfo.y_axis_min, plotInfo.y_axis_max);
       });
     ")),
 
@@ -213,7 +250,22 @@ ui <- fluidPage(
     tags$script(HTML("
       Shiny.addCustomMessageHandler('scatter_click', function(coords) {
         console.log('Received coordinates from server:', coords);
+        plotInfo.cx = (coords[0] - plotInfo.x_axis_min) / plotInfo.x_total * plotInfo.plot_res;
+        plotInfo.cy = plotInfo.plot_res - ((coords[1] - plotInfo.y_axis_min) / plotInfo.y_total * plotInfo.plot_res);
+        console.log('Calculated point coordinates x:', plotInfo.cx);
+        console.log('Calculated point coordinates y:', plotInfo.cy);  
       });
+    ")),
+
+    # JS code to draw polygons
+    tags$script(HTML("
+      plotInfo.svg = d3.select('#d3_output').select('svg');
+
+      const point = plotInfo.svg.append('circle')
+          .attr('cx', plotInfo.cx)  // Adjust for plot area and scale
+          .attr('cy', plotInfo.cy)  // Adjust for plot area and scale
+          .attr('r', 5)
+          .attr('fill', 'red');
     "))
 
   ),
@@ -388,10 +440,9 @@ server <- function(input, output, session) {
           )
         ),
         # Plot output container
-        div(id = "plot-container", style = "flex-grow: 1; margin-left: 10px;",
+        div(id = "p_container", style = "flex-grow: 1; margin-left: 10px;",
           plotOutput("main_scatter", width = input$plot_resolution, height = input$plot_resolution,
             click = "scatter_click",
-
             brush = brushOpts(
               id = "scatter_brush", fill = "#5acef5",
               stroke = "black", opacity = 0.3, delay = 100, delayType = c("debounce")
@@ -429,6 +480,12 @@ server <- function(input, output, session) {
     updateNumericInput(session, "y_axis_min", value = y_axis_min)
     updateNumericInput(session, "y_axis_max", value = y_axis_max)
 
+
+    x_range <- ctm$ggplot_x_axis$continuous_range
+    y_range <- ctm$ggplot_y_axis$continuous_range
+
+    session$sendCustomMessage("x_axis_range", x_range)
+    session$sendCustomMessage("y_axis_range", y_range)
   })
 
   # observe changes in the axis limits and update the settings table
