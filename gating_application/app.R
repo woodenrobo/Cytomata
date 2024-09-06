@@ -193,6 +193,8 @@ ui <- fluidPage(
         y_total: 0,
         y_axis_min: 0,
         y_axis_max: 0,
+        x_margin: 0,
+        y_margin: 0,
         plot_res: 0,
         cx: 0,
         cy: 0,
@@ -205,15 +207,6 @@ ui <- fluidPage(
       Shiny.addCustomMessageHandler('plot_resolution', function(plot_resolution) {
         console.log('Received plot resolution from server:', plot_resolution);
         plotInfo.plot_res = plot_resolution;
-      });
-    ")),
-
-    # append SVG element to the plot container
-    tags$script(HTML("
-      $(document).ready(function() {
-          plotInfo.svg = d3.select('#d3_output').append('svg')
-            .attr('width', '100%')
-            .attr('height', '100%');
       });
     ")),
 
@@ -237,21 +230,42 @@ ui <- fluidPage(
       });
     ")),
 
+    # JS code to handle plot panel margins
+    tags$script(HTML("
+      Shiny.addCustomMessageHandler('plot_margin', function(plot_margins) {
+        plotInfo.x_margin = plot_margins[0];
+        plotInfo.y_margin = plot_margins[1];
+        console.log('Received plot margins from server:', plotInfo.x_margin, plotInfo.y_margin);
+      });
+    ")),
+
     # JS code to handle plot clicks
     tags$script(HTML("
-      Shiny.addCustomMessageHandler('scatter_click', function(coords) {
-        console.log('Received coordinates from server:', coords);
-        plotInfo.cx = (coords[0] - plotInfo.x_axis_min) / plotInfo.x_total * plotInfo.plot_res;
-        plotInfo.cy = plotInfo.plot_res - ((coords[1] - plotInfo.y_axis_min) / plotInfo.y_total * plotInfo.plot_res);
+      Shiny.addCustomMessageHandler('scatter_click', function(click_coords) {
+        console.log('Received coordinates from server:', click_coords);
+        
+        plotInfo.cx = ((click_coords[0] - plotInfo.x_axis_min) / plotInfo.x_total * plotInfo.plot_res) + plotInfo.x_margin;
+        plotInfo.cy = plotInfo.plot_res - ((click_coords[1] - plotInfo.y_axis_min) / (plotInfo.y_total * plotInfo.plot_res) + plotInfo.y_margin);
         console.log('Calculated point coordinates x:', plotInfo.cx);
         console.log('Calculated point coordinates y:', plotInfo.cy);  
 
-        plotInfo.svg.append('circle')
-          .attr('cx', plotInfo.cx)
-          .attr('cy', plotInfo.cy)
-          .attr('r', 5)
-          .attr('fill', 'red');
+      // Initialize SVG element if it doesn't exist
+      plotInfo.svg = d3.select('#d3_output')
+        .append('svg')
+        .attr('width', '100%')
+        .attr('height', '100%')
+        .style('position', 'absolute')
+        .style('z-index', '1000');
+      console.log('SVG initialized');
 
+      // Append a circle to the SVG
+      plotInfo.svg.append('circle')
+        .attr('cx', plotInfo.cx)
+        .attr('cy', plotInfo.cy)
+        .attr('r', 5)
+        .attr('fill', 'red');
+
+        console.log('Circle appended at:', plotInfo.cx, plotInfo.cy);
       });
     "))
 
@@ -313,7 +327,11 @@ ui <- fluidPage(
   )
 )
 
+
+
 server <- function(input, output, session) {
+  rv_ggplot <- reactiveValues(x_range = NULL, y_range = NULL, x_distance = NULL, y_distance = NULL)
+  rv <- reactiveValues(current_gate_mode = "off")
 
   # DENSITY SCATTER PLOT FUNCTION ################
   density_scatter <- function(exprs = ctm$exprs, x_axis = input$x_channel_select, y_axis = input$y_channel_select, scatter_point_size = input$scatter_point_size, plot_resolution = input$plot_resolution, col_ramp = col_ramp) {
@@ -335,13 +353,22 @@ server <- function(input, output, session) {
     built <- ggplot_build(main_scatter)
 
     # Extract x-axis parameters
-    ctm$ggplot_x_axis <- built$layout$panel_params[[1]]$x
+    rv_ggplot$x_range <- built$layout$panel_params[[1]]$x$continuous_range
 
     # Extract y-axis parameters
-    ctm$ggplot_y_axis <- built$layout$panel_params[[1]]$y
+    rv_ggplot$y_range <- built$layout$panel_params[[1]]$y$continuous_range
 
-    # Print the extracted parameters
-    
+    # Extract axis margins
+    g <- ggplotGrob(main_scatter)
+    # panel <- which(g$layout$name == "panel")
+    # panel_pos <- g$layout[panel, c("l", "r", "t", "b")]
+    # # Get distances
+    # rv_ggplot$x_distance <- panel_pos["b"]
+    # rv_ggplot$y_distance <- panel_pos["l"]
+    # rv_ggplot$x_distance <- convertUnit(unit(g$heights[10], "null"), "inches", valueOnly = TRUE) * 72
+    # rv_ggplot$y_distance <- convertUnit(unit(g$widths[6], "null"), "inches", valueOnly = TRUE) * 72
+    rv_ggplot$x_distance <- 25
+    rv_ggplot$y_distance <- 35
     return(main_scatter)
   }
 
@@ -429,19 +456,20 @@ server <- function(input, output, session) {
         ),
         # Plot output container
         div(id = "plot_container", style = paste0("position: relative; margin-left: ", 20, "px; width: ", input$plot_resolution, "px; height: ", input$plot_resolution, "px;"),
-          plotOutput("main_scatter", width = input$plot_resolution, height = input$plot_resolution,
-            click = "scatter_click",
-            brush = brushOpts(
-              id = "scatter_brush", fill = "#5acef5",
-              stroke = "black", opacity = 0.3, delay = 100, delayType = c("debounce")
-            )
-          ),
           #D3 overlay where the gates will be drawn
-          div(id = "d3_output", style = paste0("position: absolute; width: ", input$plot_resolution, "px; height: ", input$plot_resolution, "px; pointer-events: none;"))
+          div(id = "d3_output", style = paste0("position: absolute; z-index:2; width: ", input$plot_resolution, "px; height: ", input$plot_resolution, "px; pointer-events: none;")),
+          div(id = "main_scatter", style = paste0("position: absolute; z-index:1; width: ", input$plot_resolution, "px; height: ", input$plot_resolution, "px;"),
+          plotOutput("main_scatter", width = input$plot_resolution, height = input$plot_resolution,
+            click = if (rv$current_gate_mode %in% c("off", "polygon", "interval")) clickOpts(id = "scatter_click") else NULL,
+            dblclick = if (rv$current_gate_mode == "off") dblclickOpts(id = "scatter_dblclick") else NULL,
+            brush = if (rv$current_gate_mode == "rectangle") brushOpts(id = "scatter_brush", resetOnNew = TRUE) else NULL,
+            hover = if (rv$current_gate_mode %in% c("quadrant", "interval")) hoverOpts(id = "scatter_hover", delay = 0) else NULL
+          )
+          )
         )
       ),
       # X-axis select box
-      div(style = "display: flex; margin-top: 10px;",
+      div(style = "display: flex; margin-top: 20px;",
         div(style = paste0("width: 30px; margin-left: ", input$plot_resolution / 2 - 50, "px;"),
           div(class = "centered-select",
             selectInput("x_channel_select", NULL, choices = channel_descriptions, selected = channel_descriptions[1], multiple = FALSE, selectize = FALSE, width = "100%")
@@ -454,44 +482,6 @@ server <- function(input, output, session) {
 
 
   # AXES AND API ################
-
-
-  # observe changes in selected axis channel and set the axis limits from a settings table
-  observeEvent(list(input$x_channel_select, input$y_channel_select), {
-    x_axis_min <- ctm$axis_lims[ctm$axis_lims$channel_name == input$x_channel_select, "min"]
-    x_axis_max <- ctm$axis_lims[ctm$axis_lims$channel_name == input$x_channel_select, "max"]
-    y_axis_min <- ctm$axis_lims[ctm$axis_lims$channel_name == input$y_channel_select, "min"]
-    y_axis_max <- ctm$axis_lims[ctm$axis_lims$channel_name == input$y_channel_select, "max"]
-
-    updateNumericInput(session, "x_axis_min", value = x_axis_min)
-    updateNumericInput(session, "x_axis_max", value = x_axis_max)
-    updateNumericInput(session, "y_axis_min", value = y_axis_min)
-    updateNumericInput(session, "y_axis_max", value = y_axis_max)
-
-
-    x_range <- ctm$ggplot_x_axis$continuous_range
-    y_range <- ctm$ggplot_y_axis$continuous_range
-
-    session$sendCustomMessage("x_axis_range", x_range)
-    session$sendCustomMessage("y_axis_range", y_range)
-  })
-
-  # observe changes in the axis limits and update the settings table
-  observeEvent(list(input$x_axis_min, input$x_axis_max, input$y_axis_min, input$y_axis_max), {
-    ctm$axis_lims[ctm$axis_lims$channel_name == input$x_channel_select, "min"] <- input$x_axis_min
-    ctm$axis_lims[ctm$axis_lims$channel_name == input$x_channel_select, "max"] <- input$x_axis_max
-    ctm$axis_lims[ctm$axis_lims$channel_name == input$y_channel_select, "min"] <- input$y_axis_min
-    ctm$axis_lims[ctm$axis_lims$channel_name == input$y_channel_select, "max"] <- input$y_axis_max
-
-
-    x_range <- ctm$ggplot_x_axis$continuous_range
-    y_range <- ctm$ggplot_y_axis$continuous_range
-
-    session$sendCustomMessage("x_axis_range", x_range)
-    session$sendCustomMessage("y_axis_range", y_range)
-  })
-
-
 
   # observe changes in the selected samples and the selected channels and update the plot output
   # send axes aesthetics to the client side
@@ -506,6 +496,41 @@ server <- function(input, output, session) {
 
   })
 
+  # observe changes in selected axis channel and set the axis limits from a settings table
+  observeEvent(list(input$x_channel_select, input$y_channel_select), {
+    x_axis_min <- ctm$axis_lims[ctm$axis_lims$channel_name == input$x_channel_select, "min"]
+    x_axis_max <- ctm$axis_lims[ctm$axis_lims$channel_name == input$x_channel_select, "max"]
+    y_axis_min <- ctm$axis_lims[ctm$axis_lims$channel_name == input$y_channel_select, "min"]
+    y_axis_max <- ctm$axis_lims[ctm$axis_lims$channel_name == input$y_channel_select, "max"]
+
+    updateNumericInput(session, "x_axis_min", value = x_axis_min)
+    updateNumericInput(session, "x_axis_max", value = x_axis_max)
+    updateNumericInput(session, "y_axis_min", value = y_axis_min)
+    updateNumericInput(session, "y_axis_max", value = y_axis_max)
+
+  })
+
+  # observe changes in the axis limits and update the settings table
+  observeEvent(list(input$x_axis_min, input$x_axis_max, input$y_axis_min, input$y_axis_max), {
+    ctm$axis_lims[ctm$axis_lims$channel_name == input$x_channel_select, "min"] <- input$x_axis_min
+    ctm$axis_lims[ctm$axis_lims$channel_name == input$x_channel_select, "max"] <- input$x_axis_max
+    ctm$axis_lims[ctm$axis_lims$channel_name == input$y_channel_select, "min"] <- input$y_axis_min
+    ctm$axis_lims[ctm$axis_lims$channel_name == input$y_channel_select, "max"] <- input$y_axis_max
+
+  })
+
+  # send x and y axis ranges to the client side
+  observe({
+    x_range <- rv_ggplot$x_range
+    y_range <- rv_ggplot$y_range
+    session$sendCustomMessage("x_axis_range", x_range)
+    session$sendCustomMessage("y_axis_range", y_range)
+
+    plot_margins <- c(as.numeric(rv_ggplot$x_distance), as.numeric(rv_ggplot$y_distance))
+    ctm$plot_margins <- plot_margins
+    session$sendCustomMessage("plot_margin", plot_margins)
+  })
+
 
   # Observe resolution changes and send the new resolution to the plot container
   observeEvent(input$plot_resolution, {
@@ -514,18 +539,9 @@ server <- function(input, output, session) {
   })
 
 
-  # Observe click events and send coordinates to the client side
-  observeEvent(input$scatter_click, {
-    coords <- c(input$scatter_click$x, input$scatter_click$y)
-    print(paste("Clicked at: x =", coords[1], "y =", coords[2]))
-    session$sendCustomMessage("scatter_click", coords)
-  })
-
-
   # EVERYTHING TO DO WITH GATING ################
 
   # Function to toggle gating modes
-  rv <- reactiveValues(current_gate_mode = "off")
   
   toggleGatingMode <- function(mode) {
     if (rv$current_gate_mode == mode) {
@@ -569,26 +585,53 @@ server <- function(input, output, session) {
     updateButtonAppearance(rv$current_gate_mode)
   })
 
+  # send current gate mode to the client side
+  observe({
+    session$sendCustomMessage("gate_mode", rv$current_gate_mode)
+  })
 
-  # Observe brush events
+
+  # Observe click events and send coordinates to the client side
+  observeEvent(input$scatter_click, {
+    click_coords <- c(input$scatter_click$x, input$scatter_click$y)
+    print(paste("Clicked at: x =", click_coords[1], "y =", click_coords[2]))
+    session$sendCustomMessage("scatter_click", click_coords)
+  })
+
+  # Observe double-click events and send coordinates to the client side
+  observeEvent(input$scatter_dblclick, {
+    dbl_click_coords <- c(input$scatter_dblclick$x, input$scatter_dblclick$y)
+    print(paste("DBL Clicked at: x =", dbl_click_coords[1], "y =", dbl_click_coords[2]))
+    session$sendCustomMessage("scatter_dbl_click", dbl_click_coords)
+  })
+
+  # Observe brush events and send coordinates to the client side
+  observeEvent(input$scatter_brush, {
+    brush_coords <- c(input$scatter_brush$xmin,
+                    input$scatter_brush$xmax,
+                    input$scatter_brush$ymin,
+                    input$scatter_brush$ymax)
+    ctm$mat <- matrix(brush_coords, ncol = 2,
+                    dimnames = list(c("min", "max"), c(input$x_channel_select, input$y_channel_select)))
+    output$mat <- renderPrint({
+                          ctm$mat
+                  })
+    session$sendCustomMessage("scatter_brush", brush_coords)
+  })
+
+  # Observe hover events and send coordinates to the client side
+  observeEvent(input$scatter_hover, {
+    hover_coords <- c(input$scatter_hover$x, input$scatter_hover$y)
+    print(paste("Hovered at: x =", hover_coords[1], "y =", hover_coords[2]))
+    session$sendCustomMessage("scatter_hover", hover_coords)
+  })
+
+  # Observe brushed events and print the brushed points
   observeEvent(input$scatter_brush, {
       output$brush_info <- renderPrint({
           brushedPoints(ctm$exprs, input$scatter_brush)
       })
-      components <- c(input$scatter_brush$xmin,
-                      input$scatter_brush$xmax,
-                      input$scatter_brush$ymin,
-                      input$scatter_brush$ymax)
-      ctm$mat <- matrix(components, ncol = 2,
-                    dimnames = list(c("min", "max"), c(input$x_channel_select, input$y_channel_select)))
-      output$mat <- renderPrint({
-                          ctm$mat
-                  })
   })
-
-
-
-
 
 
   # # CHANGE THIS TO ONLY SAVE THE GATE INFORMATION AND AXIS SETTINGS
@@ -612,3 +655,50 @@ server <- function(input, output, session) {
 }
 
 shinyApp(ui, server)
+
+
+
+
+# ctm$mod_scatter <- ctm$main_scatter +
+#                     theme_nothing() +
+#                     theme(
+#                       plot.margin = margin(0, 0, 0, 0, "cm"),
+#                       axis.ticks = element_blank(),
+#                       axis.text = element_blank(),
+#                       axis.title = element_blank()
+#                     ) +
+#                     scale_x_continuous(expand = c(0, 0)) +
+#                     scale_y_continuous(expand = c(0, 0)) +
+#                     labs(title = NULL, x = NULL, y = NULL)
+# # Convert the ggplot object to a grob
+# g <- ggplotGrob(ctm$main_scatter)
+# g2 <- ggplotGrob(ctm$mod_scatter)
+
+# # Find the panel position
+# panel <- which(g$layout$name == "panel")
+# panel_pos <- g$layout[panel, c("l", "r", "t", "b")]
+
+# # Calculate distances in native units
+# x_distance_bottom <- convertUnit(unit(panel_pos$b, "null"), "points", valueOnly = TRUE)
+# x_distance_top <- convertUnit(unit(g$heights[1] + g$heights[2], "null"), "points", valueOnly = TRUE)
+# y_distance_left <- convertUnit(unit(panel_pos$l, "null"), "points", valueOnly = TRUE)
+# y_distance_right <- convertUnit(unit(g$widths[5], "null"), "points", valueOnly = TRUE)
+
+# # Convert to pixels (assuming 72 pixels per inch)
+# pixels_per_inch <- 72
+# x_distance_bottom_px <- x_distance_bottom * pixels_per_inch / 72
+# x_distance_top_px <- x_distance_top * pixels_per_inch / 72
+# y_distance_left_px <- y_distance_left * pixels_per_inch / 72
+# y_distance_right_px <- y_distance_right * pixels_per_inch / 72
+
+# # Print results
+# cat("Distance from bottom of panel to bottom of plot (pixels):", x_distance_bottom_px, "\n")
+# cat("Distance from top of panel to top of plot (pixels):", x_distance_top_px, "\n")
+# cat("Distance from left of panel to left of plot (pixels):", y_distance_left_px, "\n")
+# cat("Distance from right of panel to right of plot (pixels):", y_distance_right_px, "\n")
+
+# gsub("[a-Z]|()", g$heights[10])
+
+
+
+
