@@ -193,14 +193,16 @@ ui <- fluidPage(
         y_total: 0,
         y_axis_min: 0,
         y_axis_max: 0,
-        x_margin: 0,
-        y_margin: 0,
         plot_res: 0,
         d3_x_res: 0,
         d3_y_res: 0,
         cx: 0,
         cy: 0,
-        svg: null
+        svg: null,
+        xScale: null,
+        yScale: null,
+        xAxis: null,
+        yAxis: null
       };
     ")),
     
@@ -249,20 +251,68 @@ ui <- fluidPage(
 
 
 
-    # JS code creating the plot body
+    # JS code creating the plot body and axes plotting
     tags$script(HTML("
+
+      // Handler for plot updates
       Shiny.addCustomMessageHandler('plot_done', function(message) {
-        // Initialize SVG element if it doesn't exist
+        console.log('Received plot_done message');
+        redrawSVG();
+      });
+
+      function redrawSVG() {
+
+        // Remove existing SVG if it exists
+        if( plotInfo.svg != null ){
+          plotInfo.svg.remove();
+        }
+        
+
+        const margin = {top: 21.681, right: 21.681, bottom: 28.908, left: 43.362};
+        const width = plotInfo.plot_res - margin.left - margin.right;
+        const height = plotInfo.plot_res - margin.top - margin.bottom;
+
+        // Create SVG
         plotInfo.svg = d3.select('#d3_output')
           .append('svg')
-          .attr('width', '100%')
-          .attr('height', '100%')
+          .attr('width', plotInfo.plot_res)
+          .attr('height', plotInfo.plot_res)
           .style('position', 'absolute')
-          .style('z-index', '1000');
-        console.log('SVG initialized');
+          .style('z-index', '1000')
+          .append('g')
+          .attr('transform', `translate(${margin.left},${margin.top})`);
+      
 
-      });
+        console.log('SVG reinitialized');
+
+        // Create scales
+        plotInfo.xScale = d3.scaleLinear()
+          .domain([plotInfo.x_axis_min, plotInfo.x_axis_max])
+          .range([0, width]);
+
+        plotInfo.yScale = d3.scaleLinear()
+          .domain([plotInfo.y_axis_min, plotInfo.y_axis_max])
+          .range([height, 0]);
+
+        // Create axes
+        plotInfo.xAxis = d3.axisBottom(plotInfo.xScale);
+        plotInfo.yAxis = d3.axisLeft(plotInfo.yScale);
+
+        // Append axes to SVG
+        plotInfo.svg.append('g')
+          .attr('class', 'x-axis')
+          .attr('transform', `translate(0,${height})`)
+          .call(plotInfo.xAxis);
+
+        plotInfo.svg.append('g')
+          .attr('class', 'y-axis')
+          .call(plotInfo.yAxis);
+
+        console.log('Axes redrawn');
+      }
     ")),
+
+
 
     # JS code to handle plot clicks
     tags$script(HTML("
@@ -348,7 +398,7 @@ ui <- fluidPage(
 server <- function(input, output, session) {
   rv_ggplot <- reactiveValues(x_range = NULL, y_range = NULL, x_distance = NULL, y_distance = NULL)
   rv <- reactiveValues(current_gate_mode = "off")
-
+  
   # DENSITY SCATTER PLOT FUNCTION ################
   density_scatter <- function(exprs = ctm$exprs, x_axis = input$x_channel_select, y_axis = input$y_channel_select, scatter_point_size = input$scatter_point_size, plot_resolution = input$plot_resolution, col_ramp = col_ramp) {
     #density color calculations
@@ -362,7 +412,9 @@ server <- function(input, output, session) {
                         ylim(as.numeric(input$y_axis_min), as.numeric(input$y_axis_max)) +
                         theme(legend.position = "none",
                               axis.title.x = element_blank(),
-                              axis.title.y = element_blank())
+                              axis.title.y = element_blank()) +
+                        theme_void() +
+                        theme(plot.margin = margin(0.3, 0.3, 0.4, 0.6, "inches"))
 
 
     # Build the plot
@@ -471,6 +523,7 @@ server <- function(input, output, session) {
 
   # render the plot UI
   output$plotUI <- renderUI({
+    
     tagList(
       div(style = "display: inline-block; position: relative",
           actionButton(inputId = "rectangle", label = "", class = "custom-btn"),
@@ -491,7 +544,7 @@ server <- function(input, output, session) {
                               width: ", input$plot_resolution, "px;
                               height: ",  input$plot_resolution, "px;"),
           #D3 overlay where the gates will be drawn
-          div(id = "d3_output", style = paste0("position: absolute; z-index:2; width: ", input$plot_resolution, "px;
+          div(id = "d3_output", style = paste0("position: absolute; z-index:300; width: ", input$plot_resolution, "px;
                               height: ",  input$plot_resolution, "px;
                               pointer-events: none;")),
           div(id = "main_scatter", style = paste0("position: absolute; z-index:1; width: ", input$plot_resolution, "px; height: ", input$plot_resolution, "px;"),
@@ -561,12 +614,7 @@ server <- function(input, output, session) {
     y_range <- rv_ggplot$y_range
     session$sendCustomMessage("x_axis_range", x_range)
     session$sendCustomMessage("y_axis_range", y_range)
-
-    # plot_margins <- c(as.numeric(rv_ggplot$x_distance), as.numeric(rv_ggplot$y_distance))
-    # ctm$plot_margins <- plot_margins
-    # session$sendCustomMessage("plot_margin", plot_margins)
-
-    session$sendCustomMessage("plot_done", "TRUE")
+    session$sendCustomMessage("plot_done", "plot done")
   })
 
 
@@ -574,6 +622,7 @@ server <- function(input, output, session) {
   observeEvent(input$plot_resolution, {
     plot_resolution <- input$plot_resolution
     session$sendCustomMessage("plot_resolution", plot_resolution)
+    session$sendCustomMessage("plot_done", "plot done")
   })
 
 
