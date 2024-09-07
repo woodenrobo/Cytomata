@@ -210,8 +210,8 @@ ui <- fluidPage(
         console.log('Received plot resolution from server:', plot_resolution);
         plotInfo.plot_res = plot_resolution;
 
-        plotInfo.d3_x_res = plotInfo.plot_res - plotInfo.x_margin;
-        plotInfo.d3_y_res = plotInfo.plot_res - plotInfo.y_margin;
+        //plotInfo.d3_x_res = plotInfo.plot_res - plotInfo.x_margin;
+        //plotInfo.d3_y_res = plotInfo.plot_res - plotInfo.y_margin;
       });
     ")),
 
@@ -235,17 +235,17 @@ ui <- fluidPage(
       });
     ")),
 
-    # JS code to handle plot panel margins
-    tags$script(HTML("
-      Shiny.addCustomMessageHandler('plot_margin', function(plot_margins) {
-        plotInfo.x_margin = plot_margins[0];
-        plotInfo.y_margin = plot_margins[1];
-        console.log('Received plot margins from server:', plotInfo.x_margin, plotInfo.y_margin);
+    # # JS code to handle plot panel margins
+    # tags$script(HTML("
+    #   Shiny.addCustomMessageHandler('plot_margin', function(plot_margins) {
+    #     plotInfo.x_margin = plot_margins[0];
+    #     plotInfo.y_margin = plot_margins[1];
+    #     console.log('Received plot margins from server:', plotInfo.x_margin, plotInfo.y_margin);
 
-        plotInfo.d3_x_res = plotInfo.plot_res - plotInfo.x_margin;
-        plotInfo.d3_y_res = plotInfo.plot_res - plotInfo.y_margin;
-      });
-    ")),
+    #     //plotInfo.d3_x_res = plotInfo.plot_res - plotInfo.x_margin;
+    #     //plotInfo.d3_y_res = plotInfo.plot_res - plotInfo.y_margin;
+    #   });
+    # ")),
 
 
 
@@ -269,8 +269,8 @@ ui <- fluidPage(
       Shiny.addCustomMessageHandler('scatter_click', function(click_coords) {
         console.log('Received coordinates from server:', click_coords);
         
-        plotInfo.cx = ((click_coords[0] - plotInfo.x_axis_min) / plotInfo.x_total * plotInfo.d3_x_res);
-        plotInfo.cy = plotInfo.d3_y_res - ((click_coords[1] - plotInfo.y_axis_min) / (plotInfo.y_total) * plotInfo.d3_y_res);
+        plotInfo.cx = ((click_coords[0] - plotInfo.x_axis_min) / plotInfo.x_total * plotInfo.plot_res);
+        plotInfo.cy = plotInfo.plot_res - ((click_coords[1] - plotInfo.y_axis_min) / (plotInfo.y_total) * plotInfo.plot_res);
         console.log('Calculated point coordinates x:', plotInfo.cx);
         console.log('Calculated point coordinates y:', plotInfo.cy);  
 
@@ -379,9 +379,9 @@ server <- function(input, output, session) {
     # rv_ggplot$y_distance <- 24
 
     #Extract axis margins
-    g <- ggplotGrob(main_scatter)
-    rv_ggplot$x_distance <- convertUnit(unit(g$widths[6], "null"), "inches", valueOnly = TRUE) * 72 + convertUnit(unit(g$widths[1], "points"), "inches", valueOnly = TRUE) * 72
-    rv_ggplot$y_distance <- convertUnit(unit(g$heights[10], "null"), "inches", valueOnly = TRUE) * 72 + convertUnit(unit(g$widths[16], "points"), "inches", valueOnly = TRUE) * 72
+    # g <- ggplotGrob(main_scatter)
+    # rv_ggplot$x_distance <- convertUnit(unit(g$widths[6], "null"), "inches", valueOnly = TRUE) * 72 + convertUnit(unit(g$widths[1], "points"), "inches", valueOnly = TRUE) * 72
+    # rv_ggplot$y_distance <- convertUnit(unit(g$heights[10], "null"), "inches", valueOnly = TRUE) * 72 + convertUnit(unit(g$widths[16], "points"), "inches", valueOnly = TRUE) * 72
 
 
     return(main_scatter)
@@ -453,6 +453,22 @@ server <- function(input, output, session) {
   })
 
 
+  #default channel selection
+  current_axes <- reactiveValues(x = channel_descriptions[1], y = channel_descriptions[2])
+
+  # update channel selection
+  observeEvent(input$x_channel_select, {
+    current_axes$x <- input$x_channel_select
+    updateSelectInput(session, "x_channel_select", selected = current_axes$x)
+  })
+
+  observeEvent(input$y_channel_select, {
+    current_axes$y <- input$y_channel_select
+    updateSelectInput(session, "y_channel_select", selected = current_axes$y)
+  })
+
+
+
   # render the plot UI
   output$plotUI <- renderUI({
     tagList(
@@ -466,7 +482,7 @@ server <- function(input, output, session) {
       div(style = "display: flex; align-items: center;",
         div(style = paste0("width: 30px; position: relative; margin-bottom: ", input$plot_resolution / 2, "px;"),
           div(class = "centered-select y-axis-select",
-            selectInput("y_channel_select", NULL, choices = channel_descriptions, selected = channel_descriptions[2], multiple = FALSE, selectize = FALSE, width = "100%")
+            selectInput("y_channel_select", NULL, choices = channel_descriptions, selected = current_axes$y, multiple = FALSE, selectize = FALSE, width = "100%")
           )
         ),
         # Plot output container
@@ -475,10 +491,8 @@ server <- function(input, output, session) {
                               width: ", input$plot_resolution, "px;
                               height: ",  input$plot_resolution, "px;"),
           #D3 overlay where the gates will be drawn
-          div(id = "d3_output", style = paste0("position: absolute; z-index:2; width: ", c(input$plot_resolution - rv_ggplot$x_distance), "px;
-                              height: ",  c(input$plot_resolution - rv_ggplot$y_distance), "px;
-                              bottom: ", rv_ggplot$y_distance, "px;
-                              left: ", rv_ggplot$x_distance, "px;
+          div(id = "d3_output", style = paste0("position: absolute; z-index:2; width: ", input$plot_resolution, "px;
+                              height: ",  input$plot_resolution, "px;
                               pointer-events: none;")),
           div(id = "main_scatter", style = paste0("position: absolute; z-index:1; width: ", input$plot_resolution, "px; height: ", input$plot_resolution, "px;"),
           plotOutput("main_scatter", width = input$plot_resolution, height = input$plot_resolution,
@@ -494,7 +508,7 @@ server <- function(input, output, session) {
       div(style = "display: flex; margin-top: 20px;",
         div(style = paste0("width: 30px; margin-left: ", input$plot_resolution / 2 - 50, "px;"),
           div(class = "centered-select",
-            selectInput("x_channel_select", NULL, choices = channel_descriptions, selected = channel_descriptions[1], multiple = FALSE, selectize = FALSE, width = "100%")
+            selectInput("x_channel_select", NULL, choices = channel_descriptions, selected = current_axes$x, multiple = FALSE, selectize = FALSE, width = "100%")
           )
         )
       )
@@ -548,9 +562,9 @@ server <- function(input, output, session) {
     session$sendCustomMessage("x_axis_range", x_range)
     session$sendCustomMessage("y_axis_range", y_range)
 
-    plot_margins <- c(as.numeric(rv_ggplot$x_distance), as.numeric(rv_ggplot$y_distance))
-    ctm$plot_margins <- plot_margins
-    session$sendCustomMessage("plot_margin", plot_margins)
+    # plot_margins <- c(as.numeric(rv_ggplot$x_distance), as.numeric(rv_ggplot$y_distance))
+    # ctm$plot_margins <- plot_margins
+    # session$sendCustomMessage("plot_margin", plot_margins)
 
     session$sendCustomMessage("plot_done", "TRUE")
   })
