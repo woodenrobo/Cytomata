@@ -196,6 +196,8 @@ ui <- fluidPage(
         x_margin: 0,
         y_margin: 0,
         plot_res: 0,
+        d3_x_res: 0,
+        d3_y_res: 0,
         cx: 0,
         cy: 0,
         svg: null
@@ -207,6 +209,9 @@ ui <- fluidPage(
       Shiny.addCustomMessageHandler('plot_resolution', function(plot_resolution) {
         console.log('Received plot resolution from server:', plot_resolution);
         plotInfo.plot_res = plot_resolution;
+
+        plotInfo.d3_x_res = plotInfo.plot_res - plotInfo.x_margin;
+        plotInfo.d3_y_res = plotInfo.plot_res - plotInfo.y_margin;
       });
     ")),
 
@@ -236,6 +241,26 @@ ui <- fluidPage(
         plotInfo.x_margin = plot_margins[0];
         plotInfo.y_margin = plot_margins[1];
         console.log('Received plot margins from server:', plotInfo.x_margin, plotInfo.y_margin);
+
+        plotInfo.d3_x_res = plotInfo.plot_res - plotInfo.x_margin;
+        plotInfo.d3_y_res = plotInfo.plot_res - plotInfo.y_margin;
+      });
+    ")),
+
+
+
+    # JS code creating the plot body
+    tags$script(HTML("
+      Shiny.addCustomMessageHandler('plot_done', function(message) {
+        // Initialize SVG element if it doesn't exist
+        plotInfo.svg = d3.select('#d3_output')
+          .append('svg')
+          .attr('width', '100%')
+          .attr('height', '100%')
+          .style('position', 'absolute')
+          .style('z-index', '1000');
+        console.log('SVG initialized');
+
       });
     ")),
 
@@ -244,19 +269,10 @@ ui <- fluidPage(
       Shiny.addCustomMessageHandler('scatter_click', function(click_coords) {
         console.log('Received coordinates from server:', click_coords);
         
-        plotInfo.cx = ((click_coords[0] - plotInfo.x_axis_min) / plotInfo.x_total * plotInfo.plot_res) + plotInfo.x_margin;
-        plotInfo.cy = plotInfo.plot_res - ((click_coords[1] - plotInfo.y_axis_min) / (plotInfo.y_total * plotInfo.plot_res) + plotInfo.y_margin);
+        plotInfo.cx = ((click_coords[0] - plotInfo.x_axis_min) / plotInfo.x_total * plotInfo.d3_x_res);
+        plotInfo.cy = plotInfo.d3_y_res - ((click_coords[1] - plotInfo.y_axis_min) / (plotInfo.y_total) * plotInfo.d3_y_res);
         console.log('Calculated point coordinates x:', plotInfo.cx);
         console.log('Calculated point coordinates y:', plotInfo.cy);  
-
-      // Initialize SVG element if it doesn't exist
-      plotInfo.svg = d3.select('#d3_output')
-        .append('svg')
-        .attr('width', '100%')
-        .attr('height', '100%')
-        .style('position', 'absolute')
-        .style('z-index', '1000');
-      console.log('SVG initialized');
 
       // Append a circle to the SVG
       plotInfo.svg.append('circle')
@@ -268,7 +284,6 @@ ui <- fluidPage(
         console.log('Circle appended at:', plotInfo.cx, plotInfo.cy);
       });
     "))
-
 
   ),
 
@@ -329,6 +344,7 @@ ui <- fluidPage(
 
 
 
+
 server <- function(input, output, session) {
   rv_ggplot <- reactiveValues(x_range = NULL, y_range = NULL, x_distance = NULL, y_distance = NULL)
   rv <- reactiveValues(current_gate_mode = "off")
@@ -358,17 +374,16 @@ server <- function(input, output, session) {
     # Extract y-axis parameters
     rv_ggplot$y_range <- built$layout$panel_params[[1]]$y$continuous_range
 
-    # Extract axis margins
+    # # Set axis margins
+    # rv_ggplot$x_distance <- 29
+    # rv_ggplot$y_distance <- 24
+
+    #Extract axis margins
     g <- ggplotGrob(main_scatter)
-    # panel <- which(g$layout$name == "panel")
-    # panel_pos <- g$layout[panel, c("l", "r", "t", "b")]
-    # # Get distances
-    # rv_ggplot$x_distance <- panel_pos["b"]
-    # rv_ggplot$y_distance <- panel_pos["l"]
-    # rv_ggplot$x_distance <- convertUnit(unit(g$heights[10], "null"), "inches", valueOnly = TRUE) * 72
-    # rv_ggplot$y_distance <- convertUnit(unit(g$widths[6], "null"), "inches", valueOnly = TRUE) * 72
-    rv_ggplot$x_distance <- 25
-    rv_ggplot$y_distance <- 35
+    rv_ggplot$x_distance <- convertUnit(unit(g$widths[6], "null"), "inches", valueOnly = TRUE) * 72 + convertUnit(unit(g$widths[1], "points"), "inches", valueOnly = TRUE) * 72
+    rv_ggplot$y_distance <- convertUnit(unit(g$heights[10], "null"), "inches", valueOnly = TRUE) * 72 + convertUnit(unit(g$widths[16], "points"), "inches", valueOnly = TRUE) * 72
+
+
     return(main_scatter)
   }
 
@@ -455,9 +470,16 @@ server <- function(input, output, session) {
           )
         ),
         # Plot output container
-        div(id = "plot_container", style = paste0("position: relative; margin-left: ", 20, "px; width: ", input$plot_resolution, "px; height: ", input$plot_resolution, "px;"),
+        div(id = "plot_container", 
+              style = paste0("position: relative; margin-left: ", 20, "px;
+                              width: ", input$plot_resolution, "px;
+                              height: ",  input$plot_resolution, "px;"),
           #D3 overlay where the gates will be drawn
-          div(id = "d3_output", style = paste0("position: absolute; z-index:2; width: ", input$plot_resolution, "px; height: ", input$plot_resolution, "px; pointer-events: none;")),
+          div(id = "d3_output", style = paste0("position: absolute; z-index:2; width: ", c(input$plot_resolution - rv_ggplot$x_distance), "px;
+                              height: ",  c(input$plot_resolution - rv_ggplot$y_distance), "px;
+                              bottom: ", rv_ggplot$y_distance, "px;
+                              left: ", rv_ggplot$x_distance, "px;
+                              pointer-events: none;")),
           div(id = "main_scatter", style = paste0("position: absolute; z-index:1; width: ", input$plot_resolution, "px; height: ", input$plot_resolution, "px;"),
           plotOutput("main_scatter", width = input$plot_resolution, height = input$plot_resolution,
             click = if (rv$current_gate_mode %in% c("off", "polygon", "interval")) clickOpts(id = "scatter_click") else NULL,
@@ -529,6 +551,8 @@ server <- function(input, output, session) {
     plot_margins <- c(as.numeric(rv_ggplot$x_distance), as.numeric(rv_ggplot$y_distance))
     ctm$plot_margins <- plot_margins
     session$sendCustomMessage("plot_margin", plot_margins)
+
+    session$sendCustomMessage("plot_done", "TRUE")
   })
 
 
@@ -654,50 +678,11 @@ server <- function(input, output, session) {
 
 }
 
+
+
+
 shinyApp(ui, server)
 
-
-
-
-# ctm$mod_scatter <- ctm$main_scatter +
-#                     theme_nothing() +
-#                     theme(
-#                       plot.margin = margin(0, 0, 0, 0, "cm"),
-#                       axis.ticks = element_blank(),
-#                       axis.text = element_blank(),
-#                       axis.title = element_blank()
-#                     ) +
-#                     scale_x_continuous(expand = c(0, 0)) +
-#                     scale_y_continuous(expand = c(0, 0)) +
-#                     labs(title = NULL, x = NULL, y = NULL)
-# # Convert the ggplot object to a grob
-# g <- ggplotGrob(ctm$main_scatter)
-# g2 <- ggplotGrob(ctm$mod_scatter)
-
-# # Find the panel position
-# panel <- which(g$layout$name == "panel")
-# panel_pos <- g$layout[panel, c("l", "r", "t", "b")]
-
-# # Calculate distances in native units
-# x_distance_bottom <- convertUnit(unit(panel_pos$b, "null"), "points", valueOnly = TRUE)
-# x_distance_top <- convertUnit(unit(g$heights[1] + g$heights[2], "null"), "points", valueOnly = TRUE)
-# y_distance_left <- convertUnit(unit(panel_pos$l, "null"), "points", valueOnly = TRUE)
-# y_distance_right <- convertUnit(unit(g$widths[5], "null"), "points", valueOnly = TRUE)
-
-# # Convert to pixels (assuming 72 pixels per inch)
-# pixels_per_inch <- 72
-# x_distance_bottom_px <- x_distance_bottom * pixels_per_inch / 72
-# x_distance_top_px <- x_distance_top * pixels_per_inch / 72
-# y_distance_left_px <- y_distance_left * pixels_per_inch / 72
-# y_distance_right_px <- y_distance_right * pixels_per_inch / 72
-
-# # Print results
-# cat("Distance from bottom of panel to bottom of plot (pixels):", x_distance_bottom_px, "\n")
-# cat("Distance from top of panel to top of plot (pixels):", x_distance_top_px, "\n")
-# cat("Distance from left of panel to left of plot (pixels):", y_distance_left_px, "\n")
-# cat("Distance from right of panel to right of plot (pixels):", y_distance_right_px, "\n")
-
-# gsub("[a-Z]|()", g$heights[10])
 
 
 
