@@ -199,6 +199,7 @@ ui <- fluidPage(
         cx: 0,
         cy: 0,
         svg: null,
+        gate_svg: null,
         xScale: null,
         yScale: null,
         xAxis: null,
@@ -207,14 +208,27 @@ ui <- fluidPage(
       };
     ")),
     
+    # JS code to handle plot panel margins
+    tags$script(HTML("
+      Shiny.addCustomMessageHandler('plot_margin', function(margins) {
+        plotInfo.margin.top = margins[0];
+        plotInfo.margin.right = margins[1];
+        plotInfo.margin.bottom = margins[2];
+        plotInfo.margin.left = margins[3];
+
+        console.log('Received plot margins from server:', plotInfo.margin.top,  plotInfo.margin.right, plotInfo.margin.bottom,  plotInfo.margin.left);
+
+      });
+    ")),
+
     # JS code to resize the plot container
     tags$script(HTML("
       Shiny.addCustomMessageHandler('plot_resolution', function(plot_resolution) {
         console.log('Received plot resolution from server:', plot_resolution);
         plotInfo.plot_res = plot_resolution;
 
-        //plotInfo.d3_x_res = plotInfo.plot_res - plotInfo.x_margin;
-        //plotInfo.d3_y_res = plotInfo.plot_res - plotInfo.y_margin;
+        plotInfo.d3_x_res = plotInfo.plot_res - plotInfo.margin.right - plotInfo.margin.left;
+        plotInfo.d3_y_res = plotInfo.plot_res - plotInfo.margin.top - plotInfo.margin.bottom;
       });
     ")),
 
@@ -238,21 +252,11 @@ ui <- fluidPage(
       });
     ")),
 
-    # # JS code to handle plot panel margins
-    # tags$script(HTML("
-    #   Shiny.addCustomMessageHandler('plot_margin', function(plot_margins) {
-    #     plotInfo.x_margin = plot_margins[0];
-    #     plotInfo.y_margin = plot_margins[1];
-    #     console.log('Received plot margins from server:', plotInfo.x_margin, plotInfo.y_margin);
-
-    #     //plotInfo.d3_x_res = plotInfo.plot_res - plotInfo.x_margin;
-    #     //plotInfo.d3_y_res = plotInfo.plot_res - plotInfo.y_margin;
-    #   });
-    # ")),
 
 
 
-    # JS code creating the plot body and axes plotting
+
+    # JS code creating the axes
     tags$script(HTML("
 
       // Handler for plot updates
@@ -318,13 +322,21 @@ ui <- fluidPage(
       Shiny.addCustomMessageHandler('scatter_click', function(click_coords) {
         console.log('Received coordinates from server:', click_coords);
         
-        plotInfo.cx = ((click_coords[0] - plotInfo.x_axis_min) / plotInfo.x_total * plotInfo.plot_res);
-        plotInfo.cy = plotInfo.plot_res - ((click_coords[1] - plotInfo.y_axis_min) / (plotInfo.y_total) * plotInfo.plot_res);
+        plotInfo.cx = ((click_coords[0] - plotInfo.x_axis_min) / plotInfo.x_total * plotInfo.d3_x_res);
+        plotInfo.cy = plotInfo.d3_y_res - ((click_coords[1] - plotInfo.y_axis_min) / plotInfo.y_total * plotInfo.d3_y_res);
         console.log('Calculated point coordinates x:', plotInfo.cx);
         console.log('Calculated point coordinates y:', plotInfo.cy);  
 
+        // Create SVG
+        plotInfo.gate_svg = d3.select('#d3_output_gates')
+          .append('svg')
+          .attr('width', plotInfo.d3_x_res)
+          .attr('height', plotInfo.d3_y_res)
+          .style('position', 'absolute')
+          .style('z-index', '2000');
+
       // Append a circle to the SVG
-      plotInfo.svg.append('circle')
+      plotInfo.gate_svg.append('circle')
         .attr('cx', plotInfo.cx)
         .attr('cy', plotInfo.cy)
         .attr('r', 5)
@@ -572,7 +584,7 @@ server <- function(input, output, session) {
     )
   })
 
-rv_ggplot <- reactiveValues(x_range = NULL, y_range = NULL, m_top = 20, m_right = 20, m_bottom = 30, m_left = 45)
+
 
   # AXES AND API ################
 
@@ -612,6 +624,13 @@ rv_ggplot <- reactiveValues(x_range = NULL, y_range = NULL, m_top = 20, m_right 
 
   })
 
+  # send plot margins to the client side
+  observe({
+    margins <- c(rv_ggplot$m_top, rv_ggplot$m_right, rv_ggplot$m_bottom, rv_ggplot$m_left)
+    session$sendCustomMessage("plot_margin", margins)
+  })
+
+
   # send x and y axis ranges to the client side
   observe({
     x_range <- rv_ggplot$x_range
@@ -628,6 +647,10 @@ rv_ggplot <- reactiveValues(x_range = NULL, y_range = NULL, m_top = 20, m_right 
     session$sendCustomMessage("plot_resolution", plot_resolution)
     session$sendCustomMessage("plot_done", "plot done")
   })
+
+
+
+
 
 
   # EVERYTHING TO DO WITH GATING ################
