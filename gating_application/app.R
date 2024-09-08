@@ -202,7 +202,8 @@ ui <- fluidPage(
         xScale: null,
         yScale: null,
         xAxis: null,
-        yAxis: null
+        yAxis: null,
+        margin: {top: 20, right: 20, bottom: 30, left: 45}
       };
     ")),
     
@@ -267,10 +268,8 @@ ui <- fluidPage(
           plotInfo.svg.remove();
         }
         
-
-        const margin = {top: 21.681, right: 21.681, bottom: 28.908, left: 43.362};
-        const width = plotInfo.plot_res - margin.left - margin.right;
-        const height = plotInfo.plot_res - margin.top - margin.bottom;
+        const width = plotInfo.plot_res - plotInfo.margin.left - plotInfo.margin.right;
+        const height = plotInfo.plot_res - plotInfo.margin.top - plotInfo.margin.bottom;
 
         // Create SVG
         plotInfo.svg = d3.select('#d3_output')
@@ -280,7 +279,7 @@ ui <- fluidPage(
           .style('position', 'absolute')
           .style('z-index', '1000')
           .append('g')
-          .attr('transform', `translate(${margin.left},${margin.top})`);
+          .attr('transform', `translate(${plotInfo.margin.left},${plotInfo.margin.top})`);
       
 
         console.log('SVG reinitialized');
@@ -395,8 +394,10 @@ ui <- fluidPage(
 
 
 
+
+
 server <- function(input, output, session) {
-  rv_ggplot <- reactiveValues(x_range = NULL, y_range = NULL, x_distance = NULL, y_distance = NULL)
+  rv_ggplot <- reactiveValues(x_range = NULL, y_range = NULL, m_top = 20, m_right = 20, m_bottom = 30, m_left = 45)
   rv <- reactiveValues(current_gate_mode = "off")
   
   # DENSITY SCATTER PLOT FUNCTION ################
@@ -413,8 +414,7 @@ server <- function(input, output, session) {
                         theme(legend.position = "none",
                               axis.title.x = element_blank(),
                               axis.title.y = element_blank()) +
-                        theme_void() +
-                        theme(plot.margin = margin(0.3, 0.3, 0.4, 0.6, "inches"))
+                        theme_void()
 
 
     # Build the plot
@@ -425,15 +425,6 @@ server <- function(input, output, session) {
 
     # Extract y-axis parameters
     rv_ggplot$y_range <- built$layout$panel_params[[1]]$y$continuous_range
-
-    # # Set axis margins
-    # rv_ggplot$x_distance <- 29
-    # rv_ggplot$y_distance <- 24
-
-    #Extract axis margins
-    # g <- ggplotGrob(main_scatter)
-    # rv_ggplot$x_distance <- convertUnit(unit(g$widths[6], "null"), "inches", valueOnly = TRUE) * 72 + convertUnit(unit(g$widths[1], "points"), "inches", valueOnly = TRUE) * 72
-    # rv_ggplot$y_distance <- convertUnit(unit(g$heights[10], "null"), "inches", valueOnly = TRUE) * 72 + convertUnit(unit(g$widths[16], "points"), "inches", valueOnly = TRUE) * 72
 
 
     return(main_scatter)
@@ -541,19 +532,32 @@ server <- function(input, output, session) {
         # Plot output container
         div(id = "plot_container", 
               style = paste0("position: relative; margin-left: ", 20, "px;
-                              width: ", input$plot_resolution, "px;
-                              height: ",  input$plot_resolution, "px;"),
-          #D3 overlay where the gates will be drawn
-          div(id = "d3_output", style = paste0("position: absolute; z-index:300; width: ", input$plot_resolution, "px;
-                              height: ",  input$plot_resolution, "px;
-                              pointer-events: none;")),
-          div(id = "main_scatter", style = paste0("position: absolute; z-index:1; width: ", input$plot_resolution, "px; height: ", input$plot_resolution, "px;"),
-          plotOutput("main_scatter", width = input$plot_resolution, height = input$plot_resolution,
-            click = if (rv$current_gate_mode %in% c("off", "polygon", "interval")) clickOpts(id = "scatter_click") else NULL,
-            dblclick = if (rv$current_gate_mode == "off") dblclickOpts(id = "scatter_dblclick") else NULL,
-            brush = if (rv$current_gate_mode == "rectangle") brushOpts(id = "scatter_brush", resetOnNew = TRUE) else NULL,
-            hover = if (rv$current_gate_mode %in% c("quadrant", "interval")) hoverOpts(id = "scatter_hover", delay = 0) else NULL
-          )
+                width: ", input$plot_resolution, "px;
+                height: ",  input$plot_resolution, "px;"),
+          #D3 overlay where the axes are drawn
+          div(id = "d3_output", 
+                style = paste0("position: absolute; z-index:300; width: ", input$plot_resolution, "px;
+                  height: ",  input$plot_resolution, "px;
+                  pointer-events: none;")),
+          #Main scatter container with ggplot and D3 gate overlay
+          div(id = "main_scatter", 
+                style = paste0("position: absolute; z-index:1;
+                  width: ", c(input$plot_resolution - rv_ggplot$m_right - rv_ggplot$m_left), "px;
+                  height: ", c(input$plot_resolution - rv_ggplot$m_top - rv_ggplot$m_bottom), "px;
+                  transform: translate(", rv_ggplot$m_left, "px, ", rv_ggplot$m_top, "px);"),
+            div(id = "d3_output_gates", 
+                style = paste0("position: absolute; z-index:400;
+                  width: ", c(input$plot_resolution - rv_ggplot$m_right - rv_ggplot$m_left), "px;
+                  height: ",  c(input$plot_resolution - rv_ggplot$m_top - rv_ggplot$m_bottom), "px;
+                  pointer-events: none;")),
+            plotOutput("main_scatter", 
+              width = c(input$plot_resolution - rv_ggplot$m_right - rv_ggplot$m_left),
+              height = c(input$plot_resolution - rv_ggplot$m_top - rv_ggplot$m_bottom),
+              click = if (rv$current_gate_mode %in% c("off", "polygon", "interval")) clickOpts(id = "scatter_click") else NULL,
+              dblclick = if (rv$current_gate_mode == "off") dblclickOpts(id = "scatter_dblclick") else NULL,
+              brush = if (rv$current_gate_mode == "rectangle") brushOpts(id = "scatter_brush", resetOnNew = TRUE) else NULL,
+              hover = if (rv$current_gate_mode %in% c("quadrant", "interval")) hoverOpts(id = "scatter_hover", delay = 0) else NULL
+            )
           )
         )
       ),
@@ -568,7 +572,7 @@ server <- function(input, output, session) {
     )
   })
 
-
+rv_ggplot <- reactiveValues(x_range = NULL, y_range = NULL, m_top = 20, m_right = 20, m_bottom = 30, m_left = 45)
 
   # AXES AND API ################
 
