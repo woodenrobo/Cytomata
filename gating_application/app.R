@@ -93,6 +93,7 @@ if (asinh_transform == TRUE) {
 
 #creating a GatingSet
 ctm$gs <- GatingSet(cs)
+colnames(ctm$gs) <- channel_descriptions
 
 #available samples
 samples <- sampleNames(ctm$gs)
@@ -454,7 +455,7 @@ ui <- fluidPage(
 
 server <- function(input, output, session) {
   rv_ggplot <- reactiveValues(x_range = NULL, y_range = NULL, m_top = 20, m_right = 20, m_bottom = 30, m_left = 45)
-  rv <- reactiveValues(current_gate_mode = "off")
+  rv_gates <- reactiveValues(current_gate_mode = "off", active_parent = "root", gates_found = FALSE, gates_data = NULL)
   
   # DENSITY SCATTER PLOT FUNCTION ################
   density_scatter <- function(exprs = ctm$exprs, x_axis = input$x_channel_select, y_axis = input$y_channel_select, scatter_point_size = input$scatter_point_size, plot_resolution = input$plot_resolution, col_ramp = col_ramp) {
@@ -495,19 +496,17 @@ server <- function(input, output, session) {
     #setting ID of the samples
     ctm$sample_ids <- match(input$selected_samples, file_names)
 
-    #setting default active parent gate
-    active_parent <- "root"
 
     # PREPARING DATA FOR PLOT ################
     #extracting cytosets
     if (selected_sample_count() == 1) {
-        ff <- cytoframe_to_flowFrame(gs_pop_get_data(ctm$gs[ctm$sample_ids], parent = active_parent)[[1]])
+        ff <- cytoframe_to_flowFrame(gs_pop_get_data(ctm$gs[ctm$sample_ids], parent = rv_gates$active_parent)[[1]])
         ctm$exprs <- as.data.frame(ff@exprs)
         colnames(ctm$exprs) <- channel_descriptions
     } else if (selected_sample_count() > 1) {
         exprs <- data.frame()
         for (samp_id in ctm$sample_ids) {
-            ff <- cytoframe_to_flowFrame(gs_pop_get_data(ctm$gs[samp_id], parent = active_parent)[[1]])
+            ff <- cytoframe_to_flowFrame(gs_pop_get_data(ctm$gs[samp_id], parent = rv_gates$active_parent)[[1]])
             exprs_temp <- as.data.frame(ff@exprs)
             exprs <- rbind(exprs, exprs_temp)
         }
@@ -609,10 +608,10 @@ server <- function(input, output, session) {
             plotOutput("main_scatter", 
               width = c(input$plot_resolution - rv_ggplot$m_right - rv_ggplot$m_left),
               height = c(input$plot_resolution - rv_ggplot$m_top - rv_ggplot$m_bottom),
-              click = if (rv$current_gate_mode %in% c("off", "polygon", "interval")) clickOpts(id = "scatter_click") else NULL,
-              dblclick = if (rv$current_gate_mode == "off") dblclickOpts(id = "scatter_dblclick") else NULL,
-              brush = if (rv$current_gate_mode == "rectangle") brushOpts(id = "scatter_brush", fill = "lightblue", opacity = 0.2, resetOnNew = TRUE) else NULL,
-              hover = if (rv$current_gate_mode %in% c("quadrant", "interval")) hoverOpts(id = "scatter_hover", delay = 0) else NULL
+              click = if (rv_gates$current_gate_mode %in% c("off", "polygon", "interval")) clickOpts(id = "scatter_click") else NULL,
+              dblclick = if (rv_gates$current_gate_mode == "off") dblclickOpts(id = "scatter_dblclick") else NULL,
+              brush = if (rv_gates$current_gate_mode == "rectangle") brushOpts(id = "scatter_brush", fill = "lightblue", opacity = 0.2, resetOnNew = TRUE) else NULL,
+              hover = if (rv_gates$current_gate_mode %in% c("quadrant", "interval")) hoverOpts(id = "scatter_hover", delay = 0) else NULL
               )
           )
         )
@@ -715,15 +714,19 @@ server <- function(input, output, session) {
 
   # EVERYTHING TO DO WITH GATING ################
 
+
+
+  # GATING MODES ################
+
   # Function to toggle gating modes
   
   toggleGatingMode <- function(mode) {
-    if (rv$current_gate_mode == mode) {
-      rv$current_gate_mode <- "off"
+    if (rv_gates$current_gate_mode == mode) {
+      rv_gates$current_gate_mode <- "off"
     } else {
-      rv$current_gate_mode <- mode
+      rv_gates$current_gate_mode <- mode
     }
-    print(rv$current_gate_mode)
+    print(rv_gates$current_gate_mode)
   }
 
   # switch between gating modes
@@ -756,14 +759,19 @@ server <- function(input, output, session) {
 
   # Update button appearances when mode changes
   observe({
-    updateButtonAppearance(rv$current_gate_mode)
+    updateButtonAppearance(rv_gates$current_gate_mode)
   })
 
   # send current gate mode to the client side
   observe({
-    session$sendCustomMessage("gate_mode", rv$current_gate_mode)
+    session$sendCustomMessage("gate_mode", rv_gates$current_gate_mode)
   })
 
+
+
+
+
+ # PLOT INTERACTION COORDINATES ################
 
   # Observe click events and send coordinates to the client side
   observeEvent(input$scatter_click, {
@@ -812,6 +820,73 @@ server <- function(input, output, session) {
 
 
 
+
+
+
+
+
+
+
+
+  # # GATE CREATION ################
+
+  # # Get the gate hierarchy
+  # ctm$pop_paths <- gs_get_pop_paths(ctm$gs)
+
+
+  # # Saving rectangle gate
+  # gate <- ctm$mat
+  # gate <- rectangleGate(.gate=ctm$mat)
+  # gate_name <- "test"
+  # # rv_gates$active_parent <- "test"
+  # active_parent <- "test"
+
+  # if (sum(grepl(paste0(".*/", gate_name), pop_paths) > 0)) {
+  #   showModal(modalDialog(
+  #     title = "Gate name already exists",
+  #     "Please choose a different name for the gate."
+  #   ))
+  # } else {
+  #   gs_pop_add(ctm$gs, gate, parent = active_parent, name = gate_name)
+  #   recompute(ctm$gs)
+  #   ctm$pop_paths <- gs_get_pop_paths(ctm$gs)
+  # }
+
+
+
+
+  # # GATE DETECTION ################
+
+  # # Detect gates
+  # if (length(popPaths) > 1) {
+  #   for (i in seq(ctm$pop_paths)[-1]) {
+  #       gate_info <- gs_pop_get_gate(ctm$gs, pop_paths[i])[ctm$sample_ids][[1]]
+  #       detected_types[i] <- class(gate_info)[1]
+  #       gate_params <- gate_info@parameters
+  #       gate_x <- names(gate_params[1])
+  #   } 
+  # }
+
+  
+
+  # # GATE UPDATES ################
+
+
+
+  # # GATE ACTIVATION ################
+
+
+
+
+  # # GATE DELETION ################
+
+
+
+
+
+
+  # SAVING AND LOADING SESSIONS ################
+
   # # CHANGE THIS TO ONLY SAVE THE GATE INFORMATION AND AXIS SETTINGS
   # observeEvent(input$save_session, {
   #   ctm$main_scatter < NULL
@@ -840,4 +915,129 @@ shinyApp(ui, server)
 
 
 
+
+
+
+
+
+
+  # GATE CREATION ################
+
+  # Get the gate hierarchy
+  ctm$pop_paths <- gs_get_pop_paths(ctm$gs)
+
+
+
+  # Saving rectangle gate
+  rectangle_coords <- data.frame("142Nd_CD19" = c(-0.8, 1), "115In_CD3" = c(3, 6), check.names = FALSE)
+  gate <- rectangleGate(.gate = rectangle_coords)
+  gate_name <- "CD3+ CD4+ T cells"
+
+  add_gate(gs = ctm$gs, gate, gate_name, active_parent = "root")
+
+
+  # Saving polygon gate
+  polygon_coords <- data.frame("142Nd_CD19" = c(-0.8, -0.9, -0.8, 1, 2, 2, 1), "115In_CD3" = c(3, 4, 5, 6, 5, 3, 3), check.names = FALSE)
+  gate <- polygonGate(.gate = polygon_coords)
+  gate_name <- "CD3+ CD4+ T cells Polygon"
+
+  add_gate(gs = ctm$gs, gate, gate_name, active_parent = "root")
+
+
+  # Saving quadrant gate
+  quadrant_coords <- data.frame("142Nd_CD19" = c(1.5), "115In_CD3" = c(3), check.names = FALSE)
+  gate <- quadGate(.gate = quadrant_coords)
+  gate_name <- c(paste0("Q1: ", "142Nd_CD19", "- ", "115In_CD3", "+"),
+                 paste0("Q2: ", "142Nd_CD19", "+ ", "115In_CD3", "+"),
+                 paste0("Q3: ", "142Nd_CD19", "+ ", "115In_CD3", "-"),
+                 paste0("Q4: ", "142Nd_CD19", "- ", "115In_CD3", "-"))
+
+  add_gate(gs = ctm$gs, gate, gate_name, active_parent = "root")
+
+  # Saving interval gate
+  interval_coords <- data.frame("142Nd_CD19" = c(1.5), check.names = FALSE)
+  interval1 <- rbind(interval_coords, -Inf)
+  interval2 <- rbind(interval_coords, Inf)
+  gate1 <- rectangleGate(.gate = interval1)
+  gate2 <- rectangleGate(.gate = interval2)
+  gate_name1 <- paste0("142Nd_CD19", "-")
+  gate_name2 <- paste0("142Nd_CD19", "+")
+
+  add_gate(gs = ctm$gs, gate = gate1, gate_name = gate_name1, active_parent = "root")
+  add_gate(gs = ctm$gs, gate = gate2, gate_name = gate_name2, active_parent = "root")
+
+
+
+
+add_gate <- function(gs = ctm$gs, gate, gate_name, active_parent) {
+  if (sum(grepl(paste0(".*/", gate_name), ctm$pop_paths) > 0)) {
+    # showModal(modalDialog(
+    #   title = "Gate name already exists",
+    #   "Please choose a different name for the gate."
+    # ))
+    print("Gate name already exists")
+  } else {
+    gs_pop_add(gs, gate, parent = active_parent, name = gate_name)
+    recompute(gs)
+    ctm$pop_paths <- gs_get_pop_paths(gs)
+  }
+}
+
+
+
+
+
+  # GATE INFO COLLECTION ################
+  gate_collect_info <- function(gs = ctm$gs, pop_paths = ctm$pop_paths) {
+    gates_info <- NULL
+    if (length(pop_paths) > 1) {
+      for (i in seq(pop_paths)[-1]) {
+          gate_info <- gs_pop_get_gate(gs, pop_paths[i])[[1]]
+          name <- gate_info@filterId
+          type <- class(gate_info)[1]
+          gate_params <- gate_info@parameters
+          axis1 <- names(gate_params[1])
+          axis2 <- names(gate_params[2])
+
+          if (type == "rectangleGate") {
+            coords <- rbind(gate_info@min, gate_info@max)
+          } else if (type == "polygonGate") {
+            coords <- gate_info@boundaries
+          }
+          
+          gates_info[[i]] <- list(name = name, type = type, axis1 = axis1, axis2 = axis2, coords = coords)
+
+      } 
+    }
+    return(gates_info)
+
+    ctm$gate_freqs <- gs_pop_get_count_fast(ctm$gs[ctm$sample_ids], "freq")
+    ctm$gate_counts <- gs_pop_get_count_fast(ctm$gs[ctm$sample_ids], "count")
+  }
+
+ gates_info <- gate_collect_info(gs = ctm$gs, pop_paths = ctm$pop_paths)
+
+  
+
+
+
+  # GATE DETECTION ################
+
+  x = "142Nd_CD19"
+  y = "115In_CD3"
+
+  x_gates <- which(lapply(gates_info, function(x) x$axis1) %in% x)
+  y_gates <- which(lapply(gates_info, function(x) x$axis2) %in% y)
+  detected_gates <- intersect(x_gates, y_gates)
+
+  # GATE UPDATES ################
+
+
+
+  # GATE ACTIVATION ################
+
+
+
+
+  # GATE DELETION ################
 
