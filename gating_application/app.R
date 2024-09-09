@@ -164,13 +164,13 @@ ui <- fluidPage(
         background-color: transparent !important;
         border: none;
       }
-      .custom-btn:hover{
-        background-color: rgba(0,0,0,0.1) !important; /* Slight darkening on hover/focus/active */
+      .custom-btn:hover {
+        background-color: rgba(173, 216, 230, 0.15) !important; /* Slight darkening on hover/focus/active */
         outline: none !important;
         box-shadow: none !important;
       }
       .custom-btn.active {
-        background-color: rgba(0,0,0,0.1) !important;
+        background-color: rgba(173, 216, 230, 0.35) !important;
         outline: none !important;
         box-shadow: none !important;
       }
@@ -178,6 +178,33 @@ ui <- fluidPage(
       #polygon { background-image: url('polygon.png'); }
       #quadrant { background-image: url('quadrant.png'); }
       #interval { background-image: url('interval.png'); }
+      .custom-btn-switch {
+        transform: translate(200px, 0px);
+        width: 50px;
+        height: 50px;
+        padding: 0;
+        background-size: 90%;
+        background-position: center;
+        background-repeat: no-repeat;
+        background-color: transparent !important;
+        border: none;
+      }
+      .custom-btn-switch:hover {
+        background-color: rgba(173, 216, 230, 0.15) !important; /* Slight darkening on hover/focus/active */
+        outline: none !important;
+        box-shadow: none !important;
+      }
+      #switch_channels { background-image: url('switch_channels.png'); }
+    ")),
+
+    # CSS for plot axes
+    tags$style(HTML("
+    .x-axis {
+     font: 12px sans-serif; 
+    }
+    .y-axis {
+     font: 12px sans-serif; 
+    }
     ")),
 
     # adding D3 library
@@ -229,6 +256,8 @@ ui <- fluidPage(
 
         plotInfo.d3_x_res = plotInfo.plot_res - plotInfo.margin.right - plotInfo.margin.left;
         plotInfo.d3_y_res = plotInfo.plot_res - plotInfo.margin.top - plotInfo.margin.bottom;
+
+        redrawSVG();
       });
     ")),
 
@@ -302,6 +331,13 @@ ui <- fluidPage(
         plotInfo.yAxis = d3.axisLeft(plotInfo.yScale);
 
         // Append axes to SVG
+        if (plotInfo.x_axis_max > 100000 || plotInfo.x_axis_min < -100000) {
+          plotInfo.xAxis.tickFormat(d3.format('.0e'));
+        }
+        if (plotInfo.y_axis_max > 100000 || plotInfo.y_axis_min < -100000) {
+          plotInfo.yAxis.tickFormat(d3.format('.0e'));
+        }
+
         plotInfo.svg.append('g')
           .attr('class', 'x-axis')
           .attr('transform', `translate(0,${height})`)
@@ -372,7 +408,7 @@ ui <- fluidPage(
           title = "Plot Settings",
           content = tagList(
             numericInput("scatter_point_size", "Scatter point size:", value = 1),
-            numericInput("plot_resolution", "Plot resolution:", value = 300),
+            numericInput("plot_resolution", "Plot resolution:", value = 450),
             numericInput("x_axis_min", "X-axis min:", value = -1),
             numericInput("x_axis_max", "X-axis max:", value = NA),
             numericInput("y_axis_min", "Y-axis min:", value = -1),
@@ -381,8 +417,16 @@ ui <- fluidPage(
         )
     ),
     column(width = 7,
+      div(style = "display: inline-block; position: relative",
+            actionButton(inputId = "rectangle", label = "", class = "custom-btn"),
+            actionButton(inputId = "polygon", label = "", class = "custom-btn"),
+            actionButton(inputId = "quadrant", label = "", class = "custom-btn"),
+            actionButton(inputId = "interval", label = "", class = "custom-btn"),
+            actionButton(inputId = "switch_channels", label = "", class = "custom-btn-switch")
+          ),
+      uiOutput("axes"),
       uiOutput("plotUI")
-      ),
+    ),
     column(width = 3,
       br())
   ),
@@ -430,14 +474,13 @@ server <- function(input, output, session) {
 
 
     # Build the plot
-    built <- ggplot_build(main_scatter)
+    ctm$built <- ggplot_build(main_scatter)
 
     # Extract x-axis parameters
-    rv_ggplot$x_range <- built$layout$panel_params[[1]]$x$continuous_range
+    rv_ggplot$x_range <- ctm$built$layout$panel_params[[1]]$x$continuous_range
 
     # Extract y-axis parameters
-    rv_ggplot$y_range <- built$layout$panel_params[[1]]$y$continuous_range
-
+    rv_ggplot$y_range <- ctm$built$layout$panel_params[[1]]$y$continuous_range
 
     return(main_scatter)
   }
@@ -511,6 +554,16 @@ server <- function(input, output, session) {
   #default channel selection
   current_axes <- reactiveValues(x = channel_descriptions[1], y = channel_descriptions[2])
 
+  # switch channel places button
+  observeEvent(input$switch_channels, {
+    temp <- current_axes$x
+    current_axes$x <- current_axes$y
+    current_axes$y <- temp
+    updateSelectInput(session, "x_channel_select", selected = current_axes$x)
+    updateSelectInput(session, "y_channel_select", selected = current_axes$y)
+  })
+
+
   # update channel selection
   observeEvent(input$x_channel_select, {
     current_axes$x <- input$x_channel_select
@@ -528,12 +581,7 @@ server <- function(input, output, session) {
   output$plotUI <- renderUI({
     
     tagList(
-      div(style = "display: inline-block; position: relative",
-          actionButton(inputId = "rectangle", label = "", class = "custom-btn"),
-          actionButton(inputId = "polygon", label = "", class = "custom-btn"),
-          actionButton(inputId = "quadrant", label = "", class = "custom-btn"),
-          actionButton(inputId = "interval", label = "", class = "custom-btn")
-        ),
+      
       # Y-axis select box
       div(style = "display: flex; align-items: center;",
         div(style = paste0("width: 30px; position: relative; margin-bottom: ", input$plot_resolution / 2, "px;"),
@@ -546,11 +594,7 @@ server <- function(input, output, session) {
               style = paste0("position: relative; margin-left: ", 20, "px;
                 width: ", input$plot_resolution, "px;
                 height: ",  input$plot_resolution, "px;"),
-          #D3 overlay where the axes are drawn
-          div(id = "d3_output", 
-                style = paste0("position: absolute; z-index:300; width: ", input$plot_resolution, "px;
-                  height: ",  input$plot_resolution, "px;
-                  pointer-events: none;")),
+          
           #Main scatter container with ggplot and D3 gate overlay
           div(id = "main_scatter", 
                 style = paste0("position: absolute; z-index:1;
@@ -567,9 +611,9 @@ server <- function(input, output, session) {
               height = c(input$plot_resolution - rv_ggplot$m_top - rv_ggplot$m_bottom),
               click = if (rv$current_gate_mode %in% c("off", "polygon", "interval")) clickOpts(id = "scatter_click") else NULL,
               dblclick = if (rv$current_gate_mode == "off") dblclickOpts(id = "scatter_dblclick") else NULL,
-              brush = if (rv$current_gate_mode == "rectangle") brushOpts(id = "scatter_brush", resetOnNew = TRUE) else NULL,
+              brush = if (rv$current_gate_mode == "rectangle") brushOpts(id = "scatter_brush", fill = "lightblue", opacity = 0.2, resetOnNew = TRUE) else NULL,
               hover = if (rv$current_gate_mode %in% c("quadrant", "interval")) hoverOpts(id = "scatter_hover", delay = 0) else NULL
-            )
+              )
           )
         )
       ),
@@ -583,6 +627,20 @@ server <- function(input, output, session) {
       )
     )
   })
+
+
+  #render axes
+  output$axes <- renderUI({
+    #D3 overlay where the axes are drawn
+          div(id = "d3_output", 
+                style = paste0("position: absolute; z-index:300; 
+                  transform: translate(", c(50), "px, ", c(0), "px);
+                  width: ", 0, "px;
+                  height: ",  0, "px;
+                  pointer-events: none;"))
+  })
+
+
 
 
 
@@ -613,6 +671,7 @@ server <- function(input, output, session) {
     updateNumericInput(session, "y_axis_min", value = y_axis_min)
     updateNumericInput(session, "y_axis_max", value = y_axis_max)
 
+
   })
 
   # observe changes in the axis limits and update the settings table
@@ -637,6 +696,7 @@ server <- function(input, output, session) {
     y_range <- rv_ggplot$y_range
     session$sendCustomMessage("x_axis_range", x_range)
     session$sendCustomMessage("y_axis_range", y_range)
+    
     session$sendCustomMessage("plot_done", "plot done")
   })
 
@@ -645,9 +705,9 @@ server <- function(input, output, session) {
   observeEvent(input$plot_resolution, {
     plot_resolution <- input$plot_resolution
     session$sendCustomMessage("plot_resolution", plot_resolution)
-    session$sendCustomMessage("plot_done", "plot done")
-  })
 
+    # session$sendCustomMessage("plot_done", "plot done")
+  })
 
 
 
@@ -746,6 +806,10 @@ server <- function(input, output, session) {
           brushedPoints(ctm$exprs, input$scatter_brush)
       })
   })
+
+
+
+
 
 
   # # CHANGE THIS TO ONLY SAVE THE GATE INFORMATION AND AXIS SETTINGS
