@@ -429,7 +429,7 @@ ui <- fluidPage(
       uiOutput("plotUI")
     ),
     column(width = 3,
-      br())
+      uiOutput("gatetreeUI"))
   ),
 
   fluidRow(
@@ -442,8 +442,9 @@ ui <- fluidPage(
       verbatimTextOutput("mat")
     ),
     column(width = 4,
-      h4("Activated parent gate"),
-      verbatimTextOutput("active_parent")
+      h4("Activate parent gate"),
+      uiOutput("active_parent")
+
     )
   )
 )
@@ -455,8 +456,10 @@ ui <- fluidPage(
 
 server <- function(input, output, session) {
   rv_ggplot <- reactiveValues(x_range = NULL, y_range = NULL, m_top = 20, m_right = 20, m_bottom = 30, m_left = 45)
-  rv_gates <- reactiveValues(current_gate_mode = "off", active_parent = "root", gates_found = FALSE, gates_data = NULL)
+  rv_gates <- reactiveValues(current_gate_mode = "off", active_parent = "root", pop_paths = NULL, gates_found = FALSE, gates_data = NULL, new_gate_name = NULL)
   
+  rv_gates$pop_paths <- gs_get_pop_paths(ctm$gs)
+
   # DENSITY SCATTER PLOT FUNCTION ################
   density_scatter <- function(exprs = ctm$exprs, x_axis = input$x_channel_select, y_axis = input$y_channel_select, scatter_point_size = input$scatter_point_size, plot_resolution = input$plot_resolution, col_ramp = col_ramp) {
     #density color calculations
@@ -492,7 +495,7 @@ server <- function(input, output, session) {
   })
 
   #observing changes in sample selection and update the data
-  observeEvent(input$selected_samples, {
+  observeEvent(list(input$selected_samples, rv_gates$active_parent), {
     #setting ID of the samples
     ctm$sample_ids <- match(input$selected_samples, file_names)
 
@@ -500,13 +503,13 @@ server <- function(input, output, session) {
     # PREPARING DATA FOR PLOT ################
     #extracting cytosets
     if (selected_sample_count() == 1) {
-        ff <- cytoframe_to_flowFrame(gs_pop_get_data(ctm$gs[ctm$sample_ids], parent = rv_gates$active_parent)[[1]])
+        ff <- cytoframe_to_flowFrame(gs_pop_get_data(ctm$gs[ctm$sample_ids], y = rv_gates$active_parent)[[1]])
         ctm$exprs <- as.data.frame(ff@exprs)
         colnames(ctm$exprs) <- channel_descriptions
     } else if (selected_sample_count() > 1) {
         exprs <- data.frame()
         for (samp_id in ctm$sample_ids) {
-            ff <- cytoframe_to_flowFrame(gs_pop_get_data(ctm$gs[samp_id], parent = rv_gates$active_parent)[[1]])
+            ff <- cytoframe_to_flowFrame(gs_pop_get_data(ctm$gs[samp_id], y = rv_gates$active_parent)[[1]])
             exprs_temp <- as.data.frame(ff@exprs)
             exprs <- rbind(exprs, exprs_temp)
         }
@@ -640,14 +643,25 @@ server <- function(input, output, session) {
   })
 
 
+  output$gatetreeUI <- renderUI({
+      plotOutput("gating_tree"
+        )
+  })
+
+  output$active_parent <- renderUI({
+    selectInput("active_parent", NULL, choices = rv_gates$pop_paths, selected = rv_gates$pop_paths[1], multiple = FALSE, selectize = TRUE, width = "100%")
+  })
 
 
+  observeEvent(input$active_parent, {
+    rv_gates$active_parent <- input$active_parent
+  })
 
   # AXES AND API ################
 
   # observe changes in the selected samples and the selected channels and update the plot output
   # send axes aesthetics to the client side
-  observeEvent(list(input$selected_samples, input$x_channel_select, input$y_channel_select), {
+  observeEvent(list(input$selected_samples, input$x_channel_select, input$y_channel_select, rv_gates$active_parent), {
     output$main_scatter <- renderPlot({
       ctm$main_scatter <- density_scatter(exprs = ctm$exprs,
                               x_axis = input$x_channel_select,
@@ -714,6 +728,33 @@ server <- function(input, output, session) {
 
   # EVERYTHING TO DO WITH GATING ################
 
+
+
+  # Plotting gate hierarchy
+    output$gating_tree <- renderPlot({
+      
+      labels <- rv_gates$pop_paths
+      if (length(labels) > 1) {
+        hPlot <- plot(ctm$gs)
+        
+
+        names(labels) <- nodes(hPlot)
+        nodeAttrs <- list(label=labels)
+        attrs <- list(node=list(fillcolor="white", shape="box", width=1,
+                                color="gray90", style="rounded"),
+                      graph=list(rankdir="TB"))
+        index <- which(gs_get_pop_paths(ctm$gs) == "root")
+
+
+        ctm$hPlot <- plot(hPlot, nodeAttrs=nodeAttrs, attrs=attrs)
+
+
+        ctm$hPlot
+      }
+      
+    })
+
+          
 
 
   # GATING MODES ################
@@ -798,8 +839,40 @@ server <- function(input, output, session) {
     output$mat <- renderPrint({
                           ctm$mat
                   })
-    session$sendCustomMessage("scatter_brush", brush_coords)
+
+    rectangle_coords <- ctm$mat
+    ctm$gate <- rectangleGate(.gate = rectangle_coords)
+
   })
+
+
+ observeEvent(input$scatter_brush, {
+    showModal(modalDialog(
+      title = "Name the gate",
+      textInput("gate_name", "Enter gate name:"),
+      footer = tagList(
+        modalButton("Cancel"),
+        actionButton("submit_gate_name", "OK")
+      )
+    ))
+ })
+
+
+  observeEvent(input$submit_gate_name, {
+    print(input$gate_name)
+    rv_gates$new_gate_name <- input$gate_name
+    print(rv_gates$new_gate_name)
+
+    gate_name <- rv_gates$new_gate_name
+    add_gate(gs = ctm$gs, ctm$gate, gate_name, active_parent = rv_gates$active_parent)
+    print("gate added")
+
+    toggleGatingMode("rectangle")
+    # session$sendCustomMessage("scatter_brush", brush_coords)
+
+    removeModal()
+  })
+
 
   # Observe hover events and send coordinates to the client side
   observeEvent(input$scatter_hover, {
@@ -825,47 +898,40 @@ server <- function(input, output, session) {
 
 
 
-
-
-
   # # GATE CREATION ################
 
-  # # Get the gate hierarchy
-  # ctm$pop_paths <- gs_get_pop_paths(ctm$gs)
+  escape_all_special <- function(str) {
+    gsub("([^[:alnum:][:space:]])", "\\\\\\1", str)
+  }
 
+  add_gate <- function(gs = ctm$gs, gate, gate_name, active_parent) {
+    fullname <- paste0(active_parent, "/", gate_name)
+    gate_name_query <- paste0("^.*/", escape_all_special(fullname), "$")
 
-  # # Saving rectangle gate
-  # gate <- ctm$mat
-  # gate <- rectangleGate(.gate=ctm$mat)
-  # gate_name <- "test"
-  # # rv_gates$active_parent <- "test"
-  # active_parent <- "test"
-
-  # if (sum(grepl(paste0(".*/", gate_name), pop_paths) > 0)) {
-  #   showModal(modalDialog(
-  #     title = "Gate name already exists",
-  #     "Please choose a different name for the gate."
-  #   ))
-  # } else {
-  #   gs_pop_add(ctm$gs, gate, parent = active_parent, name = gate_name)
-  #   recompute(ctm$gs)
-  #   ctm$pop_paths <- gs_get_pop_paths(ctm$gs)
-  # }
-
+    if (length(gate_name_query) > 1) {
+      gate_name_query_collapsed <- paste0(gate_name_query, collapse = "|")
+      if (sum(grepl(gate_name_query_collapsed, rv_gates$pop_paths, perl = TRUE) > 0)) {
+        print("Gate already exists")
+      } else {
+        gs_pop_add(gs, gate, parent = active_parent, name = gate_name, validityCheck = FALSE)
+        recompute(gs)
+        rv_gates$pop_paths <- gs_get_pop_paths(gs)
+      }
+    } else {
+      if (sum(grepl(gate_name_query, rv_gates$pop_paths, perl = TRUE) > 0)) {
+        print("Gate already exists")
+      } else {
+        gs_pop_add(gs, gate, parent = active_parent, name = gate_name, validityCheck = FALSE)
+        recompute(gs)
+        rv_gates$pop_paths <- gs_get_pop_paths(gs)
+      }
+    }
+  } 
 
 
 
   # # GATE DETECTION ################
 
-  # # Detect gates
-  # if (length(popPaths) > 1) {
-  #   for (i in seq(ctm$pop_paths)[-1]) {
-  #       gate_info <- gs_pop_get_gate(ctm$gs, pop_paths[i])[ctm$sample_ids][[1]]
-  #       detected_types[i] <- class(gate_info)[1]
-  #       gate_params <- gate_info@parameters
-  #       gate_x <- names(gate_params[1])
-  #   } 
-  # }
 
   
 
