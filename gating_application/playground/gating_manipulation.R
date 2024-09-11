@@ -3,7 +3,7 @@
   ctm$pop_paths <- gs_get_pop_paths(ctm$gs)
 
   # GATE CREATION ################
-  active_parent <- "/CD3+ CD4+ T cells Polygon"
+  # active_parent <- "/CD3+ CD4+ T cells Polygon"
 
   add_gate <- function(gs = ctm$gs, gate, gate_name, active_parent) {
     fullname <- paste0(active_parent, "/", gate_name)
@@ -14,7 +14,7 @@
       if (sum(grepl(gate_name_query_collapsed, ctm$pop_paths, perl = TRUE) > 0)) {
         print("Gate already exists")
       } else {
-        gs_pop_add(gs, gate, parent = active_parent, name = gate_name)
+        gs_pop_add(gs, gate, parent = active_parent, name = gate_name, validityCheck = FALSE)
         recompute(gs)
         ctm$pop_paths <- gs_get_pop_paths(gs)
       }
@@ -22,7 +22,7 @@
       if (sum(grepl(gate_name_query, ctm$pop_paths, perl = TRUE) > 0)) {
         print("Gate already exists")
       } else {
-        gs_pop_add(gs, gate, parent = active_parent, name = gate_name)
+        gs_pop_add(gs, gate, parent = active_parent, name = gate_name, validityCheck = FALSE)
         recompute(gs)
         ctm$pop_paths <- gs_get_pop_paths(gs)
       }
@@ -138,17 +138,30 @@
 
   # GATE DETECTION ################
 
-  x = "142Nd_CD19"
-  y = "115In_CD3"
+  x_axis = "142Nd_CD19"
+  y_axis = "115In_CD3"
 
-  x_gates <- which(lapply(gates_info, function(x) x$axis1) %in% x)
-  y_gates <- which(lapply(gates_info, function(x) x$axis2) %in% y)
-  detected_gates <- intersect(x_gates, y_gates)
+  detect_gate <- function(gates_info, x_axis, y_axis) {
+    channel1_gates <- which(lapply(gates_info[[1]], function(x) x$axis1) %in% c(x_axis, y_axis))
+    channel2_gates <- which(lapply(gates_info[[1]], function(x) x$axis2) %in% c(x_axis, y_axis))
+    channel1_gates_na <- which(is.na(lapply(gates_info[[1]], function(x) x$axis1)))
+    channel2_gates_na <- which(is.na(lapply(gates_info[[1]], function(x) x$axis2)))
+
+    ctm$detected_gates_total <- union(channel1_gates, channel2_gates)
+
+    ctm$detected_gates_biaxial <- intersect(channel1_gates, channel2_gates)
+    ctm$detected_gates_mono <- intersect(detected_gates_total, union(channel1_gates_na, channel2_gates_na))
+
+  }
+  
+
 
 
   # GATE PLOTTING ################
 
-
+  plot_gate <- function(gs = ctm$gs, gate_name, sample_id) {
+    
+  }
 
 
   # GATE UPDATES ################
@@ -232,15 +245,15 @@
 
 
   # GATE ACTIVATION ################
-
+  # rv_gates <- list(active_parent = "root")
   rv_gates$active_parent <- "CD3+ CD4+ T cells"
 
 
 
   # GATE RENAMING ################
   
-  old_name <- "/142Nd_CD19-/CD3+ CD4+ T cells Polygon TEST"
-  new_name <- "CD3+ CD4+ T cells Polygon"
+  old_name <- "/CD3+ CD4+ T cells" #FULL PATH
+  new_name <- "CD3+ CD4+ T cells rectangle" #NOT FULL PATH
 
   rename_gate <- function(gs = ctm$gs, gate_name, new_name) {
     tryCatch({
@@ -259,7 +272,7 @@
 
   # GATE DELETION ################
 
-  selected_node <- "root"
+  selected_node <- "/CD3+ CD4+ T cells rectangle"
 
   deletion_type <- "single"
   deletion_type <- "branch"
@@ -267,25 +280,33 @@
 
   delete_gate <- function(gs = ctm$gs, selected_node = selected_node, type = deletion_type) {
     all_gates <- ctm$pop_paths
-    children <- gh_pop_get_descendants(gs[[1]], selected_node)
-    if (type == "single") {
-        gs_pop_remove(gs, node = selected_node)
-    } else if (type == "branch") {
-        for (node in c(selected_node, children)) {
-          gs_pop_remove(gs, node = node)
-        }
-    } else if (type == "children") {
-        for (node in children) {
-          gs_pop_remove(gs, node = node)
-        }
+    for (sample in ctm$sample_ids) {
+      children <- gh_pop_get_descendants(gs[[sample]], selected_node)
+      if (type == "single") {
+          gh_pop_remove(gs[[sample]], node = selected_node)
+      } else if (type == "branch") {
+          for (node in c(selected_node, children)) {
+            gh_pop_remove(gs[[sample]], node = node)
+          }
+      } else if (type == "children") {
+          for (node in children) {
+            gh_pop_remove(gs[[sample]], node = node)
+          }
+      }
     }
+   
     rv_gates$active_parent <- "root"
     recompute(gs) 
     ctm$pop_paths <- gs_get_pop_paths(ctm$gs)
   }
 
+
   delete_gate(gs = ctm$gs, selected_node = selected_node, type = deletion_type)
   gates_info <- gate_collect_info(gs = ctm$gs, pop_paths = ctm$pop_paths)
+
+
+
+  
 
 
   # GATE COPY ################
@@ -296,30 +317,73 @@
   copy_type <- "branch"
   copy_type <- "children"
 
-  target_parent <- "/CD3+ CD19- T cells"
+  target_parent <- "/CD3+ CD4+ T cells Polygon"
 
   copy_gate <- function(gs = ctm$gs, selected_node = selected_node, target_node = target_parent, type = copy_type) {
     all_gates <- ctm$pop_paths
     children <- gh_pop_get_descendants(gs[[1]], selected_node)
+    children_types <- lapply(gates_info[[1]], function(x) x$type)
+
     if (type == "single") {
-        gs_pop_add(gs, node = selected_node, parent = target_node)
+        gate <- gs_pop_get_gate(gs, selected_node)
+        add_gate(gs, gate = gate, gate_name = selected_node, active_parent = target_node)
+
     } else if (type == "branch") {
         for (node in c(selected_node, children)) {
-          gs_copy_gate(gs, node = node, parent = target_node)
+          gate <- gs_pop_get_gate(gs, node)
+          add_gate(gs, gate = gate, gate_name = node, active_parent = target_node)
         }
     } else if (type == "children") {
         for (node in children) {
-            add_gate(gs, node = node, parent = target_node)
+          gate <- gs_pop_get_gate(gs, node)
+          add_gate(gs, gate = gate, gate_name = node, active_parent = target_node)
         }
     }
     recompute(gs)
     ctm$pop_paths <- gs_get_pop_paths(ctm$gs)
+    gates_info <- gate_collect_info(gs = ctm$gs, pop_paths = ctm$pop_paths)
 
   }
 
-gs_get_pop_paths(ctm$gs)
-gates_info
-which(lapply(gates_info, function(x) x$name) %in% children)
-lapply(gates_info, function(x) x$name)
-children
-gates_info
+
+  copy_gate(gs = ctm$gs, selected_node = selected_node, target_node = target_parent, type = copy_type)
+
+
+
+  # Saving rectangle gate
+  rectangle_coords <- data.frame("142Nd_CD19" = c(-0.8, 1), "115In_CD3" = c(3, 6), check.names = FALSE)
+  gate <- rectangleGate(.gate = rectangle_coords)
+  gate_name <- "CD3+ CD4+ T cells"
+
+  add_gate(gs = ctm$gs, gate, gate_name, active_parent = "root")
+
+
+  # Saving polygon gate
+  polygon_coords <- data.frame("142Nd_CD19" = c(-0.8, -0.9, -0.8, 1, 2, 2, 1), "115In_CD3" = c(3, 4, 5, 6, 5, 3, 3), check.names = FALSE)
+  gate <- polygonGate(.gate = polygon_coords)
+  gate_name <- "CD3+ CD4+ T cells Polygon"
+
+  add_gate(gs = ctm$gs, gate, gate_name, active_parent = "root")
+
+
+  # Saving quadrant gate
+  quadrant_coords <- data.frame("142Nd_CD19" = c(1.5), "115In_CD3" = c(3), check.names = FALSE)
+  gate <- quadGate(.gate = quadrant_coords)
+  gate_name <- c(paste0("Q1: ", "142Nd_CD19", "- ", "115In_CD3", "+"),
+                 paste0("Q2: ", "142Nd_CD19", "+ ", "115In_CD3", "+"),
+                 paste0("Q3: ", "142Nd_CD19", "+ ", "115In_CD3", "-"),
+                 paste0("Q4: ", "142Nd_CD19", "- ", "115In_CD3", "-"))
+
+  add_gate(gs = ctm$gs, gate, gate_name, active_parent = "root")
+
+  # Saving interval gate
+  interval_coords <- data.frame("142Nd_CD19" = c(1.5), check.names = FALSE)
+  interval1 <- rbind(interval_coords, -Inf)
+  interval2 <- rbind(interval_coords, Inf)
+  gate1 <- rectangleGate(.gate = interval1)
+  gate2 <- rectangleGate(.gate = interval2)
+  gate_name1 <- paste0("142Nd_CD19", "-")
+  gate_name2 <- paste0("142Nd_CD19", "+")
+
+  add_gate(gs = ctm$gs, gate = gate1, gate_name = gate_name1, active_parent = "root")
+  add_gate(gs = ctm$gs, gate = gate2, gate_name = gate_name2, active_parent = "root")
