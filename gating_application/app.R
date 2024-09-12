@@ -96,7 +96,7 @@ ctm$gs <- GatingSet(cs)
 colnames(ctm$gs) <- channel_descriptions
 
 #available samples
-samples <- sampleNames(ctm$gs)
+ctm$samples <- sampleNames(ctm$gs)
 
 #table with channel limits
 ctm$axis_lims <- data.frame(channel_descriptions, rep(-1, length(channel_descriptions)),  rep("NA", length(channel_descriptions)))
@@ -200,12 +200,24 @@ ui <- fluidPage(
 
     # CSS for plot axes
     tags$style(HTML("
-    .x-axis {
-     font: 12px sans-serif; 
-    }
-    .y-axis {
-     font: 12px sans-serif; 
-    }
+      .x-axis {
+      font: 12px sans-serif; 
+      }
+      .y-axis {
+      font: 12px sans-serif; 
+      }
+    ")),
+
+    # CSS for gates
+    tags$style(HTML("
+      .box {
+        stroke: #333;
+      }
+      .handle {
+        fill: white;
+        stroke: #333;
+        cursor: pointer;
+      }
     ")),
 
     # adding D3 library
@@ -227,12 +239,21 @@ ui <- fluidPage(
         cx: 0,
         cy: 0,
         svg: null,
-        gate_svg: null,
         xScale: null,
         yScale: null,
         xAxis: null,
         yAxis: null,
         margin: {top: 20, right: 20, bottom: 30, left: 45}
+      };
+    ")),
+
+
+    tags$script(HTML("
+      var gatesInfo = {
+        current_gate_mode: 'off',
+        detected_gates_biaxial: null,
+        detected_gates_mono: null,
+        gating_svg: null
       };
     ")),
     
@@ -286,13 +307,16 @@ ui <- fluidPage(
 
 
 
-    # JS code creating the axes
+    # JS code creating the axes and reinitializing and drawing gating SVG
+    # also contains logic for gate interactions
+    # also translates coordinates from the plot back to the R backend
     tags$script(HTML("
 
       // Handler for plot updates
       Shiny.addCustomMessageHandler('plot_done', function(message) {
         console.log('Received plot_done message');
         redrawSVG();
+        redrawGatingSVG();
       });
 
       function redrawSVG() {
@@ -350,8 +374,211 @@ ui <- fluidPage(
 
         console.log('Axes redrawn');
       }
+
+
+
+      function redrawGatingSVG() {
+        // Remove existing SVG if it exists
+        if ( gatesInfo.gating_svg != null ){
+          gatesInfo.gating_svg.remove();
+        }
+        
+
+        const width = 400;
+        const height = 400;
+        const handleRadius = 5;
+
+
+        // Create SVG
+        gatesInfo.gating_svg = d3.select('#d3_output_gates')
+          .append('svg')
+          .attr('width', plotInfo.d3_x_res)
+          .attr('height', plotInfo.d3_y_res)
+          .style('position', 'absolute')
+          .style('z-index', '2000');
+          
+        console.log('GATING SVG reinitialized');
+
+        if (gatesInfo.current_gate_mode == 'off') {
+          gatesInfo.gating_svg.style('pointer-events', 'all');
+        } else {
+          gatesInfo.gating_svg.style('pointer-events', 'none');
+        }
+
+        if (gatesInfo.detected_gates_biaxial.names != null) {
+          for (i in gatesInfo.detected_gates_biaxial.names) {
+            console.log('Detected gate:', gatesInfo.detected_gates_biaxial.names[i]);
+            console.log('Detected gate type:', gatesInfo.detected_gates_biaxial.types[i]);
+            console.log('Detected gate axes1:', gatesInfo.detected_gates_biaxial.axis1[i]);
+            console.log('Detected gate axes2:', gatesInfo.detected_gates_biaxial.axis2[i]);
+            console.log('Detected gate coordinates:', gatesInfo.detected_gates_biaxial.coords[i]);
+          }
+
+        const box = gatesInfo.gating_svg.append('rect')
+        .attr('x', 100)
+        .attr('y', 100)
+        .attr('width', 100)
+        .attr('height', 100)
+        .attr('class', 'box')
+        .style('cursor', 'pointer')
+        .call(d3.drag()
+          .on('start', dragStart)
+          .on('drag', dragging)      
+        );
+        box.data([
+        {startX: +box.attr('x')},
+        {startY: +box.attr('y')}
+        ]);
+
+
+        function dragStart(event, d) {
+
+        // box.raise().classed('active', true);
+        d.startX = event.x;
+        d.startY = event.y;
+        d.boxX = +box.attr('x');
+        d.boxY = +box.attr('y');
+        }
+
+        function dragging(event, d) {
+
+        const newX = Math.max(0, Math.min(width - +box.attr('width'), event.x));
+        const newY = Math.max(0, Math.min(height - +box.attr('height'), event.y));
+        const dx = d.startX - event.x;
+        const dy = d.startY - event.y;
+
+        d.startX = event.x;
+        d.startY = event.y;
+        box.attr('x', d.boxX - dx);
+        box.attr('y', d.boxY - dy);
+        d.boxX = +box.attr('x');
+        d.boxY = +box.attr('y');
+
+        // Update handles' positions xhen dragging box
+        handles.data([
+          { x: d.boxX, y: d.boxY ,cursor: 'nw-resize'},
+          { x: d.boxX + +box.attr('width'), y: d.boxY, cursor: 'ne-resize' },
+          { x: d.boxX, y: d.boxY + +box.attr('height'), cursor: 'sw-resize' },
+          { x: d.boxX + +box.attr('width'), y: d.boxY + +box.attr('height') , cursor: 'se-resize'}
+        ])
+        .attr('cx', d => d.x)
+        .attr('cy', d => d.y);
+        }
+
+        //function dragEnd(event) {
+        //  box.classed('active', false);
+        //}
+
+        const handles = gatesInfo.gating_svg.selectAll('circle')
+        .data([
+          { x: 100, y: 100, cursor: 'nw-resize' },
+          { x: 200, y: 100, cursor: 'ne-resize' },
+          { x: 100, y: 200, cursor: 'sw-resize' },
+          { x: 200, y: 200, cursor: 'se-resize' }
+        ])
+        .enter().append('circle')
+        .attr('class', 'handle')
+        .attr('cx', d => d.x)
+        .attr('cy', d => d.y)
+        .attr('r', handleRadius)
+        .style('cursor', d => d.cursor)
+        .call(d3.drag()
+          .on('start', handleDragStart)
+          .on('drag', handleDragging)
+        );
+
+
+
+        function handleDragStart(event, d) {
+            
+        d.startX = event.x;
+        d.startY = event.y;
+        d.initialBox = {
+          x: +box.attr('x'),
+          y: +box.attr('y'),
+          width: +box.attr('width'),
+          height: +box.attr('height'),
+          rotation: +box.attr('transform')?.split('(')[1].split(')')[0] || 0
+        };
+
+        }
+
+        function handleDragging(event, d) {
+
+        const dx = event.x - d.startX;
+        const dy = event.y - d.startY;
+
+
+        if (d.cursor.includes('nw')) {
+          box.attr('x', Math.min(d.initialBox.x + d.initialBox.width, Math.max(0, d.initialBox.x + dx)));
+          box.attr('y', Math.min(d.initialBox.y + d.initialBox.height, Math.max(0, d.initialBox.y + dy)));
+          box.attr('width', Math.max(0, d.initialBox.width - dx));
+          box.attr('height', Math.max(0, d.initialBox.height - dy));
+        } else if  (d.cursor.includes('se')) {
+          box.attr('width', Math.max(0, d.initialBox.width + dx));
+          box.attr('height', Math.max(0, d.initialBox.height + dy));
+        } else if  (d.cursor.includes('sw')) {
+            box.attr('x', Math.min(d.initialBox.x + d.initialBox.width, Math.max(0, d.initialBox.x + dx)));
+          box.attr('width', Math.max(0, d.initialBox.width - dx));
+          box.attr('height', Math.max(0, d.initialBox.height + dy));
+
+        } else if  (d.cursor.includes('ne')) {
+            box.attr('y', Math.min(d.initialBox.y + d.initialBox.height, Math.max(0, d.initialBox.y + dy)));
+          box.attr('width', Math.max(0, d.initialBox.width + dx));
+          box.attr('height', Math.max(0, d.initialBox.height - dy));
+        }
+
+
+        // Update the position of all circles during resizing
+        handles.attr('cx', (d, i) => {
+            let t = 0;
+          if( i == 0){
+            t = +box.attr('x');
+          } else if(i==1 ){
+            t = +box.attr('x') + +box.attr('width');
+          } else if (i == 2){
+            t = +box.attr('x')
+          } else if (i == 3){
+            t = +box.attr('x') + +box.attr('width');
+          }
+          return t;
+        })
+          .attr('cy', (d, i) => {
+          let t = 0;
+          if( i == 0)
+          {
+            t = +box.attr('y');
+          } else if( i == 1){
+            t = +box.attr('y');
+          } else if( i ==2){
+            t = +box.attr('y') + +box.attr('height');
+          }else if( i == 3){
+            t = +box.attr('y') + +box.attr('height');
+          }
+          return t;
+        });
+        }
+
+
+
+
+        }
+      }
+
+
+
+
+
+
     ")),
 
+    # JS code for gating mode switch
+    tags$script(HTML("
+      Shiny.addCustomMessageHandler('gate_mode', function(gate_mode) {
+        console.log('Received gate mode from server:', gate_mode);
+        gatesInfo.current_gate_mode = gate_mode;
+      });
+    ")),
 
 
     # JS code to handle plot clicks
@@ -365,30 +592,65 @@ ui <- fluidPage(
         console.log('Calculated point coordinates y:', plotInfo.cy);  
 
         // Create SVG
-        plotInfo.gate_svg = d3.select('#d3_output_gates')
-          .append('svg')
-          .attr('width', plotInfo.d3_x_res)
-          .attr('height', plotInfo.d3_y_res)
-          .style('position', 'absolute')
-          .style('z-index', '2000');
+        // plotInfo.gate_svg = d3.select('#d3_output_gates')
+        //  .append('svg')
+        //  .attr('width', plotInfo.d3_x_res)
+        //  .attr('height', plotInfo.d3_y_res)
+        //  .style('position', 'absolute')
+        //  .style('z-index', '2000');
 
       // Append a circle to the SVG
-      plotInfo.gate_svg.append('circle')
-        .attr('cx', plotInfo.cx)
-        .attr('cy', plotInfo.cy)
-        .attr('r', 5)
-        .attr('fill', 'red');
+     // plotInfo.gate_svg.append('circle')
+      //  .attr('cx', plotInfo.cx)
+      //  .attr('cy', plotInfo.cy)
+      //  .attr('r', 5)
+      //  .attr('fill', 'red');
 
-        console.log('Circle appended at:', plotInfo.cx, plotInfo.cy);
+      //  console.log('Circle appended at:', plotInfo.cx, plotInfo.cy);
+      });
+    ")),
+
+
+    # JS code to handle plot brush
+    tags$script(HTML("
+      Shiny.addCustomMessageHandler('detected_gates_biaxial', function(detected_gates_biaxial) {
+        console.log('Received biaxial gate information from server');
+        gatesInfo.detected_gates_biaxial = detected_gates_biaxial;
       });
     "))
+
+
+
+    # JS code to handle plot hover
+
+
+    # JS code to handle plot double click to activate gate underneath
+
+
+    # JS code for rectangle gate
+
+
+    # JS code for polygon gate
+
+
+    # JS code for quadrant gate
+
+
+    # JS code for interval gate
+
+
+    # JS code for automatic addition of detected gates
+
+
+
+    # JS code for gating tree visualization
 
   ),
 
   fluidRow(
     column(width = 2,
       h3("Samples"),
-      selectInput("selected_samples", NULL, choices = samples, selected = samples[1], multiple = TRUE),
+      selectInput("selected_samples", NULL, choices = ctm$samples, selected = ctm$samples[1], multiple = TRUE),
       uiOutput("sample_switch"),
       # accordion with plot settings
       bs_accordion(id = "accordion") %>%
@@ -539,16 +801,16 @@ server <- function(input, output, session) {
 
   # switch between samples
   observeEvent(input$previous_sample, {
-    current_index <- match(input$selected_samples, samples)
+    current_index <- match(input$selected_samples, ctm$samples)
     if (current_index > 1) {
-      updateSelectInput(session, "selected_samples", selected = samples[current_index - 1])
+      updateSelectInput(session, "selected_samples", selected = ctm$samples[current_index - 1])
     }
   })
 
   observeEvent(input$next_sample, {
-    current_index <- match(input$selected_samples, samples)
-    if (current_index < length(samples)) {
-      updateSelectInput(session, "selected_samples", selected = samples[current_index + 1])
+    current_index <- match(input$selected_samples, ctm$samples)
+    if (current_index < length(ctm$samples)) {
+      updateSelectInput(session, "selected_samples", selected = ctm$samples[current_index + 1])
     }
   })
 
@@ -611,8 +873,8 @@ server <- function(input, output, session) {
             plotOutput("main_scatter", 
               width = c(input$plot_resolution - rv_ggplot$m_right - rv_ggplot$m_left),
               height = c(input$plot_resolution - rv_ggplot$m_top - rv_ggplot$m_bottom),
-              click = if (rv_gates$current_gate_mode %in% c("off", "polygon", "interval")) clickOpts(id = "scatter_click") else NULL,
-              dblclick = if (rv_gates$current_gate_mode == "off") dblclickOpts(id = "scatter_dblclick") else NULL,
+              click = if (rv_gates$current_gate_mode %in% c("polygon", "quadrant", "interval")) clickOpts(id = "scatter_click") else NULL,
+              # dblclick = if (rv_gates$current_gate_mode == "off") dblclickOpts(id = "scatter_dblclick") else NULL,
               brush = if (rv_gates$current_gate_mode == "rectangle") brushOpts(id = "scatter_brush", fill = "lightblue", opacity = 0.2, resetOnNew = TRUE) else NULL,
               hover = if (rv_gates$current_gate_mode %in% c("quadrant", "interval")) hoverOpts(id = "scatter_hover", delay = 0) else NULL
               )
@@ -846,18 +1108,21 @@ server <- function(input, output, session) {
   })
 
 
- observeEvent(input$scatter_brush, {
-    showModal(modalDialog(
-      title = "Name the gate",
-      textInput("gate_name", "Enter gate name:"),
-      footer = tagList(
-        modalButton("Cancel"),
-        actionButton("submit_gate_name", "OK")
-      )
-    ))
- })
 
+  # Observe brush events and show modal dialog to name the gate
+  observeEvent(input$scatter_brush, {
+      showModal(modalDialog(
+        title = "Name the gate",
+        textInput("gate_name", "Enter gate name:"),
+        footer = tagList(
+          modalButton("Cancel"),
+          actionButton("submit_gate_name", "OK")
+        )
+      ))
+  })
 
+  # Observe gate name submission and add the gate to the gating tree
+  # send the new gate coordinates to the client side
   observeEvent(input$submit_gate_name, {
     print(input$gate_name)
     rv_gates$new_gate_name <- input$gate_name
@@ -868,7 +1133,7 @@ server <- function(input, output, session) {
     print("gate added")
 
     toggleGatingMode("rectangle")
-    # session$sendCustomMessage("scatter_brush", brush_coords)
+    session$sendCustomMessage("scatter_brush", ctm$mat)
 
     removeModal()
   })
@@ -898,7 +1163,7 @@ server <- function(input, output, session) {
 
 
 
-  # # GATE CREATION ################
+  # GATE CREATION ################
 
   escape_all_special <- function(str) {
     gsub("([^[:alnum:][:space:]])", "\\\\\\1", str)
@@ -930,21 +1195,102 @@ server <- function(input, output, session) {
 
 
 
-  # # GATE DETECTION ################
+  # GATE INFO COLLECTION ################
+  gate_collect_info <- function(gs = ctm$gs, pop_paths = rv_gates$pop_paths) {
+    gates_info <- NULL
+    sample_gates_info <- NULL
+    for (sample in seq_along(ctm$samples)) {
+        if (length(pop_paths) > 1) {
+            for (i in seq(pop_paths)[-1]) {
+                gs_get_pop_paths(ctm$gs)
+                gate_info <- gh_pop_get_gate(gs[[sample]], pop_paths[i])
+                name <- pop_paths[i]
+                type <- class(gate_info)[1]
+                gate_params <- gate_info@parameters
+                axis1 <- names(gate_params[1])
+                axis2 <- names(gate_params[2])
 
+                if (type == "rectangleGate") {
+                    coords <- rbind(gate_info@min, gate_info@max)
+                } else if (type == "polygonGate") {
+                    coords <- gate_info@boundaries
+                }
+                
+                sample_gates_info[[i]] <- list(name = name, type = type, axis1 = axis1, axis2 = axis2, coords = coords)
+            } 
+        gates_info[[sample]] <- sample_gates_info
+        }
+    }
+    names(gates_info) <- sampleNames(gs[seq_along(ctm$samples)])
+
+    return(gates_info)
+
+    ctm$gate_freqs <- gs_pop_get_count_fast(ctm$gs[seq_along(ctm$samples)], "freq")
+    ctm$gate_counts <- gs_pop_get_count_fast(ctm$gs[seq_along(ctm$samples)], "count")
+  }
+
+  # observe changes in the gating tree and update the gate information
+  observe({
+    if (length(rv_gates$pop_paths) > 1) {
+      rv_gates$gates_data <- gate_collect_info(gs = ctm$gs, pop_paths = rv_gates$pop_paths)
+      ctm$gates_data <- rv_gates$gates_data
+    }
+  })
+
+
+  # GATE DETECTION ################
+  detect_gate <- function(gates_info = rv_gates$gates_data, x_axis = input$x_channel_select, y_axis = input$y_channel_select) {
+    channel1_gates <- which(lapply(gates_info[[1]], function(x) x$axis1) %in% c(x_axis, y_axis))
+    channel2_gates <- which(lapply(gates_info[[1]], function(x) x$axis2) %in% c(x_axis, y_axis))
+    channel1_gates_na <- which(is.na(lapply(gates_info[[1]], function(x) x$axis1)))
+    channel2_gates_na <- which(is.na(lapply(gates_info[[1]], function(x) x$axis2)))
+
+    ctm$detected_gates_total <- union(channel1_gates, channel2_gates)
+
+    ctm$detected_gates_biaxial <- intersect(channel1_gates, channel2_gates)
+    ctm$detected_gates_mono <- intersect(ctm$detected_gates_total, union(channel1_gates_na, channel2_gates_na))
+  }
+
+  # observe changes in the channel selection and gating tree and update the detected gates
+  observeEvent(list(input$x_channel_select, input$y_channel_select, rv_gates$gates_data), {
+    detect_gate(gates_info = rv_gates$gates_data, x_axis = input$x_channel_select, y_axis = input$y_channel_select)
+
+    # match the detected gate IDs to the gate names
+    biaxial_gate_names <- gs_get_pop_paths(ctm$gs)[ctm$detected_gates_biaxial]
+    mono_gate_names <- gs_get_pop_paths(ctm$gs)[ctm$detected_gates_mono]
+
+    # get detected gate information
+    detected_gate_info_biaxial <- lapply(ctm$gates_data[[1]], function(x) x[x$name %in% biaxial_gate_names])
+    biaxial_names <- lapply(detected_gate_info_biaxial, function(x) x$name)[-1]
+    biaxial_types <- lapply(detected_gate_info_biaxial, function(x) x$type)[-1]
+    biaxial_axis1 <- lapply(detected_gate_info_biaxial, function(x) x$axis1)[-1]
+    biaxial_axis2 <- lapply(detected_gate_info_biaxial, function(x) x$axis2)[-1]
+    biaxial_coords <- lapply(detected_gate_info_biaxial, function(x) x$coords)[-1]
+
+    session$sendCustomMessage("detected_gates_biaxial", list(names = biaxial_names, types = biaxial_types, axis1 = biaxial_axis1, axis2 = biaxial_axis2, coords = biaxial_coords))
+
+    # detected_gate_info_mono <- lapply(ctm$gates_data[[1]], function(x) x[x$name %in% mono_gate_names])
+    
+
+  })  
+
+  
+  
+  # GATE PLOTTING ################
 
   
 
-  # # GATE UPDATES ################
+
+  # GATE UPDATES ################
 
 
 
-  # # GATE ACTIVATION ################
+  # GATE ACTIVATION ################
 
 
 
 
-  # # GATE DELETION ################
+  # GATE DELETION ################
 
 
 
