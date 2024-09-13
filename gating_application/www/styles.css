@@ -1,0 +1,99 @@
+/* # CSS for select boxes */
+
+.selectize-input { min-height: 20px; padding: 2px 5px; }
+.selectize-dropdown, .selectize-input { font-size: 12px; }
+#y_channel_select { width: 200px; }
+#x_channel_select { width: 200px; }
+
+
+/* # CSS for centered select boxes */
+
+.centered-select select {
+    text-align-last: center;
+    text-align: center;
+    -ms-text-align-last: center;
+    -moz-text-align-last: center;
+}
+.centered-select select option {
+    text-align: left;
+}
+/* For Firefox */
+@-moz-document url-prefix() {
+    .centered-select select { text-align: center; }
+}
+.y-axis-select {
+    transform: rotate(-90deg);
+    transform-origin: right center;
+    width: 200px;
+    position: relative;
+    top: 50%;
+    left: -180px;  /* Adjust this value as needed */
+}
+
+
+/* # CSS for custom icons */
+
+.custom-btn {
+    width: 50px;
+    height: 50px;
+    padding: 0;
+    background-size: 90%;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-color: transparent !important;
+    border: none;
+}
+.custom-btn:hover {
+    background-color: rgba(173, 216, 230, 0.15) !important; /* Slight darkening on hover/focus/active */
+    outline: none !important;
+    box-shadow: none !important;
+}
+.custom-btn.active {
+    background-color: rgba(173, 216, 230, 0.35) !important;
+    outline: none !important;
+    box-shadow: none !important;
+}
+#rectangle { background-image: url('rectangle.png'); }
+#polygon { background-image: url('polygon.png'); }
+#quadrant { background-image: url('quadrant.png'); }
+#interval { background-image: url('interval.png'); }
+.custom-btn-switch {
+    transform: translate(200px, 0px);
+    width: 50px;
+    height: 50px;
+    padding: 0;
+    background-size: 90%;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-color: transparent !important;
+    border: none;
+}
+.custom-btn-switch:hover {
+    background-color: rgba(173, 216, 230, 0.15) !important; /* Slight darkening on hover/focus/active */
+    outline: none !important;
+    box-shadow: none !important;
+}
+#switch_channels { background-image: url('switch_channels.png'); }
+
+
+/* # CSS for plot axes */
+
+.x-axis {
+    font: 12px sans-serif; 
+}
+.y-axis {
+    font: 12px sans-serif; 
+}
+
+
+/* CSS for gates */
+
+.box {
+    stroke: #333;
+}
+.handle {
+    fill: white;
+    stroke: #333;
+    cursor: pointer;
+}
+
