@@ -32,7 +32,8 @@ var gatesInfo = {
   detected_gates_biaxial: null,
   detected_gates_mono: null,
   gating_svg: null,
-  pointerEventsEnabled: true
+  pointerEventsEnabled: true,
+  clip_gates: true
 };
 
 
@@ -93,6 +94,12 @@ Shiny.addCustomMessageHandler('y_channel_select', function(y_name) {
   plotInfo.y_name = y_name;
   console.log('Received y axis name from server:', plotInfo.y_name);
 });
+
+// setting: whether to clip the gates at the axis
+Shiny.addCustomMessageHandler("clip_gates", function(clip_gates) {
+  gatesInfo.clip_gates <- clip_gates
+});
+
 
 // # JS code for gating mode switch
 
@@ -284,8 +291,7 @@ function redrawGatingSVG() {
           // rectangle gate dragging and transformation
 
           function dragStart(event, d) {
-
-            // box.raise().classed('active', true);
+            // box.raise().classed('active', true); // If uncommented, it would bring the rectangle to the front and add the class active.
             d.startX = event.x;
             d.startY = event.y;
             d.boxX = +box.attr('x');
@@ -331,8 +337,7 @@ function redrawGatingSVG() {
               x: +box.attr('x'),
               y: +box.attr('y'),
               width: +box.attr('width'),
-              height: +box.attr('height'),
-              rotation: +box.attr('transform')?.split('(')[1].split(')')[0] || 0
+              height: +box.attr('height')
             };
 
           }

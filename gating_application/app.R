@@ -163,7 +163,8 @@ ui <- fluidPage(
             numericInput("x_axis_min", "X-axis min:", value = -1),
             numericInput("x_axis_max", "X-axis max:", value = NA),
             numericInput("y_axis_min", "Y-axis min:", value = -1),
-            numericInput("y_axis_max", "Y-axis max:", value = NA)
+            numericInput("y_axis_max", "Y-axis max:", value = NA),
+            checkboxInput("clip_gates", "Clip gates at the axis", value = TRUE)
           )
         )
     ),
@@ -522,7 +523,12 @@ server <- function(input, output, session) {
       
     })
 
-          
+  
+  #Whether to clip the gates at the axis
+  observeEvent(input$clip_gates, {
+    clip_gates <- input$clip_gates
+    session$sendCustomMessage("clip_gates", clip_gates)
+  })
 
 
   # GATING MODES ################
