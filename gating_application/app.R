@@ -176,7 +176,9 @@ ui <- fluidPage(
             actionButton(inputId = "switch_channels", label = "", class = "custom-btn-switch")
           ),
       uiOutput("axes"),
+      uiOutput("gates"),
       uiOutput("plotUI")
+      
     ),
     column(width = 3,
       uiOutput("gatetreeUI"))
@@ -357,11 +359,6 @@ server <- function(input, output, session) {
                   width: ", c(input$plot_resolution - rv_ggplot$m_right - rv_ggplot$m_left), "px;
                   height: ", c(input$plot_resolution - rv_ggplot$m_top - rv_ggplot$m_bottom), "px;
                   transform: translate(", rv_ggplot$m_left, "px, ", rv_ggplot$m_top, "px);"),
-            div(id = "d3_output_gates", 
-                style = paste0("position: absolute; z-index:400;
-                  width: ", c(input$plot_resolution - rv_ggplot$m_right - rv_ggplot$m_left), "px;
-                  height: ",  c(input$plot_resolution - rv_ggplot$m_top - rv_ggplot$m_bottom), "px;
-                  pointer-events: none;")),
             plotOutput("main_scatter", 
               width = c(input$plot_resolution - rv_ggplot$m_right - rv_ggplot$m_left),
               height = c(input$plot_resolution - rv_ggplot$m_top - rv_ggplot$m_bottom),
@@ -397,6 +394,21 @@ server <- function(input, output, session) {
   })
 
 
+  #render gates
+  output$gates <- renderUI({
+    #D3 overlay where the gates are drawn
+          div(id = "d3_output_gates", 
+              class = "gating_overlay",
+                style = paste0("position: absolute; z-index:400;
+                  margin-left: ", 50, "px;
+                  width: ", 0, "px;
+                  height: ",  0, "px;
+                  transform: translate(", rv_ggplot$m_left, "px, ", rv_ggplot$m_top, "px);
+                  "))
+  })
+
+
+
   output$gatetreeUI <- renderUI({
       plotOutput("gating_tree"
         )
@@ -410,6 +422,8 @@ server <- function(input, output, session) {
   observeEvent(input$active_parent, {
     rv_gates$active_parent <- input$active_parent
   })
+
+
 
   # AXES AND API ################
 
@@ -473,7 +487,7 @@ server <- function(input, output, session) {
     plot_resolution <- input$plot_resolution
     session$sendCustomMessage("plot_resolution", plot_resolution)
 
-    # session$sendCustomMessage("plot_done", "plot done")
+    session$sendCustomMessage("plot_done", "plot done")
   })
 
 
@@ -552,15 +566,31 @@ server <- function(input, output, session) {
     })
   }
 
-  # Update button appearances when mode changes
+  # Function to update gating overlay pointer events
+  updatePointerEvents <- function(mode) {
+    if (mode != "off") {
+      shinyjs::removeClass("d3_output_gates", "interactive")
+      shinyjs::addClass("d3_output_gates", "uninteractive")
+      print("uninteractive")
+    } else {
+      shinyjs::removeClass("d3_output_gates", "uninteractive")
+      shinyjs::addClass("d3_output_gates", "interactive")
+      print("interactive")
+    }
+  }
+
+  # Update button appearances and overlay pointer events when mode changes
+  # This adds a class to the divs and thus modifies their CSS styles
   observe({
     updateButtonAppearance(rv_gates$current_gate_mode)
+    updatePointerEvents(rv_gates$current_gate_mode)
   })
 
   # send current gate mode to the client side
   observe({
     session$sendCustomMessage("gate_mode", rv_gates$current_gate_mode)
   })
+
 
 
 

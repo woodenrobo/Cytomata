@@ -86,8 +86,16 @@
 }
 
 
-/* CSS for gates */
+/* CSS for gating overlay container */
+.gating_overlay.interactive {
+    pointer-events: all;
+  }
+  
+.gating_overlay.uninteractive {
+    pointer-events: none;
+}
 
+/* CSS for gates */
 .box {
     stroke: #333;
 }

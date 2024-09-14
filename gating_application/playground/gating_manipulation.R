@@ -350,40 +350,40 @@
 
 
 
-  # Saving rectangle gate
-  rectangle_coords <- data.frame("142Nd_CD19" = c(-0.8, 1), "115In_CD3" = c(3, 6), check.names = FALSE)
-  gate <- rectangleGate(.gate = rectangle_coords)
-  gate_name <- "CD3+ CD4+ T cells"
+  # # Saving rectangle gate
+  # rectangle_coords <- data.frame("142Nd_CD19" = c(-0.8, 1), "115In_CD3" = c(3, 6), check.names = FALSE)
+  # gate <- rectangleGate(.gate = rectangle_coords)
+  # gate_name <- "CD3+ CD4+ T cells"
 
-  add_gate(gs = ctm$gs, gate, gate_name, active_parent = "root")
-
-
-  # Saving polygon gate
-  polygon_coords <- data.frame("142Nd_CD19" = c(-0.8, -0.9, -0.8, 1, 2, 2, 1), "115In_CD3" = c(3, 4, 5, 6, 5, 3, 3), check.names = FALSE)
-  gate <- polygonGate(.gate = polygon_coords)
-  gate_name <- "CD3+ CD4+ T cells Polygon"
-
-  add_gate(gs = ctm$gs, gate, gate_name, active_parent = "root")
+  # add_gate(gs = ctm$gs, gate, gate_name, active_parent = "root")
 
 
-  # Saving quadrant gate
-  quadrant_coords <- data.frame("142Nd_CD19" = c(1.5), "115In_CD3" = c(3), check.names = FALSE)
-  gate <- quadGate(.gate = quadrant_coords)
-  gate_name <- c(paste0("Q1: ", "142Nd_CD19", "- ", "115In_CD3", "+"),
-                 paste0("Q2: ", "142Nd_CD19", "+ ", "115In_CD3", "+"),
-                 paste0("Q3: ", "142Nd_CD19", "+ ", "115In_CD3", "-"),
-                 paste0("Q4: ", "142Nd_CD19", "- ", "115In_CD3", "-"))
+  # # Saving polygon gate
+  # polygon_coords <- data.frame("142Nd_CD19" = c(-0.8, -0.9, -0.8, 1, 2, 2, 1), "115In_CD3" = c(3, 4, 5, 6, 5, 3, 3), check.names = FALSE)
+  # gate <- polygonGate(.gate = polygon_coords)
+  # gate_name <- "CD3+ CD4+ T cells Polygon"
 
-  add_gate(gs = ctm$gs, gate, gate_name, active_parent = "root")
+  # add_gate(gs = ctm$gs, gate, gate_name, active_parent = "root")
 
-  # Saving interval gate
-  interval_coords <- data.frame("142Nd_CD19" = c(1.5), check.names = FALSE)
-  interval1 <- rbind(interval_coords, -Inf)
-  interval2 <- rbind(interval_coords, Inf)
-  gate1 <- rectangleGate(.gate = interval1)
-  gate2 <- rectangleGate(.gate = interval2)
-  gate_name1 <- paste0("142Nd_CD19", "-")
-  gate_name2 <- paste0("142Nd_CD19", "+")
 
-  add_gate(gs = ctm$gs, gate = gate1, gate_name = gate_name1, active_parent = "root")
-  add_gate(gs = ctm$gs, gate = gate2, gate_name = gate_name2, active_parent = "root")
+  # # Saving quadrant gate
+  # quadrant_coords <- data.frame("142Nd_CD19" = c(1.5), "115In_CD3" = c(3), check.names = FALSE)
+  # gate <- quadGate(.gate = quadrant_coords)
+  # gate_name <- c(paste0("Q1: ", "142Nd_CD19", "- ", "115In_CD3", "+"),
+  #                paste0("Q2: ", "142Nd_CD19", "+ ", "115In_CD3", "+"),
+  #                paste0("Q3: ", "142Nd_CD19", "+ ", "115In_CD3", "-"),
+  #                paste0("Q4: ", "142Nd_CD19", "- ", "115In_CD3", "-"))
+
+  # add_gate(gs = ctm$gs, gate, gate_name, active_parent = "root")
+
+  # # Saving interval gate
+  # interval_coords <- data.frame("142Nd_CD19" = c(1.5), check.names = FALSE)
+  # interval1 <- rbind(interval_coords, -Inf)
+  # interval2 <- rbind(interval_coords, Inf)
+  # gate1 <- rectangleGate(.gate = interval1)
+  # gate2 <- rectangleGate(.gate = interval2)
+  # gate_name1 <- paste0("142Nd_CD19", "-")
+  # gate_name2 <- paste0("142Nd_CD19", "+")
+
+  # add_gate(gs = ctm$gs, gate = gate1, gate_name = gate_name1, active_parent = "root")
+  # add_gate(gs = ctm$gs, gate = gate2, gate_name = gate_name2, active_parent = "root")

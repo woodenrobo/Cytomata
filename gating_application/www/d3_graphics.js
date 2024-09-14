@@ -31,7 +31,8 @@ var gatesInfo = {
   current_gate_mode: 'off',
   detected_gates_biaxial: null,
   detected_gates_mono: null,
-  gating_svg: null
+  gating_svg: null,
+  pointerEventsEnabled: true
 };
 
 
@@ -93,6 +94,14 @@ Shiny.addCustomMessageHandler('y_channel_select', function(y_name) {
   console.log('Received y axis name from server:', plotInfo.y_name);
 });
 
+// # JS code for gating mode switch
+
+Shiny.addCustomMessageHandler('gate_mode', function(gate_mode) {
+  console.log('Received gate mode from server:', gate_mode);
+  gatesInfo.current_gate_mode = gate_mode;
+
+});
+
 
 
 
@@ -101,6 +110,7 @@ Shiny.addCustomMessageHandler('plot_done', function(message) {
   console.log('Received plot_done message');
   redrawSVG();
   redrawGatingSVG();
+
 });
 
 
@@ -183,16 +193,9 @@ function redrawGatingSVG() {
     .attr('height', plotInfo.d3_y_res)
     .style('position', 'absolute')
     .style('z-index', '2000');
-    
+
+
   console.log('GATING SVG reinitialized');
-
-
-  // disble pointer events if gating mode is chosen
-  if (gatesInfo.current_gate_mode == 'off') {
-    gatesInfo.gating_svg.style('pointer-events', 'all');
-  } else {
-    gatesInfo.gating_svg.style('pointer-events', 'none');
-  }
 
   if (gatesInfo.detected_gates_biaxial.names != null) {
 
@@ -202,6 +205,19 @@ function redrawGatingSVG() {
       console.log('Detected gate axes1:', gatesInfo.detected_gates_biaxial.axis1[i]);
       console.log('Detected gate axes2:', gatesInfo.detected_gates_biaxial.axis2[i]);
       console.log('Detected gate coordinates:', gatesInfo.detected_gates_biaxial.coords[i]);
+
+      // Pre-filter for rectangle gates
+      const rectangleGates = gatesInfo.detected_gates_biaxial.names.reduce((acc, name, index) => {
+        if (gatesInfo.detected_gates_biaxial.types[index] === "rectangleGate") {
+          acc.push({
+            name: name,
+            axis1: gatesInfo.detected_gates_biaxial.axis1[index],
+            axis2: gatesInfo.detected_gates_biaxial.axis2[index],
+            coords: gatesInfo.detected_gates_biaxial.coords[index]
+          });
+        }
+        return acc;
+      }, []);
 
       if (gatesInfo.detected_gates_biaxial.types[i] === "rectangleGate") {
         let sw, nw, ne, se;
@@ -402,29 +418,6 @@ function redrawGatingSVG() {
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-// # JS code for gating mode switch
-
-Shiny.addCustomMessageHandler('gate_mode', function(gate_mode) {
-  console.log('Received gate mode from server:', gate_mode);
-  gatesInfo.current_gate_mode = gate_mode;
-});
-
-
-
 // # JS code to handle plot clicks
 
   Shiny.addCustomMessageHandler('scatter_click', function(click_coords) {
@@ -460,7 +453,9 @@ Shiny.addCustomMessageHandler('gate_mode', function(gate_mode) {
 Shiny.addCustomMessageHandler('detected_gates_biaxial', function(detected_gates_biaxial) {
   console.log('Received biaxial gate information from server');
   gatesInfo.detected_gates_biaxial = detected_gates_biaxial;
+  redrawGatingSVG();
 });
+
 
 
 
