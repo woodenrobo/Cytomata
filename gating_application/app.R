@@ -543,6 +543,60 @@ server <- function(input, output, session) {
       
     })
 
+
+
+
+  # Build the gating tree data
+  build_tree_data <- function(pop_paths) {
+    # Split the paths and build a nested list
+    tree <- list()
+    for (path in pop_paths) {
+      nodes <- strsplit(path, "/")[[1]]
+      current_level <- tree
+      for (node in nodes) {
+        if (node == "") next  # Skip empty strings
+        # Check if the node already exists
+        existing_node <- NULL
+        if (!is.null(current_level$children)) {
+          for (child in current_level$children) {
+            if (child$text == node) {
+              existing_node <- child
+              break
+            }
+          }
+        } else {
+          current_level$children <- list()
+        }
+        if (is.null(existing_node)) {
+          # Create a new node
+          new_node <- list(text = node, children = list())
+          current_level$children <- append(current_level$children, list(new_node))
+          current_level <- new_node
+        } else {
+          # Move to the existing node
+          current_level <- existing_node
+        }
+      }
+    }
+    return(tree)  # Return the top-level nodes
+  }
+
+  # Send the tree data to the client
+  observe({
+    # Build the tree data when the gating hierarchy changes
+    tree_data <- build_tree_data(rv_gates$pop_paths)
+    print(tree_data)
+    # Send the tree data to the client
+    # session$sendCustomMessage("initTree", list(data = tree_json))
+  })
+
+
+
+
+
+
+
+
   
   #Whether to clip the gates at the axis
   observeEvent(input$clip_gates, {
@@ -562,7 +616,7 @@ server <- function(input, output, session) {
     } else {
       rv_gates$current_gate_mode <- mode
     }
-    print(rv_gates$current_gate_mode)
+    print(paste("Current gate mode:", rv_gates$current_gate_mode))
   }
 
   # switch between gating modes
@@ -598,11 +652,11 @@ server <- function(input, output, session) {
     if (mode != "off") {
       shinyjs::removeClass("d3_output_gates", "interactive")
       shinyjs::addClass("d3_output_gates", "uninteractive")
-      print("uninteractive")
+      print("d3 set to uninteractive")
     } else {
       shinyjs::removeClass("d3_output_gates", "uninteractive")
       shinyjs::addClass("d3_output_gates", "interactive")
-      print("interactive")
+      print("d3 set to interactive")
     }
   }
 
@@ -628,14 +682,14 @@ server <- function(input, output, session) {
   # Observe click events and send coordinates to the client side
   observeEvent(input$scatter_click, {
     click_coords <- c(input$scatter_click$x, input$scatter_click$y)
-    print(paste("Clicked at: x =", click_coords[1], "y =", click_coords[2]))
+    print(paste("Click registered at: x =", click_coords[1], "y =", click_coords[2]))
     session$sendCustomMessage("scatter_click", click_coords)
   })
 
   # Observe double-click events and send coordinates to the client side
   observeEvent(input$scatter_dblclick, {
     dbl_click_coords <- c(input$scatter_dblclick$x, input$scatter_dblclick$y)
-    print(paste("DBL Clicked at: x =", dbl_click_coords[1], "y =", dbl_click_coords[2]))
+    print(paste("DBL Click registered at: x =", dbl_click_coords[1], "y =", dbl_click_coords[2]))
     session$sendCustomMessage("scatter_dbl_click", dbl_click_coords)
   })
 
@@ -661,7 +715,7 @@ server <- function(input, output, session) {
   # Observe hover events and send coordinates to the client side
   observeEvent(input$scatter_hover, {
     hover_coords <- c(input$scatter_hover$x, input$scatter_hover$y)
-    print(paste("Hovered at: x =", hover_coords[1], "y =", hover_coords[2]))
+    print(paste("Hover registered at: x =", hover_coords[1], "y =", hover_coords[2]))
     session$sendCustomMessage("scatter_hover", hover_coords)
   })
 
@@ -691,10 +745,10 @@ server <- function(input, output, session) {
   add_gate <- function(gs = ctm$gs, gate, gate_name, active_parent) {
     fullname <- paste0(active_parent, "/", gate_name)
     gate_name_query <- paste0("^.*/", escape_all_special(fullname), "$")
-    print(paste("Gate name query: ", gate_name_query))
+
     if (length(gate_name_query) > 1) {
       gate_name_query_collapsed <- paste0(gate_name_query, collapse = "|")
-      print(paste("Gate name query collapsed: ", gate_name_query_collapsed))
+
       if (sum(grepl(gate_name_query_collapsed, rv_gates$pop_paths, perl = TRUE) > 0)) {
         print("Gate already exists")
       } else {
@@ -732,38 +786,35 @@ server <- function(input, output, session) {
       ))
   })
 
-  
-  # Observe changes in gate_name to enable/disable the OK button
-  observe({
-    req(input$gate_name)
-    print(rv_gates$new_gate_name)
-    print(nchar(rv_gates$new_gate_name) == 0)
-    if (nchar(rv_gates$new_gate_name) == 0) {
-      shinyjs::disable("submit_gate_name")
-    } else {
-      shinyjs::enable("submit_gate_name")
-    }
-  })
 
 
   # Observe gate name submission and add the gate to the gating tree
   # send the new gate coordinates to the client side
   observeEvent(input$submit_gate_name, {
-    req(input$gate_name)
-    print(input$gate_name)
-    rv_gates$new_gate_name <- input$gate_name
-    print(rv_gates$new_gate_name)
+    gate_name <- trimws(input$gate_name)
 
-    gate_name <- rv_gates$new_gate_name
-    add_gate(gs = ctm$gs, ctm$gate, gate_name, active_parent = rv_gates$active_parent)
-    print("gate added")
-
-    toggleGatingMode("rectangle")
-    session$sendCustomMessage("scatter_brush", ctm$mat)
-
-    rv_gates$modal_confirmed <- TRUE  # Set confirmation status to TRUE
-
-    removeModal()
+    if (nchar(gate_name) == 0) {
+      # This should not happen due to client-side validation, but we check anyway
+      showModal(modalDialog(
+        title = "Invalid Gate Name",
+        "Gate name cannot be empty.\nYou may have pressed Enter too quickly.",
+        easyClose = TRUE,
+        footer = modalButton("OK")
+      ))
+    } else {
+      # Proceed to add the gate
+      rv_gates$new_gate_name <- gate_name
+      print(rv_gates$new_gate_name)
+      
+      add_gate(gs = ctm$gs, ctm$gate, gate_name, active_parent = rv_gates$active_parent)
+      print("gate added")
+      
+      toggleGatingMode("rectangle")
+      
+      rv_gates$modal_confirmed <- TRUE  # Set confirmation status to TRUE
+      
+      removeModal()
+    }
   })
 
 
@@ -860,9 +911,6 @@ server <- function(input, output, session) {
 
     # get detected gate information for biaxial gates
     if (selected_sample_count() == 1) {
-      print(rv_gates$gates_data[[ctm$sample_ids]])
-      print(ctm$sample_ids)
-
       detected_gate_info_biaxial <- lapply(rv_gates$gates_data[[ctm$sample_ids]], function(x) x[x$name %in% biaxial_gate_names])
       biaxial_names <- lapply(detected_gate_info_biaxial, function(x) x$name)[-1]
       biaxial_types <- lapply(detected_gate_info_biaxial, function(x) x$type)[-1]
