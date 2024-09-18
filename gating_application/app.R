@@ -229,7 +229,7 @@ ui <- fluidPage(
 
 server <- function(input, output, session) {
   rv_ggplot <- reactiveValues(x_range = NULL, y_range = NULL, m_top = 20, m_right = 20, m_bottom = 30, m_left = 45)
-  rv_gates <- reactiveValues(current_gate_mode = "off", active_parent = "root", pop_paths = NULL, gates_found = FALSE, gates_data = NULL, new_gate_name = NULL, modal_confirmed = FALSE)
+  rv_gates <- reactiveValues(current_gate_mode = "off", active_parent = "root", pop_paths = NULL, gates_found = FALSE, gates_data = NULL, new_gate_name = "", modal_confirmed = FALSE)
   
   rv_gates$pop_paths <- gs_get_pop_paths(ctm$gs)
 
@@ -551,6 +551,7 @@ server <- function(input, output, session) {
   })
 
 
+
   # GATING MODES ################
 
   # Function to toggle gating modes
@@ -657,49 +658,6 @@ server <- function(input, output, session) {
 
 
 
-  # Observe brush events and show modal dialog to name the gate
-  observeEvent(input$scatter_brush, {
-      showModal(modalDialog(
-        title = "Name the gate",
-        easyClose = TRUE,
-        textInput("gate_name", "Enter gate name:"),
-        footer = tagList(
-          modalButton("Cancel"),
-          actionButton("submit_gate_name", "OK", class = "btn btn-primary")
-        )
-      ))
-  })
-
-  # Observe gate name submission and add the gate to the gating tree
-  # send the new gate coordinates to the client side
-  observeEvent(input$submit_gate_name, {
-    print(input$gate_name)
-    rv_gates$new_gate_name <- input$gate_name
-    print(rv_gates$new_gate_name)
-
-    gate_name <- rv_gates$new_gate_name
-    add_gate(gs = ctm$gs, ctm$gate, gate_name, active_parent = rv_gates$active_parent)
-    print("gate added")
-
-    toggleGatingMode("rectangle")
-    session$sendCustomMessage("scatter_brush", ctm$mat)
-
-    rv_gates$modal_confirmed <- TRUE  # Set confirmation status to TRUE
-
-    removeModal()
-  })
-
-
-  # Observe modal closure
-  observeEvent(input$modal_closed, {
-    if (!rv_gates$modal_confirmed) {
-      # Reset the brush if modal was not confirmed
-      session$resetBrush("scatter_brush")
-    }
-    rv_gates$modal_confirmed <- FALSE  # Reset the confirmation status for next time
-  })
-
-
   # Observe hover events and send coordinates to the client side
   observeEvent(input$scatter_hover, {
     hover_coords <- c(input$scatter_hover$x, input$scatter_hover$y)
@@ -733,9 +691,10 @@ server <- function(input, output, session) {
   add_gate <- function(gs = ctm$gs, gate, gate_name, active_parent) {
     fullname <- paste0(active_parent, "/", gate_name)
     gate_name_query <- paste0("^.*/", escape_all_special(fullname), "$")
-
+    print(paste("Gate name query: ", gate_name_query))
     if (length(gate_name_query) > 1) {
       gate_name_query_collapsed <- paste0(gate_name_query, collapse = "|")
+      print(paste("Gate name query collapsed: ", gate_name_query_collapsed))
       if (sum(grepl(gate_name_query_collapsed, rv_gates$pop_paths, perl = TRUE) > 0)) {
         print("Gate already exists")
       } else {
@@ -753,6 +712,85 @@ server <- function(input, output, session) {
       }
     }
   } 
+
+
+
+
+
+
+
+  # Observe brush events and show modal dialog to name the gate
+  observeEvent(input$scatter_brush, {
+      showModal(modalDialog(
+        title = "Name the gate",
+        easyClose = TRUE,
+        textInput("gate_name", "Enter gate name:", value = ""),
+        footer = tagList(
+          modalButton("Cancel"),
+          actionButton("submit_gate_name", "OK", class = "btn btn-primary")
+        )
+      ))
+  })
+
+  
+  # Observe changes in gate_name to enable/disable the OK button
+  observe({
+    req(input$gate_name)
+    print(rv_gates$new_gate_name)
+    print(nchar(rv_gates$new_gate_name) == 0)
+    if (nchar(rv_gates$new_gate_name) == 0) {
+      shinyjs::disable("submit_gate_name")
+    } else {
+      shinyjs::enable("submit_gate_name")
+    }
+  })
+
+
+  # Observe gate name submission and add the gate to the gating tree
+  # send the new gate coordinates to the client side
+  observeEvent(input$submit_gate_name, {
+    req(input$gate_name)
+    print(input$gate_name)
+    rv_gates$new_gate_name <- input$gate_name
+    print(rv_gates$new_gate_name)
+
+    gate_name <- rv_gates$new_gate_name
+    add_gate(gs = ctm$gs, ctm$gate, gate_name, active_parent = rv_gates$active_parent)
+    print("gate added")
+
+    toggleGatingMode("rectangle")
+    session$sendCustomMessage("scatter_brush", ctm$mat)
+
+    rv_gates$modal_confirmed <- TRUE  # Set confirmation status to TRUE
+
+    removeModal()
+  })
+
+
+  # Observe modal closure
+  observeEvent(input$modal_closed, {
+    if (!rv_gates$modal_confirmed) {
+      # Reset the brush if modal was not confirmed
+      session$resetBrush("scatter_brush")
+    }
+    rv_gates$modal_confirmed <- FALSE  # Reset the confirmation status for next time
+  })
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
