@@ -123,8 +123,28 @@ ui <- fluidPage(
 
     tags$link(rel = "stylesheet", type = "text/css", href = "styles.css"),
     
-    # misc. JS code for the app
-    tags$script(src = "misc.js"),
+    # # misc. JS code for the app
+    
+    # Miscellaneous JS code for the app
+    # Including it directly here instead of an external file (didnt work otherwise for some reason)
+    tags$script(HTML("
+      $(document).on('shown.bs.modal', function(x) {
+        $(x.target).find('input[type=\"text\"]:first').focus();
+      });
+
+      $(document).on('keypress', '.modal-body input[type=\"text\"]', function(e) {
+        if (e.which === 13 || e.keyCode === 13) {
+          e.preventDefault();
+          $(this).closest('.modal').find('.modal-footer .btn-primary').click();
+        }
+      });
+
+      // Detect when the modal is closed
+      $(document).on('hidden.bs.modal', function(e) {
+        Shiny.setInputValue('modal_closed', true, {priority: 'event'});
+      });
+
+    ")),
 
     # adding D3 library
     tags$script(src = "https://d3js.org/d3.v7.min.js"),
@@ -209,7 +229,7 @@ ui <- fluidPage(
 
 server <- function(input, output, session) {
   rv_ggplot <- reactiveValues(x_range = NULL, y_range = NULL, m_top = 20, m_right = 20, m_bottom = 30, m_left = 45)
-  rv_gates <- reactiveValues(current_gate_mode = "off", active_parent = "root", pop_paths = NULL, gates_found = FALSE, gates_data = NULL, new_gate_name = NULL)
+  rv_gates <- reactiveValues(current_gate_mode = "off", active_parent = "root", pop_paths = NULL, gates_found = FALSE, gates_data = NULL, new_gate_name = NULL, modal_confirmed = FALSE)
   
   rv_gates$pop_paths <- gs_get_pop_paths(ctm$gs)
 
@@ -641,10 +661,11 @@ server <- function(input, output, session) {
   observeEvent(input$scatter_brush, {
       showModal(modalDialog(
         title = "Name the gate",
+        easyClose = TRUE,
         textInput("gate_name", "Enter gate name:"),
         footer = tagList(
           modalButton("Cancel"),
-          actionButton("submit_gate_name", "OK")
+          actionButton("submit_gate_name", "OK", class = "btn btn-primary")
         )
       ))
   })
@@ -663,7 +684,19 @@ server <- function(input, output, session) {
     toggleGatingMode("rectangle")
     session$sendCustomMessage("scatter_brush", ctm$mat)
 
+    rv_gates$modal_confirmed <- TRUE  # Set confirmation status to TRUE
+
     removeModal()
+  })
+
+
+  # Observe modal closure
+  observeEvent(input$modal_closed, {
+    if (!rv_gates$modal_confirmed) {
+      # Reset the brush if modal was not confirmed
+      session$resetBrush("scatter_brush")
+    }
+    rv_gates$modal_confirmed <- FALSE  # Reset the confirmation status for next time
   })
 
 
