@@ -167,7 +167,7 @@
   # GATE UPDATES ################
 
   update_gate <- function(gs = ctm$gs, gate, gate_name, active_parent) {
-    gate_name_query <- paste0("^.*/", escape_all_special(gate_name), "$")
+    gate_name_query <- paste0("^.*", escape_all_special(gate_name), "$")
     if (length(gate_name_query) > 1) {
       gate_name_query_collapsed <- paste0(gate_name_query, collapse = "|")
       if (sum(grepl(gate_name_query_collapsed, ctm$pop_paths, perl = TRUE)) == length(gate_name_query)) {

@@ -168,7 +168,7 @@ ui <- fluidPage(
           )
         )
     ),
-    column(width = 7,
+    column(width = 5,
       div(style = "display: inline-block; position: relative",
             actionButton(inputId = "rectangle", label = "", class = "custom-btn"),
             actionButton(inputId = "polygon", label = "", class = "custom-btn"),
@@ -181,7 +181,7 @@ ui <- fluidPage(
       uiOutput("plotUI")
       
     ),
-    column(width = 3,
+    column(width = 5,
       uiOutput("gatetreeUI"))
   ),
 
@@ -780,20 +780,32 @@ server <- function(input, output, session) {
   }
 
   # observe changes in the channel selection and gating tree and update the detected gates
-  observeEvent(list(input$x_channel_select, input$y_channel_select, rv_gates$gates_data), {
+  observeEvent(list(input$selected_samples, input$x_channel_select, input$y_channel_select, rv_gates$gates_data), {
     detect_gate(gates_info = rv_gates$gates_data, x_axis = input$x_channel_select, y_axis = input$y_channel_select)
 
     # match the detected gate IDs to the gate names
     biaxial_gate_names <- gs_get_pop_paths(ctm$gs)[ctm$detected_gates_biaxial]
     mono_gate_names <- gs_get_pop_paths(ctm$gs)[ctm$detected_gates_mono]
 
-    # get detected gate information
-    detected_gate_info_biaxial <- lapply(rv_gates$gates_data[[1]], function(x) x[x$name %in% biaxial_gate_names])
-    biaxial_names <- lapply(detected_gate_info_biaxial, function(x) x$name)[-1]
-    biaxial_types <- lapply(detected_gate_info_biaxial, function(x) x$type)[-1]
-    biaxial_axis1 <- lapply(detected_gate_info_biaxial, function(x) x$axis1)[-1]
-    biaxial_axis2 <- lapply(detected_gate_info_biaxial, function(x) x$axis2)[-1]
-    biaxial_coords <- lapply(detected_gate_info_biaxial, function(x) x$coords)[-1]
+    # get detected gate information for biaxial gates
+    if (selected_sample_count() == 1) {
+      print(rv_gates$gates_data[[ctm$sample_ids]])
+      print(ctm$sample_ids)
+
+      detected_gate_info_biaxial <- lapply(rv_gates$gates_data[[ctm$sample_ids]], function(x) x[x$name %in% biaxial_gate_names])
+      biaxial_names <- lapply(detected_gate_info_biaxial, function(x) x$name)[-1]
+      biaxial_types <- lapply(detected_gate_info_biaxial, function(x) x$type)[-1]
+      biaxial_axis1 <- lapply(detected_gate_info_biaxial, function(x) x$axis1)[-1]
+      biaxial_axis2 <- lapply(detected_gate_info_biaxial, function(x) x$axis2)[-1]
+      biaxial_coords <- lapply(detected_gate_info_biaxial, function(x) x$coords)[-1]
+    } else if (selected_sample_count() > 1) {
+      detected_gate_info_biaxial <- lapply(rv_gates$gates_data[[1]], function(x) x[x$name %in% biaxial_gate_names])
+      biaxial_names <- lapply(detected_gate_info_biaxial, function(x) x$name)[-1]
+      biaxial_types <- lapply(detected_gate_info_biaxial, function(x) x$type)[-1]
+      biaxial_axis1 <- lapply(detected_gate_info_biaxial, function(x) x$axis1)[-1]
+      biaxial_axis2 <- lapply(detected_gate_info_biaxial, function(x) x$axis2)[-1]
+      biaxial_coords <- lapply(detected_gate_info_biaxial, function(x) x$coords)[-1]
+    }
 
     session$sendCustomMessage("detected_gates_biaxial", list(names = biaxial_names, types = biaxial_types, axis1 = biaxial_axis1, axis2 = biaxial_axis2, coords = biaxial_coords))
 
@@ -811,7 +823,71 @@ server <- function(input, output, session) {
 
   # GATE UPDATES ################
 
+  update_gate <- function(gs = ctm$gs, gate, gate_name, active_parent) {
+    gate_name_query <- paste0("^.*", escape_all_special(gate_name), "$")
 
+    if (length(gate_name_query) > 1) {
+      gate_name_query_collapsed <- paste0(gate_name_query, collapse = "|")
+
+      
+      if (sum(grepl(gate_name_query_collapsed, rv_gates$pop_paths, perl = TRUE)) == length(gate_name_query)) {
+        gate_list <- c()
+        for (sel_sample in ctm$sample_ids) {
+          gate_list <- c(gate_list, gate)
+        }
+        names(gate_list) <- sampleNames(gs[ctm$sample_ids])
+        for (g in seq(length(gate_name))) {
+          gs_pop_set_gate(gs[ctm$sample_ids], gate_name[g], gate_list)
+          recompute(gs[ctm$sample_ids], gate_name[g]) 
+        }
+      } else {
+        print("Gate is not present in the hierarchy and will not be updated")
+      }
+    } else {
+      if (sum(grepl(gate_name_query, rv_gates$pop_paths, perl = TRUE) > 0)) {
+        gate_list <- c()
+        for (sel_sample in ctm$sample_ids) {
+          gate_list <- c(gate_list, gate)
+        }
+        names(gate_list) <- sampleNames(gs[ctm$sample_ids])
+
+        gs_pop_set_gate(gs[ctm$sample_ids], gate_name, gate_list)
+        recompute(gs[ctm$sample_ids], gate_name) 
+
+      } else {
+        print("Gate is not present in the hierarchy and will not be updated")
+      }
+    }
+    
+  }
+
+  # Updating rectangle gate
+  observeEvent(input$gate_update, {
+    gate_name <- input$gate_update$gate_name
+    x_coords <- as.numeric(unlist(input$gate_update$x_coords))
+    y_coords <- as.numeric(unlist(input$gate_update$y_coords))
+    current_x <- as.character(input$x_channel_select)
+    current_y <- as.character(input$y_channel_select)
+
+    
+    # Create a data frame with the new coordinates
+    rectangle_coords <- data.frame(
+      x_coords,
+      y_coords,
+      check.names = FALSE
+    )
+    colnames(rectangle_coords) <- c(current_x, current_y)
+
+    # Construct the new gate
+    gate <- rectangleGate(.gate = rectangle_coords)
+    
+    # Update the gate in the GatingSet
+    update_gate(gs = ctm$gs, gate, gate_name, active_parent = rv_gates$active_parent)
+    update_gate(gs = ctm$gs, gate, gate_name, active_parent = "root")
+    
+    rv_gates$gates_data <- gate_collect_info(gs = ctm$gs, pop_paths = rv_gates$pop_paths)
+    ctm$gates_data <- rv_gates$gates_data
+  })
 
   # GATE ACTIVATION ################
 

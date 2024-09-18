@@ -97,7 +97,7 @@ Shiny.addCustomMessageHandler('y_channel_select', function(y_name) {
 
 // setting: whether to clip the gates at the axis
 Shiny.addCustomMessageHandler("clip_gates", function(clip_gates) {
-  gatesInfo.clip_gates <- clip_gates
+  gatesInfo.clip_gates = clip_gates
 });
 
 
@@ -259,13 +259,16 @@ function redrawGatingSVG() {
           .style('stroke-width', 3)
           .call(d3.drag()
             .on('start', dragStart)
-            .on('drag', dragging)      
+            .on('drag', dragging)
+            .on('end', dragEnd)      
           );
 
         box.data([
           {startX: +box.attr('x')},
           {startY: +box.attr('y')}
         ]);
+
+        box.attr('data-gate-name', gatesInfo.detected_gates_biaxial.names[i]);
 
         const handles = gatesInfo.gating_svg.selectAll(`circle.handle-${i}`)
           .data([
@@ -283,6 +286,7 @@ function redrawGatingSVG() {
           .call(d3.drag()
             .on('start', handleDragStart)
             .on('drag', handleDragging)
+            .on('end', handleDragEnd)
           );
 
 
@@ -299,33 +303,69 @@ function redrawGatingSVG() {
           }
 
           function dragging(event, d) {
+            if (gatesInfo.clip_gates === true) {
+              // Calculate movement
+              const dx = event.x - d.startX;
+              const dy = event.y - d.startY;
+          
+              // Proposed new positions
+              let newX = d.boxX + dx;
+              let newY = d.boxY + dy;
+          
+              // Clamp new positions within plot boundaries
+              newX = Math.max(0, Math.min(plotInfo.d3_x_res - +box.attr('width'), newX));
+              newY = Math.max(0, Math.min(plotInfo.d3_y_res - +box.attr('height'), newY));
+          
+              // Update rectangle position
+              box.attr('x', newX);
+              box.attr('y', newY);
+          
+              // Update stored positions
+              d.boxX = newX;
+              d.boxY = newY;
+              d.startX = event.x;
+              d.startY = event.y;
+          
+              // Update handles' positions when dragging box
+              handles.data([
+                { x: newX, y: newY, cursor: 'nw-resize' },
+                { x: newX + +box.attr('width'), y: newY, cursor: 'ne-resize' },
+                { x: newX, y: newY + +box.attr('height'), cursor: 'sw-resize' },
+                { x: newX + +box.attr('width'), y: newY + +box.attr('height'), cursor: 'se-resize' }
+              ])
+              .attr('cx', d => d.x)
+              .attr('cy', d => d.y);
 
-            const newX = Math.max(0, Math.min(width - +box.attr('width'), event.x));
-            const newY = Math.max(0, Math.min(height - +box.attr('height'), event.y));
-            const dx = d.startX - event.x;
-            const dy = d.startY - event.y;
-
-            d.startX = event.x;
-            d.startY = event.y;
-            box.attr('x', d.boxX - dx);
-            box.attr('y', d.boxY - dy);
-            d.boxX = +box.attr('x');
-            d.boxY = +box.attr('y');
-
-            // Update handles' positions xhen dragging box
-            handles.data([
-              { x: d.boxX, y: d.boxY ,cursor: 'nw-resize'},
-              { x: d.boxX + +box.attr('width'), y: d.boxY, cursor: 'ne-resize' },
-              { x: d.boxX, y: d.boxY + +box.attr('height'), cursor: 'sw-resize' },
-              { x: d.boxX + +box.attr('width'), y: d.boxY + +box.attr('height') , cursor: 'se-resize'}
-            ])
-            .attr('cx', d => d.x)
-            .attr('cy', d => d.y);
+            } else {
+              const newX = Math.max(0, Math.min(width - +box.attr('width'), event.x));
+              const newY = Math.max(0, Math.min(height - +box.attr('height'), event.y));
+              const dx = d.startX - event.x;
+              const dy = d.startY - event.y;
+  
+              d.startX = event.x;
+              d.startY = event.y;
+              box.attr('x', d.boxX - dx);
+              box.attr('y', d.boxY - dy);
+              d.boxX = +box.attr('x');
+              d.boxY = +box.attr('y');
+  
+              // Update handles' positions xhen dragging box
+              handles.data([
+                { x: d.boxX, y: d.boxY ,cursor: 'nw-resize'},
+                { x: d.boxX + +box.attr('width'), y: d.boxY, cursor: 'ne-resize' },
+                { x: d.boxX, y: d.boxY + +box.attr('height'), cursor: 'sw-resize' },
+                { x: d.boxX + +box.attr('width'), y: d.boxY + +box.attr('height') , cursor: 'se-resize'}
+              ])
+              .attr('cx', d => d.x)
+              .attr('cy', d => d.y);
+            }
+            
           }
 
-          //function dragEnd(event) {
-          //  box.classed('active', false);
-          //}
+          function dragEnd(event, d) {
+            const rect = d3.select(this);
+            sendGateUpdate(rect);
+          }
 
 
 
@@ -347,60 +387,187 @@ function redrawGatingSVG() {
             const dx = event.x - d.startX;
             const dy = event.y - d.startY;
 
+            if (gatesInfo.clip_gates === true) {
+                const dx = event.x - d.startX;
+                const dy = event.y - d.startY;
+            
+                // Initialize new box properties with initial values
+                let newX = d.initialBox.x;
+                let newY = d.initialBox.y;
+                let newWidth = d.initialBox.width;
+                let newHeight = d.initialBox.height;
+            
+                if (d.cursor.includes('nw')) {
+                  newX = d.initialBox.x + dx;
+                  newY = d.initialBox.y + dy;
+                  newWidth = d.initialBox.width - dx;
+                  newHeight = d.initialBox.height - dy;
+            
+                  // Prevent dragging beyond borders
+                  if (newX < 0) {
+                    newWidth += newX;
+                    newX = 0;
+                  }
+                  if (newY < 0) {
+                    newHeight += newY;
+                    newY = 0;
+                  }
+                  if (newWidth + newX > plotInfo.d3_x_res) {
+                    newWidth = plotInfo.d3_x_res - newX;
+                  }
+                  if (newHeight + newY > plotInfo.d3_y_res) {
+                    newHeight = plotInfo.d3_y_res - newY;
+                  }
+                  if (newWidth < 0) newWidth = 0;
+                  if (newHeight < 0) newHeight = 0;
+                } else if (d.cursor.includes('se')) {
+                  newWidth = d.initialBox.width + dx;
+                  newHeight = d.initialBox.height + dy;
+            
+                  // Prevent resizing beyond borders
+                  if (d.initialBox.x + newWidth > plotInfo.d3_x_res) {
+                    newWidth = plotInfo.d3_x_res - d.initialBox.x;
+                  }
+                  if (d.initialBox.y + newHeight > plotInfo.d3_y_res) {
+                    newHeight = plotInfo.d3_y_res - d.initialBox.y;
+                  }
+                  if (newWidth < 0) newWidth = 0;
+                  if (newHeight < 0) newHeight = 0;
+                } else if (d.cursor.includes('sw')) {
+                  newX = d.initialBox.x + dx;
+                  newWidth = d.initialBox.width - dx;
+                  newHeight = d.initialBox.height + dy;
+            
+                  if (newX < 0) {
+                    newWidth += newX;
+                    newX = 0;
+                  }
+                  if (d.initialBox.y + newHeight > plotInfo.d3_y_res) {
+                    newHeight = plotInfo.d3_y_res - d.initialBox.y;
+                  }
+                  if (newWidth + newX > plotInfo.d3_x_res) {
+                    newWidth = plotInfo.d3_x_res - newX;
+                  }
+                  if (newWidth < 0) newWidth = 0;
+                  if (newHeight < 0) newHeight = 0;
+                } else if (d.cursor.includes('ne')) {
+                  newY = d.initialBox.y + dy;
+                  newWidth = d.initialBox.width + dx;
+                  newHeight = d.initialBox.height - dy;
+            
+                  if (newY < 0) {
+                    newHeight += newY;
+                    newY = 0;
+                  }
+                  if (d.initialBox.x + newWidth > plotInfo.d3_x_res) {
+                    newWidth = plotInfo.d3_x_res - d.initialBox.x;
+                  }
+                  if (newHeight + newY > plotInfo.d3_y_res) {
+                    newHeight = plotInfo.d3_y_res - newY;
+                  }
+                  if (newWidth < 0) newWidth = 0;
+                  if (newHeight < 0) newHeight = 0;
+                }
+            
+                // Update rectangle attributes
+                box.attr('x', newX)
+                  .attr('y', newY)
+                  .attr('width', newWidth)
+                  .attr('height', newHeight);
+            
+                // Update handles' positions during resizing
+                handles.attr('cx', (d, i) => {
+                  if (i == 0 || i == 2) return newX;
+                  else return newX + newWidth;
+                })
+                .attr('cy', (d, i) => {
+                  if (i == 0 || i == 1) return newY;
+                  else return newY + newHeight;
+                });
+            
+            } else {
 
-            if (d.cursor.includes('nw')) {
-              box.attr('x', Math.min(d.initialBox.x + d.initialBox.width, Math.max(0, d.initialBox.x + dx)));
-              box.attr('y', Math.min(d.initialBox.y + d.initialBox.height, Math.max(0, d.initialBox.y + dy)));
-              box.attr('width', Math.max(0, d.initialBox.width - dx));
-              box.attr('height', Math.max(0, d.initialBox.height - dy));
-            } else if  (d.cursor.includes('se')) {
-              box.attr('width', Math.max(0, d.initialBox.width + dx));
-              box.attr('height', Math.max(0, d.initialBox.height + dy));
-            } else if  (d.cursor.includes('sw')) {
-              box.attr('x', Math.min(d.initialBox.x + d.initialBox.width, Math.max(0, d.initialBox.x + dx)));
-              box.attr('width', Math.max(0, d.initialBox.width - dx));
-              box.attr('height', Math.max(0, d.initialBox.height + dy));
-
-            } else if  (d.cursor.includes('ne')) {
-              box.attr('y', Math.min(d.initialBox.y + d.initialBox.height, Math.max(0, d.initialBox.y + dy)));
-              box.attr('width', Math.max(0, d.initialBox.width + dx));
-              box.attr('height', Math.max(0, d.initialBox.height - dy));
-            }
-
-
-            // Update the position of all circles during resizing
-            handles.attr('cx', (d, i) => {
+              if (d.cursor.includes('nw')) {
+                box.attr('x', Math.min(d.initialBox.x + d.initialBox.width, Math.max(0, d.initialBox.x + dx)));
+                box.attr('y', Math.min(d.initialBox.y + d.initialBox.height, Math.max(0, d.initialBox.y + dy)));
+                box.attr('width', Math.max(0, d.initialBox.width - dx));
+                box.attr('height', Math.max(0, d.initialBox.height - dy));
+              } else if  (d.cursor.includes('se')) {
+                box.attr('width', Math.max(0, d.initialBox.width + dx));
+                box.attr('height', Math.max(0, d.initialBox.height + dy));
+              } else if  (d.cursor.includes('sw')) {
+                box.attr('x', Math.min(d.initialBox.x + d.initialBox.width, Math.max(0, d.initialBox.x + dx)));
+                box.attr('width', Math.max(0, d.initialBox.width - dx));
+                box.attr('height', Math.max(0, d.initialBox.height + dy));
+  
+              } else if  (d.cursor.includes('ne')) {
+                box.attr('y', Math.min(d.initialBox.y + d.initialBox.height, Math.max(0, d.initialBox.y + dy)));
+                box.attr('width', Math.max(0, d.initialBox.width + dx));
+                box.attr('height', Math.max(0, d.initialBox.height - dy));
+              }
+  
+  
+              // Update the position of all circles during resizing
+              handles.attr('cx', (d, i) => {
+                  let t = 0;
+                if( i == 0){
+                  t = +box.attr('x');
+                } else if(i==1 ){
+                  t = +box.attr('x') + +box.attr('width');
+                } else if (i == 2){
+                  t = +box.attr('x')
+                } else if (i == 3){
+                  t = +box.attr('x') + +box.attr('width');
+                }
+                return t;
+              })
+                .attr('cy', (d, i) => {
                 let t = 0;
-              if( i == 0){
-                t = +box.attr('x');
-              } else if(i==1 ){
-                t = +box.attr('x') + +box.attr('width');
-              } else if (i == 2){
-                t = +box.attr('x')
-              } else if (i == 3){
-                t = +box.attr('x') + +box.attr('width');
-              }
-              return t;
-            })
-              .attr('cy', (d, i) => {
-              let t = 0;
-              if( i == 0)
-              {
-                t = +box.attr('y');
-              } else if( i == 1){
-                t = +box.attr('y');
-              } else if( i ==2){
-                t = +box.attr('y') + +box.attr('height');
-              }else if( i == 3){
-                t = +box.attr('y') + +box.attr('height');
-              }
-              return t;
-            });
+                if( i == 0)
+                {
+                  t = +box.attr('y');
+                } else if( i == 1){
+                  t = +box.attr('y');
+                } else if( i ==2){
+                  t = +box.attr('y') + +box.attr('height');
+                }else if( i == 3){
+                  t = +box.attr('y') + +box.attr('height');
+                }
+                return t;
+              });
+            }
           }
 
+          function handleDragEnd(event, d) {
+            const rect = d3.select(box.node());
+            sendGateUpdate(rect);
+          }
 
-
-
+          function sendGateUpdate(rect) {
+            const gateName = rect.attr('data-gate-name');
+            const x = +rect.attr('x');
+            const y = +rect.attr('y');
+            const width = +rect.attr('width');
+            const height = +rect.attr('height');
+          
+            // Convert screen coordinates back to data coordinates
+            const x1 = plotInfo.xScale.invert(x);
+            const x2 = plotInfo.xScale.invert(x + width);
+            const y1 = plotInfo.yScale.invert(y + height); // Note the inversion of y
+            const y2 = plotInfo.yScale.invert(y);
+          
+            const x_coords = [x1, x2].sort((a, b) => a - b);
+            const y_coords = [y1, y2].sort((a, b) => a - b);
+          
+            // Send the updated coordinates back to R
+            Shiny.setInputValue('gate_update', {
+              gate_name: gateName,
+              x_coords: x_coords,
+              y_coords: y_coords,
+              x_name: plotInfo.x_name,
+              y_name: plotInfo.y_name
+            }, { priority: 'event' });
+          }
 
       }
     
