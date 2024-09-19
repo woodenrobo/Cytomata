@@ -105,3 +105,18 @@
     cursor: pointer;
 }
 
+
+/* Custom CSS for jsTree plus/minus icons */
+.jstree-default .jstree-icon:empty {
+    width: 16px;
+    height: 16px;
+    background-size: 16px;
+}
+
+.jstree-default .jstree-open > .jstree-icon:empty {
+    background: url('data:image/svg+xml;utf8,<svg fill="currentColor" height="16" width="16" viewBox="0 0 16 16"><path d="M1 8h14v1H1V8z"/></svg>') no-repeat center center;
+}
+
+.jstree-default .jstree-closed > .jstree-icon:empty {
+    background: url('data:image/svg+xml;utf8,<svg fill="currentColor" height="16" width="16" viewBox="0 0 16 16"><path d="M8 1v14h1V1H8zm7 7H1v1h14V8z"/></svg>') no-repeat center center;
+}

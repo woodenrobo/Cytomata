@@ -123,7 +123,11 @@ ui <- fluidPage(
 
     tags$link(rel = "stylesheet", type = "text/css", href = "styles.css"),
     
-    # # misc. JS code for the app
+    # Include jsTree CSS
+    tags$link(rel = "stylesheet", href = "https://cdnjs.cloudflare.com/ajax/libs/jstree/3.3.12/themes/default/style.min.css"),
+    # Include jsTree JS
+    tags$script(src = "https://cdnjs.cloudflare.com/ajax/libs/jstree/3.3.12/jstree.min.js"),
+
     
     # Miscellaneous JS code for the app
     # Including it directly here instead of an external file (didnt work otherwise for some reason)
@@ -228,8 +232,29 @@ ui <- fluidPage(
 
 
 server <- function(input, output, session) {
-  rv_ggplot <- reactiveValues(x_range = NULL, y_range = NULL, m_top = 20, m_right = 20, m_bottom = 30, m_left = 45)
-  rv_gates <- reactiveValues(current_gate_mode = "off", active_parent = "root", pop_paths = NULL, gates_found = FALSE, gates_data = NULL, new_gate_name = "", modal_confirmed = FALSE)
+
+  rv_global <- reactiveValues(
+    selected_sample_ids = 1
+  )
+
+  rv_ggplot <- reactiveValues(
+    x_range = NULL,
+    y_range = NULL,
+    m_top = 20,
+    m_right = 20,
+    m_bottom = 30,
+    m_left = 45)
+
+  rv_gates <- reactiveValues(
+    current_gate_mode = "off",
+    active_parent = "root",
+    pop_paths = NULL,
+    gate_counts = NULL,
+    gate_freqs = NULL,
+    gates_found = FALSE,
+    gates_data = NULL,
+    new_gate_name = "",
+    modal_confirmed = FALSE)
   
   rv_gates$pop_paths <- gs_get_pop_paths(ctm$gs)
 
@@ -270,18 +295,18 @@ server <- function(input, output, session) {
   #observing changes in sample selection and update the data
   observeEvent(list(input$selected_samples, rv_gates$active_parent), {
     #setting ID of the samples
-    ctm$sample_ids <- match(input$selected_samples, file_names)
+    rv_global$selected_sample_ids <- match(input$selected_samples, file_names)
 
 
     # PREPARING DATA FOR PLOT ################
     #extracting cytosets
     if (selected_sample_count() == 1) {
-        ff <- cytoframe_to_flowFrame(gs_pop_get_data(ctm$gs[ctm$sample_ids], y = rv_gates$active_parent)[[1]])
+        ff <- cytoframe_to_flowFrame(gs_pop_get_data(ctm$gs[rv_global$selected_sample_ids], y = rv_gates$active_parent)[[1]])
         ctm$exprs <- as.data.frame(ff@exprs)
         colnames(ctm$exprs) <- channel_descriptions
     } else if (selected_sample_count() > 1) {
         exprs <- data.frame()
-        for (samp_id in ctm$sample_ids) {
+        for (samp_id in rv_global$selected_sample_ids) {
             ff <- cytoframe_to_flowFrame(gs_pop_get_data(ctm$gs[samp_id], y = rv_gates$active_parent)[[1]])
             exprs_temp <- as.data.frame(ff@exprs)
             exprs <- rbind(exprs, exprs_temp)
@@ -519,80 +544,100 @@ server <- function(input, output, session) {
 
 
 
-  # Plotting gate hierarchy
-    output$gating_tree <- renderPlot({
+  # Plotting gate hierarchy old debugging version
+    # output$gating_tree <- renderPlot({
       
-      labels <- rv_gates$pop_paths
-      if (length(labels) > 1) {
-        hPlot <- plot(ctm$gs)
+    #   labels <- rv_gates$pop_paths
+    #   if (length(labels) > 1) {
+    #     hPlot <- plot(ctm$gs)
         
 
-        names(labels) <- nodes(hPlot)
-        nodeAttrs <- list(label=labels)
-        attrs <- list(node=list(fillcolor="white", shape="box", width=1,
-                                color="gray90", style="rounded"),
-                      graph=list(rankdir="TB"))
-        index <- which(gs_get_pop_paths(ctm$gs) == "root")
+    #     names(labels) <- nodes(hPlot)
+    #     nodeAttrs <- list(label=labels)
+    #     attrs <- list(node=list(fillcolor="white", shape="box", width=1,
+    #                             color="gray90", style="rounded"),
+    #                   graph=list(rankdir="TB"))
+    #     index <- which(gs_get_pop_paths(ctm$gs) == "root")
 
 
-        ctm$hPlot <- plot(hPlot, nodeAttrs=nodeAttrs, attrs=attrs)
+    #     ctm$hPlot <- plot(hPlot, nodeAttrs=nodeAttrs, attrs=attrs)
 
 
-        ctm$hPlot
-      }
+    #     ctm$hPlot
+    #   }
       
-    })
+    # })
+
+  output$gatetreeUI <- renderUI({
+    tags$div(id = "gating_tree", style = "margin-top: 50px; height: 500px; overflow-y: auto;")
+  }) 
 
 
 
 
   # Build the gating tree data
-  build_tree_data <- function(pop_paths) {
-    # Split the paths and build a nested list
-    tree <- list()
+  # Function to build the gating tree data
+  build_tree_data <- function(pop_paths, selected_samples, gate_counts) {
+    nodes_df <- data.frame(id = character(), parent = character(), text = character(), stringsAsFactors = FALSE)
+    node_ids_added <- character(0)
+
     for (path in pop_paths) {
-      nodes <- strsplit(path, "/")[[1]]
-      current_level <- tree
+      path_clean <- sub("^/", "", path)
+      nodes <- strsplit(path_clean, "/")[[1]]
+      parent_id <- "#"
+      current_path <- character(0)
+
+
       for (node in nodes) {
-        if (node == "") next  # Skip empty strings
-        # Check if the node already exists
-        existing_node <- NULL
-        if (!is.null(current_level$children)) {
-          for (child in current_level$children) {
-            if (child$text == node) {
-              existing_node <- child
-              break
-            }
+        current_path <- c(current_path, node)
+        node_id <- paste(current_path, collapse = "/")
+        if (!(node_id %in% node_ids_added)) {
+          if (length(current_path) == 1) {
+            parent_id <- "root"
+          } else {
+            parent_id <- paste(current_path[-length(current_path)], collapse = "/")
           }
-        } else {
-          current_level$children <- list()
+
+          # Get counts and frequencies for node_id
+          if (node_id == "root") {
+            parent_id <- "#"
+            count <- gate_counts[gate_counts$Parent == "root", ]
+            count <- sum(unique(count[, c("name", "ParentCount")])$ParentCount[selected_samples])
+            proportion <- 1 * 100
+          } else {
+            count <- sum(gate_counts[gate_counts$Population == paste0("/", node_id), ]$Count[selected_samples])
+            proportion <- sum(gate_counts[gate_counts$Population == paste0("/", node_id), ]$Count[selected_samples]) / sum(gate_counts[gate_counts$Population == paste0("/", node_id), ]$ParentCount[selected_samples]) * 100
+           
+          }
+          # Build text
+          text <- paste0(node, " ", "(", count, " | ", round(proportion, 2), "%)")
+          # Add to nodes_df
+          nodes_df <- rbind(nodes_df, data.frame(id = node_id, parent = parent_id, text = text, stringsAsFactors = FALSE))
+          # Add node_id to node_ids_added
+          node_ids_added <- c(node_ids_added, node_id)
         }
-        if (is.null(existing_node)) {
-          # Create a new node
-          new_node <- list(text = node, children = list())
-          current_level$children <- append(current_level$children, list(new_node))
-          current_level <- new_node
-        } else {
-          # Move to the existing node
-          current_level <- existing_node
-        }
+        # Update parent_id
+        parent_id <- node_id
       }
     }
-    return(tree)  # Return the top-level nodes
+    return(nodes_df)
   }
+
+
 
   # Send the tree data to the client
   observe({
     # Build the tree data when the gating hierarchy changes
-    tree_data <- build_tree_data(rv_gates$pop_paths)
+    tree_data <- build_tree_data(
+      pop_paths = rv_gates$pop_paths, 
+      selected_samples = rv_global$selected_sample_ids,
+      gate_counts = rv_gates$gate_counts)
     print(tree_data)
-    # Send the tree data to the client
-    # session$sendCustomMessage("initTree", list(data = tree_json))
-  })
-
-
-
-
+    # Convert the data frame to a list of node objects
+    tree_data_list <- lapply(seq_len(nrow(tree_data)), function(i) as.list(tree_data[i, ]))
+    # Send the data to the client
+    session$sendCustomMessage("initTree", list(data = tree_data_list))
+  }) 
 
 
 
@@ -875,8 +920,8 @@ server <- function(input, output, session) {
 
     return(gates_info)
 
-    ctm$gate_freqs <- gs_pop_get_count_fast(ctm$gs[seq_along(ctm$samples)], "freq")
-    ctm$gate_counts <- gs_pop_get_count_fast(ctm$gs[seq_along(ctm$samples)], "count")
+    rv_gates$gate_counts <- gs_pop_get_count_fast(ctm$gs[seq_along(ctm$samples)], "count")
+    rv_gates$gate_freqs <- gs_pop_get_count_fast(ctm$gs[seq_along(ctm$samples)], "freq")
   }
 
   # observe changes in the gating tree and update the gate information
@@ -911,7 +956,7 @@ server <- function(input, output, session) {
 
     # get detected gate information for biaxial gates
     if (selected_sample_count() == 1) {
-      detected_gate_info_biaxial <- lapply(rv_gates$gates_data[[ctm$sample_ids]], function(x) x[x$name %in% biaxial_gate_names])
+      detected_gate_info_biaxial <- lapply(rv_gates$gates_data[[rv_global$selected_sample_ids]], function(x) x[x$name %in% biaxial_gate_names])
       biaxial_names <- lapply(detected_gate_info_biaxial, function(x) x$name)[-1]
       biaxial_types <- lapply(detected_gate_info_biaxial, function(x) x$type)[-1]
       biaxial_axis1 <- lapply(detected_gate_info_biaxial, function(x) x$axis1)[-1]
@@ -951,13 +996,13 @@ server <- function(input, output, session) {
       
       if (sum(grepl(gate_name_query_collapsed, rv_gates$pop_paths, perl = TRUE)) == length(gate_name_query)) {
         gate_list <- c()
-        for (sel_sample in ctm$sample_ids) {
+        for (sel_sample in rv_global$selected_sample_ids) {
           gate_list <- c(gate_list, gate)
         }
-        names(gate_list) <- sampleNames(gs[ctm$sample_ids])
+        names(gate_list) <- sampleNames(gs[rv_global$selected_sample_ids])
         for (g in seq(length(gate_name))) {
-          gs_pop_set_gate(gs[ctm$sample_ids], gate_name[g], gate_list)
-          recompute(gs[ctm$sample_ids], gate_name[g]) 
+          gs_pop_set_gate(gs[rv_global$selected_sample_ids], gate_name[g], gate_list)
+          recompute(gs[rv_global$selected_sample_ids], gate_name[g]) 
         }
       } else {
         print("Gate is not present in the hierarchy and will not be updated")
@@ -965,18 +1010,21 @@ server <- function(input, output, session) {
     } else {
       if (sum(grepl(gate_name_query, rv_gates$pop_paths, perl = TRUE) > 0)) {
         gate_list <- c()
-        for (sel_sample in ctm$sample_ids) {
+        for (sel_sample in rv_global$selected_sample_ids) {
           gate_list <- c(gate_list, gate)
         }
-        names(gate_list) <- sampleNames(gs[ctm$sample_ids])
+        names(gate_list) <- sampleNames(gs[rv_global$selected_sample_ids])
 
-        gs_pop_set_gate(gs[ctm$sample_ids], gate_name, gate_list)
-        recompute(gs[ctm$sample_ids], gate_name) 
+        gs_pop_set_gate(gs[rv_global$selected_sample_ids], gate_name, gate_list)
+        recompute(gs[rv_global$selected_sample_ids], gate_name) 
 
       } else {
         print("Gate is not present in the hierarchy and will not be updated")
       }
     }
+
+    rv_gates$gate_counts <- gs_pop_get_count_fast(ctm$gs[seq_along(ctm$samples)], "count")
+    rv_gates$gate_freqs <- gs_pop_get_count_fast(ctm$gs[seq_along(ctm$samples)], "freq")
     
   }
 

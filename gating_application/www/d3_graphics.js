@@ -37,6 +37,11 @@ var gatesInfo = {
 };
 
 
+// # defining tree information container
+var treeInfo = {
+  tree_object: null
+}
+
 // #  handle plot panel margins
 
 Shiny.addCustomMessageHandler('plot_margin', function(margins) {
@@ -655,3 +660,54 @@ Shiny.addCustomMessageHandler('detected_gates_biaxial', function(detected_gates_
 
 
 // # JS code for gating tree visualization
+
+// Function to bind events to jsTree
+function bindTreeEvents() {
+  $('#gating_tree').on('select_node.jstree', function(e, data) {
+    // Handle node selection
+    var selectedNode = data.node;
+    console.log('Node selected:', selectedNode.id);
+    Shiny.setInputValue('selected_tree_node', selectedNode.id);
+  });
+
+  $('#gating_tree').on('dblclick.jstree', function(e) {
+    var instance = $.jstree.reference(this);
+    var node = instance.get_node(e.target);
+    console.log('Node double-clicked:', node.id);
+    Shiny.setInputValue('activated_gate', node.id);
+  });
+}
+
+// Handle the 'initTree' message from the server
+Shiny.addCustomMessageHandler('initTree', function(message) {
+  var treeData = message.data;
+
+  // Unbind previous events
+  $('#gating_tree').off('.jstree');
+
+  // Destroy the tree if it exists
+  if ($.jstree.reference('#gating_tree')) {
+    $('#gating_tree').jstree('destroy');
+  }
+
+  // Initialize the tree
+  $('#gating_tree').jstree({
+      'core': {
+          'data': treeData,
+          'themes': {
+              'icons': false  // Disable default folder icons
+          },
+          'multiple': false  // Adjust as needed
+      },
+      'plugins': ['state'],
+      'state': { 'opened': true }  // Open all nodes by default
+  });
+
+  // Open all nodes after the tree is ready
+  $('#gating_tree').on('ready.jstree', function() {
+    $(this).jstree('open_all');
+  });
+
+  // Bind events
+  bindTreeEvents();
+});
