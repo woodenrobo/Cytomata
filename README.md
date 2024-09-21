@@ -3,7 +3,7 @@ Author: Lev Petrov
 
 ## OMNICYTO PEOPLE GUIDE
 - install R and Rstudio on your machine https://posit.co/download/rstudio-desktop/
-- clone the repo, set the path to the repo folder in master.R (line 15)
+- clone the repo, set the branch to gating-demo and the path to the repo folder in master.R (line 15)
 
 ``
 path_to_cytomata <- "~/DOCTORATE/Cytomata/"
