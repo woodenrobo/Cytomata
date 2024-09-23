@@ -39,7 +39,8 @@ var gatesInfo = {
 
 // # defining tree information container
 var treeInfo = {
-  tree_object: null
+  tree_object: null,
+  selectedNode: null
 }
 
 // #  handle plot panel margins
@@ -115,6 +116,23 @@ Shiny.addCustomMessageHandler('gate_mode', function(gate_mode) {
 });
 
 
+// change handles styling when the gate is selected in tree
+function updateGateHighlight(selectedNode) {
+  var selectedNodeName = "/" + selectedNode
+  console.log("Selected Node Name:", selectedNodeName);
+
+  d3.selectAll('.handle')
+    .style('fill', function() {
+      var parentNode = d3.select(this).node().parentNode;
+      if (parentNode) {
+        var gateName = d3.select(parentNode).attr('data-gate-name');
+        console.log('gateName:', gateName, 'selectedNodeName:', selectedNodeName);
+        return gateName === selectedNodeName ? 'blue' : 'white';
+      }
+      return 'white'; // Default color if parent node doesn't exist
+    });
+}
+
 
 
 // Handler for plot updates
@@ -124,9 +142,6 @@ Shiny.addCustomMessageHandler('plot_done', function(message) {
   redrawGatingSVG();
 
 });
-
-
-
 
 
 function redrawSVG() {
@@ -184,9 +199,6 @@ function redrawSVG() {
 
   console.log('Axes redrawn');
 }
-
-
-
 
 
 function redrawGatingSVG() {
@@ -251,7 +263,13 @@ function redrawGatingSVG() {
         const width = plotInfo.xScale(ne.x) - plotInfo.xScale(sw.x);
         const height = plotInfo.yScale(sw.y) - plotInfo.yScale(ne.y);
 
-        const box = gatesInfo.gating_svg.append('rect')
+        // Create a group for the gate
+        const gateGroup = gatesInfo.gating_svg.append('g')
+          .attr('class', 'gate-group')
+          .attr('data-gate-name', gatesInfo.detected_gates_biaxial.names[i]);
+
+        // Append the rectangle to the group
+        const box = gateGroup.append('rect')
           .attr('x', x)
           .attr('y', y)
           .attr('width', width)
@@ -265,7 +283,7 @@ function redrawGatingSVG() {
           .call(d3.drag()
             .on('start', dragStart)
             .on('drag', dragging)
-            .on('end', dragEnd)      
+            .on('end', dragEnd)
           );
 
         box.data([
@@ -275,7 +293,7 @@ function redrawGatingSVG() {
 
         box.attr('data-gate-name', gatesInfo.detected_gates_biaxial.names[i]);
 
-        const handles = gatesInfo.gating_svg.selectAll(`circle.handle-${i}`)
+        const handles = gateGroup.selectAll(`circle.handle-${i}`)
           .data([
             { x: x, y: y, cursor: 'nw-resize' },
             { x: x + width, y: y, cursor: 'ne-resize' },
@@ -595,33 +613,35 @@ function redrawGatingSVG() {
 
 
 
+
+
 // # JS code to handle plot clicks
 
-  Shiny.addCustomMessageHandler('scatter_click', function(click_coords) {
-    console.log('Received coordinates from server:', click_coords);
-    
-    plotInfo.cx = ((click_coords[0] - plotInfo.x_axis_min) / plotInfo.x_total * plotInfo.d3_x_res);
-    plotInfo.cy = plotInfo.d3_y_res - ((click_coords[1] - plotInfo.y_axis_min) / plotInfo.y_total * plotInfo.d3_y_res);
-    console.log('Calculated point coordinates x:', plotInfo.cx);
-    console.log('Calculated point coordinates y:', plotInfo.cy);  
+Shiny.addCustomMessageHandler('scatter_click', function(click_coords) {
+  console.log('Received coordinates from server:', click_coords);
+  
+  plotInfo.cx = ((click_coords[0] - plotInfo.x_axis_min) / plotInfo.x_total * plotInfo.d3_x_res);
+  plotInfo.cy = plotInfo.d3_y_res - ((click_coords[1] - plotInfo.y_axis_min) / plotInfo.y_total * plotInfo.d3_y_res);
+  console.log('Calculated point coordinates x:', plotInfo.cx);
+  console.log('Calculated point coordinates y:', plotInfo.cy);  
 
-    // Create SVG
-    // plotInfo.gate_svg = d3.select('#d3_output_gates')
-    //  .append('svg')
-    //  .attr('width', plotInfo.d3_x_res)
-    //  .attr('height', plotInfo.d3_y_res)
-    //  .style('position', 'absolute')
-    //  .style('z-index', '2000');
+  // Create SVG
+  // plotInfo.gate_svg = d3.select('#d3_output_gates')
+  //  .append('svg')
+  //  .attr('width', plotInfo.d3_x_res)
+  //  .attr('height', plotInfo.d3_y_res)
+  //  .style('position', 'absolute')
+  //  .style('z-index', '2000');
 
-  // Append a circle to the SVG
- // plotInfo.gate_svg.append('circle')
-  //  .attr('cx', plotInfo.cx)
-  //  .attr('cy', plotInfo.cy)
-  //  .attr('r', 5)
-  //  .attr('fill', 'red');
+// Append a circle to the SVG
+// plotInfo.gate_svg.append('circle')
+//  .attr('cx', plotInfo.cx)
+//  .attr('cy', plotInfo.cy)
+//  .attr('r', 5)
+//  .attr('fill', 'red');
 
-  //  console.log('Circle appended at:', plotInfo.cx, plotInfo.cy);
-  });
+//  console.log('Circle appended at:', plotInfo.cx, plotInfo.cy);
+});
 
 
 
@@ -634,28 +654,12 @@ Shiny.addCustomMessageHandler('detected_gates_biaxial', function(detected_gates_
 });
 
 
-
-
-
 // # JS code to handle plot hover
 
 
 // # JS code to handle plot double click to activate gate underneath
 
 
-// # JS code for rectangle gate
-
-
-// # JS code for polygon gate
-
-
-// # JS code for quadrant gate
-
-
-// # JS code for interval gate
-
-
-// # JS code for automatic addition of detected gates
 
 
 
@@ -668,6 +672,7 @@ function bindTreeEvents() {
     var selectedNode = data.node;
     console.log('Node selected:', selectedNode.id);
     Shiny.setInputValue('selected_tree_node', selectedNode.id);
+    updateGateHighlight(selectedNode.id);
   });
 
   $('#gating_tree').on('dblclick.jstree', function(e) {
@@ -697,10 +702,14 @@ Shiny.addCustomMessageHandler('initTree', function(message) {
           'themes': {
               'icons': false  // Disable default folder icons
           },
-          'multiple': false  // Adjust as needed
+          'multiple': false,  // Adjust as needed
+          'dblclick_toggle': false    // Prevent nodes from toggling open/close on double-click
       },
-      'plugins': ['state'],
-      'state': { 'opened': true }  // Open all nodes by default
+      'plugins': ['state', 'contextmenu'],
+      'state': { 'opened': true },  // Open all nodes by default
+      'contextmenu': {
+        'items': customMenu // Define custom menu function
+      }
   });
 
   // Open all nodes after the tree is ready
@@ -711,3 +720,83 @@ Shiny.addCustomMessageHandler('initTree', function(message) {
   // Bind events
   bindTreeEvents();
 });
+
+
+// context menu for the jsTree
+function customMenu(node) {
+  var items = {
+    activateItem: {
+      label: "Activate",
+      action: function () {
+        console.log("Activate clicked on node:", node.id);
+        Shiny.setInputValue('activated_gate', node.id);
+      }
+    },
+    renameItem: {
+      label: "Rename",
+      action: function () {
+        console.log("Rename clicked on node:", node.id);
+        Shiny.setInputValue('rename_gate', node.id);
+      }
+    },
+    deleteItem: {
+      label: "Delete",
+      submenu: {
+        deleteSingle: {
+          label: "Single",
+          action: function () {
+            console.log("Delete single clicked on node:", node.id);
+            Shiny.setInputValue('delete_gate', node.id);
+            Shiny.setInputValue('deletion_type', "single");
+          }
+        },
+        deleteBranch: {
+          label: "Branch",
+          action: function () {
+            console.log("Delete branch clicked on node:", node.id);
+            Shiny.setInputValue('delete_gate', node.id);
+            Shiny.setInputValue('deletion_type', "branch");
+          }
+        },
+        deleteChildren: {
+          label: "Children",
+          action: function () {
+            console.log("Delete children clicked on node:", node.id);
+            Shiny.setInputValue('delete_gate', node.id);
+            Shiny.setInputValue('deletion_type', "children");
+          }
+        }
+      }
+    },
+    copyItem: {
+      label: "Copy",
+      submenu: {
+        copySingle: {
+          label: "Single",
+          action: function () {
+            console.log("Copy single clicked on node:", node.id);
+            Shiny.setInputValue('copy_gate', node.id);
+            Shiny.setInputValue('copy_type', "single");
+          }
+        },
+        copyBranch: {
+          label: "Branch",
+          action: function () {
+            console.log("Copy branch clicked on node:", node.id);
+            Shiny.setInputValue('copy_gate', node.id);
+            Shiny.setInputValue('copy_type', "branch");
+          }
+        },
+        copyChildren: {
+          label: "Children",
+          action: function () {
+            console.log("Copy children clicked on node:", node.id);
+            Shiny.setInputValue('copy_gate', node.id);
+            Shiny.setInputValue('copy_type', "children");
+          }
+        }
+      }
+    }
+  };
+  return items;
+}
