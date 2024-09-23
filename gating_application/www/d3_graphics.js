@@ -43,6 +43,11 @@ var treeInfo = {
   selectedNode: null
 }
 
+// # defining chatbot information container
+var chatInfo = {
+  botui: null
+}
+
 // #  handle plot panel margins
 
 Shiny.addCustomMessageHandler('plot_margin', function(margins) {
@@ -127,7 +132,7 @@ function updateGateHighlight(selectedNode) {
       if (parentNode) {
         var gateName = d3.select(parentNode).attr('data-gate-name');
         console.log('gateName:', gateName, 'selectedNodeName:', selectedNodeName);
-        return gateName === selectedNodeName ? 'blue' : 'white';
+        return gateName === selectedNodeName ? '#47c9f5' : 'white';
       }
       return 'white'; // Default color if parent node doesn't exist
     });
@@ -800,3 +805,72 @@ function customMenu(node) {
   };
   return items;
 }
+
+
+
+if (document.readyState === 'complete' || document.readyState === 'interactive') {
+  $(document).ready(function() {
+    initBotUI();
+  });
+} else {
+  document.addEventListener('DOMContentLoaded', initBotUI);
+}
+
+
+function initBotUI() {
+  if (document.getElementById('botui-app') && typeof BotUI !== 'undefined') {
+
+    chatInfo.botui = new BotUI('botui-app');
+
+    var loadingMsgIndex; // Variable to store loading message index
+
+    // Start the conversation
+    chatInfo.botui.message.add({
+      content: 'Hello! How can I assist you today?'
+    }).then(function () {
+      startConversation();
+    });
+
+    // Function to start the conversation loop
+    function startConversation() {
+      chatInfo.botui.action.text({
+        action: {
+          placeholder: 'Type your message...'
+        }
+      }).then(function (res) {
+        // Add user's message to the chat
+        chatInfo.botui.message.add({
+          human: true,
+          content: res.value
+        }).then(function () {
+          // Show loading animation
+          return chatInfo.botui.message.add({
+            loading: true
+          });
+        }).then(function (index) {
+          // Save the index of the loading message
+          loadingMsgIndex = index;
+
+          // Send user's input to Shiny
+          Shiny.setInputValue('user_input', res.value);
+        });
+      });
+    }
+
+    // Handle responses from Shiny
+    Shiny.addCustomMessageHandler('chatbot_response', function (strings) {
+      // Update the loading message with the bot's response
+      chatInfo.botui.message.update(loadingMsgIndex, {
+        content: strings.response,
+        loading: false // Remove the loading animation
+      }).then(function () {
+        // Continue the conversation loop
+        startConversation();
+      });
+    });
+
+  } else {
+    console.error('BotUI element not found or BotUI is not defined.');
+  }
+}
+

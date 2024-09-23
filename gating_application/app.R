@@ -114,7 +114,7 @@ col_ramp <- colorRampPalette(col)
 
 
 ui <- fluidPage(
-  theme = bslib::bs_theme(version = 4, preset = "yeti"),
+  theme = bslib::bs_theme(version = 4, preset = "flatly"),
 
   useShinyjs(),
 
@@ -127,6 +127,13 @@ ui <- fluidPage(
     # Include jsTree JS
     tags$script(src = "https://cdnjs.cloudflare.com/ajax/libs/jstree/3.3.12/jstree.min.js"),
 
+    # Add Vue.js first, as BotUI depends on it
+    tags$script(src = "https://cdn.jsdelivr.net/npm/vue@2.6.14"),
+    # Include BotUI CSS and JS fron CDN
+    tags$link(rel = "stylesheet", href = "https://cdn.jsdelivr.net/npm/botui/build/botui.min.css"),
+    tags$link(rel = "stylesheet", href = "https://cdn.jsdelivr.net/npm/botui/build/botui-theme-default.css"),
+    tags$script(src = "https://cdn.jsdelivr.net/npm/botui/build/botui.min.js"),
+    tags$script(src = "https://cdn.jsdelivr.net/npm/botui/build/botui.js"),
     
     # Miscellaneous JS code for the app
     # Including it directly here instead of an external file (didnt work otherwise for some reason)
@@ -148,7 +155,6 @@ ui <- fluidPage(
       });
 
     ")),
-
     # adding D3 library
     tags$script(src = "https://d3js.org/d3.v7.min.js"),
 
@@ -206,6 +212,21 @@ ui <- fluidPage(
     ),
     column(width = 5,
       uiOutput("gatetreeUI"))
+  ),
+
+  fluidRow(
+      column(width = 7,
+      br()
+      ),
+      column(width = 5,
+      # Add a div where the chat UI will be rendered
+      div(
+        id = "botui-app",
+        class = "botui-app-container",
+        style = "height: 300px; overflow-y: auto; border: 1px solid #ccc; background-color: #f9f9f9; border-radius: 8px;",
+        HTML('<bot-ui></bot-ui>')
+      )
+      )
   )
 )
 
@@ -308,10 +329,12 @@ server <- function(input, output, session) {
     if (selected_sample_count() == 1) {
       div(id = "sample_switch", style = "display:inline-block; position: relative",
         actionButton(inputId = "previous_sample",
+                    class = "pretty_button",
                     width = "40px",
                     icon("chevron-left")),
         actionButton(inputId = "next_sample",
                     width = "40px",
+                    class = "pretty_button",
                     icon("chevron-right"))
       )
     } else {
@@ -1149,6 +1172,50 @@ server <- function(input, output, session) {
       updateSelectInput(session, "active_parent", selected = rv_gates$active_parent)
     }
   })
+
+
+  library(httr)
+  library(jsonlite)
+  # CHATBOT ################
+  observeEvent(input$user_input, {
+    user_input <- input$user_input
+    
+    # Make API request to OpenAI
+    response <- POST(
+      url = "https://api.openai.com/v1/chat/completions",
+      add_headers(Authorization = paste("Bearer", "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")),
+      body = list(
+        model = "gpt-3.5-turbo",
+        messages = list(
+          list(role = "system", content = 
+          "You are a helpful assistant that is here to help the user gate their cytometry data using the OMNICYTO gating application.
+          Provide them with a detailed explanation of how to use the application and answer any questions they might have regarding flow cytometry data analysis.
+          On the left hand side there is a field to select samples. They can be selected either one-by-one by clicking on the sample name from the dropdown menu or typing its name in the search bar.
+          User can switch between the samples by clicking on the chevron buttons. Chevron buttons are disabled when there is more more than one sample selected.
+          User can click on the Plot Settings button to expand the settings panel. Here the user can change the resolution of the plot, select the channels for the x and y axes, and set the axis limits.
+          There is also an option to clip the gates to the axis, not allowing the user to drag the gate beyond the plot borders.
+          The plot size can be changed. User can enter a new value in the Plot Resolution field and it will be updated automatically.
+          User can switch between the gating modes by clicking on one of the buttons above the plot. The available gating modes are Rectangle, Polygon, Quadrant, and Interval.
+          Channels can be switched by selecting a new channel from the dropdown menu. The selected channel will be highlighted in the dropdown menu.
+          Channels can be switched places by clicking on the Swap Axes button in the upper right corner of the plot. 
+          On the right side of the plot there is a gating hierarchy tree. User can expand and collapse the tree by clicking on the arrows next to the node names.
+          Clicking on a node will put it in focus. Double-clicking on a node will activate the corresponding gate. 
+          User can rename, copy and delete gates by right-clicking on the node and selecting the appropriate option from the context menu."
+          ),
+          list(role = "user", content = user_input)
+        )
+      ),
+      encode = "json"
+    )
+    
+    # Parse the response from the API
+    parsed_response <- fromJSON(content(response, "text", encoding = "UTF-8"))
+    chatgpt_response <- parsed_response$choices[2]$message$content
+    
+    # Send response back to the chat UI
+    session$sendCustomMessage(type = "chatbot_response", list(input = user_input, response = chatgpt_response))
+  })
+
 
 
 
