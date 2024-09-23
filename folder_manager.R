@@ -12,6 +12,8 @@ ifelse(!dir.exists(fcs_folder), dir.create(fcs_folder ), FALSE)
 raw_folder <- paste0(fcs_folder , "1_raw", "/")
 ifelse(!dir.exists(raw_folder), dir.create(raw_folder), FALSE)
 
+gating_app_folder <- paste0(path_to_cytomata, "gating_application/")
+
 debar_folder <- paste0(fcs_folder , "2_debarcoded", "/")
 ifelse(!dir.exists(debar_folder), dir.create(debar_folder), FALSE)
 

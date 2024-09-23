@@ -2,7 +2,6 @@ ctm <- new.env()
 # DATA LOADING MODULE ################
 
 #setting paths to data
-datapath <- raw_folder
 file_names <- dir(datapath, full.names = FALSE, pattern = ".fcs$")
 file_paths <- dir(datapath, full.names = TRUE, pattern = ".fcs$")
 
@@ -207,22 +206,6 @@ ui <- fluidPage(
     ),
     column(width = 5,
       uiOutput("gatetreeUI"))
-  ),
-
-  fluidRow(
-      column(width = 4,
-      h4("Brushed points"),
-      verbatimTextOutput("brush_info")
-    ),
-      column(width = 4,
-      h4("Rectangle coordinates"),
-      verbatimTextOutput("mat")
-    ),
-    column(width = 4,
-      h4("Activate parent gate"),
-      uiOutput("active_parent")
-
-    )
   )
 )
 
@@ -254,7 +237,9 @@ server <- function(input, output, session) {
     gates_found = FALSE,
     gates_data = NULL,
     new_gate_name = "",
-    modal_confirmed = FALSE)
+    modal_confirmed = FALSE,
+    selected_node = NULL,
+    clipboard = NULL)
   
   rv_gates$pop_paths <- gs_get_pop_paths(ctm$gs)
 
@@ -460,9 +445,6 @@ server <- function(input, output, session) {
         )
   })
 
-  output$active_parent <- renderUI({
-    selectInput("active_parent", NULL, choices = rv_gates$pop_paths, selected = rv_gates$pop_paths[1], multiple = FALSE, selectize = TRUE, width = "100%")
-  })
 
 
   observeEvent(input$active_parent, {
@@ -541,32 +523,6 @@ server <- function(input, output, session) {
 
 
   # EVERYTHING TO DO WITH GATING ################
-
-
-
-  # Plotting gate hierarchy old debugging version
-    # output$gating_tree <- renderPlot({
-      
-    #   labels <- rv_gates$pop_paths
-    #   if (length(labels) > 1) {
-    #     hPlot <- plot(ctm$gs)
-        
-
-    #     names(labels) <- nodes(hPlot)
-    #     nodeAttrs <- list(label=labels)
-    #     attrs <- list(node=list(fillcolor="white", shape="box", width=1,
-    #                             color="gray90", style="rounded"),
-    #                   graph=list(rankdir="TB"))
-    #     index <- which(gs_get_pop_paths(ctm$gs) == "root")
-
-
-    #     ctm$hPlot <- plot(hPlot, nodeAttrs=nodeAttrs, attrs=attrs)
-
-
-    #     ctm$hPlot
-    #   }
-      
-    # })
 
   output$gatetreeUI <- renderUI({
     tags$div(id = "gating_tree", style = "margin-top: 50px; height: 500px; overflow-y: auto;")
@@ -744,13 +700,9 @@ server <- function(input, output, session) {
                     input$scatter_brush$xmax,
                     input$scatter_brush$ymin,
                     input$scatter_brush$ymax)
-    ctm$mat <- matrix(brush_coords, ncol = 2,
-                    dimnames = list(c("min", "max"), c(input$x_channel_select, input$y_channel_select)))
-    output$mat <- renderPrint({
-                          ctm$mat
-                  })
+    rectangle_coords <- matrix(brush_coords, ncol = 2,
+                        dimnames = list(c("min", "max"), c(input$x_channel_select, input$y_channel_select)))
 
-    rectangle_coords <- ctm$mat
     ctm$gate <- rectangleGate(.gate = rectangle_coords)
 
   })
@@ -762,13 +714,6 @@ server <- function(input, output, session) {
     hover_coords <- c(input$scatter_hover$x, input$scatter_hover$y)
     print(paste("Hover registered at: x =", hover_coords[1], "y =", hover_coords[2]))
     session$sendCustomMessage("scatter_hover", hover_coords)
-  })
-
-  # Observe brushed events and print the brushed points
-  observeEvent(input$scatter_brush, {
-      output$brush_info <- renderPrint({
-          brushedPoints(ctm$exprs, input$scatter_brush)
-      })
   })
 
 
@@ -810,6 +755,7 @@ server <- function(input, output, session) {
         rv_gates$pop_paths <- gs_get_pop_paths(gs)
       }
     }
+    rv_gates$gate_counts <- gs_pop_get_count_fast(ctm$gs[seq_along(ctm$samples)], "count")
   } 
 
 
@@ -921,7 +867,6 @@ server <- function(input, output, session) {
     return(gates_info)
 
     rv_gates$gate_counts <- gs_pop_get_count_fast(ctm$gs[seq_along(ctm$samples)], "count")
-    rv_gates$gate_freqs <- gs_pop_get_count_fast(ctm$gs[seq_along(ctm$samples)], "freq")
   }
 
   # observe changes in the gating tree and update the gate information
@@ -1024,7 +969,6 @@ server <- function(input, output, session) {
     }
 
     rv_gates$gate_counts <- gs_pop_get_count_fast(ctm$gs[seq_along(ctm$samples)], "count")
-    rv_gates$gate_freqs <- gs_pop_get_count_fast(ctm$gs[seq_along(ctm$samples)], "freq")
     
   }
 
@@ -1053,38 +997,158 @@ server <- function(input, output, session) {
     update_gate(gs = ctm$gs, gate, gate_name, active_parent = "root")
     
     rv_gates$gates_data <- gate_collect_info(gs = ctm$gs, pop_paths = rv_gates$pop_paths)
-    ctm$gates_data <- rv_gates$gates_data
   })
 
   # GATE ACTIVATION ################
 
+  observeEvent(input$activated_gate, {
+    rv_gates$active_parent <- input$activated_gate
+  })
 
+
+
+
+
+  # GATE RENAMING ################
+
+
+  rename_gate <- function(gs = ctm$gs, gate_name, new_name) {
+    tryCatch({
+            gs_pop_set_name(gs, old_name, new_name)
+        },
+        error = function(e) {
+        })
+
+    rv_gates$pop_paths <- gs_get_pop_paths(ctm$gs)
+  }
+
+  observeEvent(input$rename_gate, {
+    showModal(modalDialog(
+      title = "Rename Gate",
+      textInput("new_gate_name", "New Gate Name:", value = rv_gates$selected_node),
+      footer = tagList(
+        modalButton("Cancel"),
+        actionButton("confirm_rename", "Rename")
+      )
+    ))
+  })
+
+  observeEvent(input$confirm_rename, {
+    old_name <- rv_gates$selected_node
+    new_name <- input$new_gate_name
+    rename_gate(gs = ctm$gs, old_name, new_name)
+    removeModal()
+  })
+
+
+  
 
 
   # GATE DELETION ################
 
+  delete_gate <- function(gs = ctm$gs, selected_node = selected_node, type = deletion_type) {
+    all_gates <- ctm$pop_paths
+    for (sample in ctm$sample_ids) {
+      children <- gh_pop_get_descendants(gs[[sample]], selected_node)
+      if (type == "single") {
+          gh_pop_remove(gs[[sample]], node = selected_node)
+      } else if (type == "branch") {
+          for (node in c(selected_node, children)) {
+            gh_pop_remove(gs[[sample]], node = node)
+          }
+      } else if (type == "children") {
+          for (node in children) {
+            gh_pop_remove(gs[[sample]], node = node)
+          }
+      }
+    }
+   
+    rv_gates$active_parent <- "root"
+    recompute(gs) 
+    rv_gates$pop_paths <- gs_get_pop_paths(ctm$gs)
+    rv_gates$gates_data <- gate_collect_info(gs = ctm$gs, pop_paths = rv_gates$pop_paths)
+  }
 
+
+
+
+  observeEvent(input$delete_gate, {
+    showModal(modalDialog(
+      title = "Delete Gate",
+      "Are you sure you want to delete this gate?",
+      footer = tagList(
+        modalButton("Cancel"),
+        actionButton("confirm_delete", "Delete")
+      )
+    ))
+  })
+
+  observeEvent(input$confirm_delete, {
+    gs_pop_remove(ctm$gs, rv_gates$selected_node)
+    delete_gate(gs = ctm$gs, selected_node = rv_gates$selected_node, type = input$deletion_type)
+    removeModal()
+  })
+
+
+  # GATE COPY AND PASTE ################
+
+  copy_gate <- function(gs = ctm$gs, selected_node = selected_node, target_node = target_parent, type = copy_type) {
+    all_gates <- ctm$pop_paths
+    children <- gh_pop_get_descendants(gs[[1]], selected_node)
+    children_types <- lapply(gates_info[[1]], function(x) x$type)
+
+    if (type == "single") {
+        gate <- gs_pop_get_gate(gs, selected_node)
+        add_gate(gs, gate = gate, gate_name = selected_node, active_parent = target_node)
+
+    } else if (type == "branch") {
+        for (node in c(selected_node, children)) {
+          gate <- gs_pop_get_gate(gs, node)
+          add_gate(gs, gate = gate, gate_name = node, active_parent = target_node)
+        }
+    } else if (type == "children") {
+        for (node in children) {
+          gate <- gs_pop_get_gate(gs, node)
+          add_gate(gs, gate = gate, gate_name = node, active_parent = target_node)
+        }
+    }
+    recompute(gs)
+    ctm$pop_paths <- gs_get_pop_paths(ctm$gs)
+    gates_info <- gate_collect_info(gs = ctm$gs, pop_paths = ctm$pop_paths)
+
+  }
+
+
+  observeEvent(input$target_parent, {
+    copy_gate(gs = ctm$gs, selected_node = rv_gates$selected_node, target_node = input$target_parent, type = input$copy_type)
+  })
+  
 
 
 
 
   # SAVING AND LOADING SESSIONS ################
 
-  # # CHANGE THIS TO ONLY SAVE THE GATE INFORMATION AND AXIS SETTINGS
-  # observeEvent(input$save_session, {
-  #   ctm$main_scatter < NULL
-  #   ctm$gs <- NULL
-  #   ctm$exprs <- NULL
-    
-  #   save(ctm, file = "ctm.RData")
-  # })
+  # CHANGE THIS TO ONLY SAVE THE GATE INFORMATION AND AXIS SETTINGS
+  observeEvent(input$save_session, {
+    session_data <- list(
+      gs = ctm$gs,
+      axis_lims = ctm$axis_lims,
+      active_parent = rv_gates$active_parent
+    )
+    saveRDS(session_data, file = paste0(datapath, "session.rds"))
+  })
 
-  # observeEvent(input$load_session, {
-  #   ctm <- load("ctm.RData")
-  #   ctm$gs <- GatingSet(cs)
-  #   #available samples
-  #   samples <- sampleNames(ctm$gs)
-  # })
+  observeEvent(input$load_session, {
+    if (file.exists(paste0(datapath, "session.rds"))) {
+      session_data <- readRDS(paste0(datapath, "session.rds"))
+      ctm$gs <- session_data$gs
+      ctm$axis_lims <- session_data$axis_lims
+      rv_gates$active_parent <- session_data$active_parent
+      rv_gates$pop_paths <- gs_get_pop_paths(ctm$gs)
+      updateSelectInput(session, "active_parent", selected = rv_gates$active_parent)
+    }
+  })
 
 
 
