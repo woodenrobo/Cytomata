@@ -43,9 +43,20 @@
 
 /* CSS for shiny buttons */
 .pretty_button {
-    background-color: #b9eeff !important;
+    background-color: #75a7b6 !important;
     border-radius: 8px !important; /* Add rounded corners */
 }
+
+#save_session {
+    background-color: #75a7b6 !important;
+    border-radius: 8px !important; /* Add rounded corners */
+} 
+
+#load_session {
+    background-color: #75a7b6 !important;
+    border-radius: 8px !important; /* Add rounded corners */
+} 
+
 
 /* CSS for shiny shiny-input-number */
 .pretty_input {
@@ -150,3 +161,15 @@ body, input, select, textarea {
 }
 
 
+/* Custom CSS for botUI */
+
+.botui-container {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+
+input.botui-actions-text-input {
+    width: 100%;
+}

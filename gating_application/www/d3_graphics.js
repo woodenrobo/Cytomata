@@ -45,7 +45,8 @@ var treeInfo = {
 
 // # defining chatbot information container
 var chatInfo = {
-  botui: null
+  botui: null,
+  response: null
 }
 
 // #  handle plot panel margins
@@ -858,7 +859,9 @@ function initBotUI() {
     }
 
     // Handle responses from Shiny
-    Shiny.addCustomMessageHandler('chatbot_response', function (strings) {
+    Shiny.addCustomMessageHandler('chatbot_response', function(strings) {
+      chatInfo.response = strings.response;
+      console.log(chatInfo.response);
       // Update the loading message with the bot's response
       chatInfo.botui.message.update(loadingMsgIndex, {
         content: strings.response,
