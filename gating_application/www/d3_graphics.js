@@ -140,6 +140,20 @@ function updateGateHighlight(selectedNode) {
 }
 
 
+// raise selected gate "g" object
+function raiseSelectedGate(selectedNode) {
+  var selectedNodeName = "/" + selectedNode
+  
+  // Select all gateGroup elements
+  d3.selectAll('.gate-group')
+  .filter(function() {
+    // Filter elements based on the data-gate-name attribute
+    return d3.select(this).attr('data-gate-name') === selectedNodeName;
+  })
+  .raise(); // Raise the filtered element to the front
+  console.log("gate-group should have been raised", selectedNodeName);
+}
+
 
 // Handler for plot updates
 Shiny.addCustomMessageHandler('plot_done', function(message) {
@@ -679,6 +693,7 @@ function bindTreeEvents() {
     console.log('Node selected:', selectedNode.id);
     Shiny.setInputValue('selected_tree_node', selectedNode.id);
     updateGateHighlight(selectedNode.id);
+    raiseSelectedGate(selectedNode.id);
   });
 
   $('#gating_tree').on('dblclick.jstree', function(e) {
