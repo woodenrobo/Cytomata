@@ -219,12 +219,30 @@ ui <- fluidPage(
       br()
       ),
       column(width = 5,
-      # Add a div where the chat UI will be rendered
       div(
-        id = "botui-app",
-        class = "botui-app-container",
-        style = "height: 300px; overflow-y: auto; border: 1px solid #ccc; background-color: #f9f9f9; border-radius: 8px;",
-        HTML('<bot-ui></bot-ui>')
+        style = 
+          "display: flex;
+          margin-left: 120.833px;
+          flex-direction: column;
+          justify-content: center;
+          align-items: center;
+          border-radius: 8px;
+          ",
+        div(
+          style = "display: flex; flex-direction: row; justify-content: center; align-items: center;",
+          tags$img(
+            src = "240924_cytobot_logo-07.png",
+            style = "width: 55px; height: 50px; margin: 5px;"
+          ),
+          h4("CytoBot")
+        ),
+        # Add a div where the chat UI will be rendered
+        div(
+          id = "botui-app",
+          class = "botui-app-container",
+          style = "height: 270px; overflow-y: auto; border: 1px solid #ccc; background-color: #f9f9f9; border-radius: 8px;",
+          HTML('<bot-ui></bot-ui>')
+        )
       )
       )
   )

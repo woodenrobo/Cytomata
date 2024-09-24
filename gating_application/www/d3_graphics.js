@@ -333,7 +333,32 @@ function redrawGatingSVG() {
           );
 
 
-          
+        // Add semi-transparent background for text
+        gateGroup.append('rect')
+          .attr('x', x + width / 2)
+          .attr('y', y + height / 2)
+          .attr('width', 80)  // Adjust as needed
+          .attr('height', 20) // Adjust as needed
+          .attr('fill', 'rgba(255, 255, 255, 0.7)')
+          .attr('transform', 'translate(-40, -10)')  // Center the background
+          .attr('pointer-events', 'none');
+
+        // Add text overlay
+        gateGroup.append('text')
+          .attr('x', x + width / 2)
+          .attr('y', y + height / 2)
+          .attr('text-anchor', 'middle')
+          .attr('dominant-baseline', 'central')
+          .attr('fill', 'black')
+          .attr('font-size', '12px')
+          .attr('pointer-events', 'none')
+          .text(gatesInfo.detected_gates_biaxial.names[i].split('/').pop());
+
+
+
+
+
+
 
           // rectangle gate dragging and transformation
 
