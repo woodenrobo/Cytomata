@@ -1219,7 +1219,7 @@ server <- function(input, output, session) {
           On the right side of the plot there is a gating hierarchy tree. User can expand and collapse the tree by clicking on the arrows next to the node names.
           Clicking on a node will put it in focus. Double-clicking on a node will activate the corresponding gate. 
           User can rename, copy and delete gates by right-clicking on the node and selecting the appropriate option from the context menu.
-          Please format the response with HTML tags for bold and line breaks."
+          Please format the response with HTML tags for title text <h6>, bold </b>, line breaks \n and lists <li>."
           ),
           list(role = "user", content = user_input)
         )
@@ -1230,11 +1230,10 @@ server <- function(input, output, session) {
     # Parse the response from the API
     parsed_response <- fromJSON(content(response, "text", encoding = "UTF-8"))
     chatgpt_response <- parsed_response$choices[2]$message$content
-    # resp <- gsub("\\*\\*", "<b>", chatgpt_response[1])
-    # resp <- gsub("\\\n\\\n[0-9]", "<br>", resp)
-    
-    # Send response back to the chat UI
-    session$sendCustomMessage(type = "chatbot_response", list(input = user_input, response = chatgpt_response))
+
+
+    # Send back to the chat UI
+    session$sendCustomMessage(type = "chatbot_response", list(response = chatgpt_response))
   })
 
 

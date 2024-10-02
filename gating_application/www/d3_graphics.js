@@ -879,33 +879,30 @@ function initBotUI() {
           placeholder: 'Type your message...'
         }
       }).then(function (res) {
-        // Add user's message to the chat
-        chatInfo.botui.message.add({
-          human: true,
-          content: res.value
+          // Send user's input to Shiny
+          Shiny.setInputValue('user_input', res.value);
         }).then(function () {
           // Show loading animation
           return chatInfo.botui.message.add({
-            loading: true
+            loading: true,
+            type: 'html'
           });
         }).then(function (index) {
           // Save the index of the loading message
           loadingMsgIndex = index;
-
-          // Send user's input to Shiny
-          Shiny.setInputValue('user_input', res.value);
         });
-      });
     }
 
     // Handle responses from Shiny
     Shiny.addCustomMessageHandler('chatbot_response', function(strings) {
       chatInfo.response = strings.response;
+
       console.log(chatInfo.response);
-      // Update the loading message with the bot's response
+      
+      // Remove loading message
       chatInfo.botui.message.update(loadingMsgIndex, {
-        content: strings.response,
-        loading: false // Remove the loading animation
+        loading: false, // Remove the loading animation
+        content: chatInfo.response
       }).then(function () {
         // Continue the conversation loop
         startConversation();
