@@ -876,7 +876,8 @@ function initBotUI() {
     function startConversation() {
       chatInfo.botui.action.text({
         action: {
-          placeholder: 'Type your message...'
+          placeholder: 'Type your message...',
+          cssClass: 'bot-message'
         }
       }).then(function (res) {
           // Send user's input to Shiny
@@ -885,7 +886,8 @@ function initBotUI() {
           // Show loading animation
           return chatInfo.botui.message.add({
             loading: true,
-            type: 'html'
+            type: 'html',
+            cssClass: 'human-message'
           });
         }).then(function (index) {
           // Save the index of the loading message
@@ -902,7 +904,8 @@ function initBotUI() {
       // Remove loading message
       chatInfo.botui.message.update(loadingMsgIndex, {
         loading: false, // Remove the loading animation
-        content: chatInfo.response
+        content: chatInfo.response,
+        cssClass: 'bot-message'
       }).then(function () {
         // Continue the conversation loop
         startConversation();

@@ -146,18 +146,23 @@ body, input, select, textarea {
 
 
 /* Custom CSS for jsTree plus/minus icons */
-.jstree-default .jstree-icon:empty {
+/* .jstree-default .jstree-icon:empty {
     width: 16px;
     height: 16px;
     background-size: 16px;
-}
+} */
 
-.jstree-default .jstree-open > .jstree-icon:empty {
+/* .jstree-default .jstree-open > .jstree-icon:empty {
     background: url('data:image/svg+xml;utf8,<svg fill="currentColor" height="16" width="16" viewBox="0 0 16 16"><path d="M1 8h14v1H1V8z"/></svg>') no-repeat center center;
 }
 
 .jstree-default .jstree-closed > .jstree-icon:empty {
     background: url('data:image/svg+xml;utf8,<svg fill="currentColor" height="16" width="16" viewBox="0 0 16 16"><path d="M8 1v14h1V1H8zm7 7H1v1h14V8z"/></svg>') no-repeat center center;
+} */
+
+
+.jstree-default .jstree-anchor {
+    border-radius: 4px;
 }
 
 
@@ -172,4 +177,97 @@ body, input, select, textarea {
 
 input.botui-actions-text-input {
     width: 100%;
+}
+
+/* ////////////////////////////////// */
+.vakata-context li>a .vakata-contextmenu-sep{
+    border: none !important;
+    background: transparent !important;
+}
+
+.vakata-context li>a>i:empty {
+    display: none !important;
+    width: 2.4em;
+    line-height: 2.4em;
+}
+
+.vakata-context {
+    list-style: none;
+    left: 100%;
+    margin-top: -2.7em;
+    border-radius: 20px !important;
+    background-color: #fff !important;
+    margin-left: 6px !important;
+}
+
+.vakata-context-hover>a {
+    position: relative;
+    border-radius: 20px !important;
+    background-color: #e8eff7;
+    box-shadow: 0 0 2px #0a6aa1;
+}
+
+.vakata-context ul {
+    list-style: none;
+    left: 100%;
+    margin-top: -2.7em;
+    border-radius: 20px !important;
+    background-color: #fff !important;
+    margin-left: 6px !important;
+}
+
+.activate-button>a:hover {
+    position: relative;
+    border-radius: 20px !important;
+    background-color: #e8eff7;
+    box-shadow: 0 0 2px #0a6aa1;
+}
+
+.vakata-context li>a:hover {
+    position: relative;
+    border-radius: 20px !important;
+    background-color: #e8eff7;
+    box-shadow: 0 0 2px #0a6aa1;
+}
+
+.vakata-context li>a:focus {
+    outline: 0;
+    border-radius: 20px !important;
+}
+
+/* .vakata-context li>a {
+    display: block;
+    padding: 0 2em 0 2em;
+    text-decoration: none;
+    width: auto;
+    color: black;
+    white-space: nowrap;
+    line-height: 2.4em;
+    text-shadow: 1px 1px 0 white;
+    border-radius: 1px;
+    border-bottom: 1px solid !important;
+} */
+
+/* /////////////////////////////// */
+
+.panel-body{
+    gap: 10px;
+    display: flex;
+    flex-direction: column;
+}
+
+#sample_switch{
+    display: flex;
+    justify-content: flex-start;
+    gap: 10px;
+}
+
+.botui-message-content {
+    background-color: #5b8896 !important;
+    color: white !important;
+}
+
+.botui-message-content.human {
+    background-color: #41889e !important;
+    color: white !important;
 }

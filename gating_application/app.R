@@ -120,8 +120,6 @@ ui <- fluidPage(
 
   tags$head(
 
-    tags$link(rel = "stylesheet", type = "text/css", href = "styles.css"),
-    
     # Include jsTree CSS
     tags$link(rel = "stylesheet", href = "https://cdnjs.cloudflare.com/ajax/libs/jstree/3.3.12/themes/default/style.min.css"),
     # Include jsTree JS
@@ -134,6 +132,8 @@ ui <- fluidPage(
     tags$link(rel = "stylesheet", href = "https://cdn.jsdelivr.net/npm/botui/build/botui-theme-default.css"),
     tags$script(src = "https://cdn.jsdelivr.net/npm/botui/build/botui.min.js"),
     tags$script(src = "https://cdn.jsdelivr.net/npm/botui/build/botui.js"),
+
+    tags$link(rel = "stylesheet", type = "text/css", href = "styles.css"),
     
     # Miscellaneous JS code for the app
     # Including it directly here instead of an external file (didnt work otherwise for some reason)
@@ -155,6 +155,77 @@ ui <- fluidPage(
       });
 
     ")),
+
+    # Styles for the jsTree context menu and botUI
+    # there were not being applied from the styles.css file for some reason
+    tags$script(HTML("
+      /* ////////////////////////////////// */
+      .vakata-context li>a .vakata-contextmenu-sep{
+          border: none !important;
+          background: transparent !important;
+      }
+      .vakata-context li>a>i:empty {
+          display: none !important;
+          width: 2.4em;
+          line-height: 2.4em;
+      }
+      .vakata-context .vakata-context ul {
+          list-style: none;
+          left: 100%;
+          margin-top: -2.7em;
+          border-radius: 20px !important;
+          background-color: #fff !important;
+          margin-left: 6px !important;
+      }
+      .activate-button>a:hover {
+          position: relative;
+          border-radius: 20px !important;
+          background-color: #e8eff7;
+          box-shadow: 0 0 2px #0a6aa1;
+      }
+      .vakata-context li>a:hover {
+          position: relative;
+          border-radius: 20px !important;
+          background-color: #e8eff7;
+          box-shadow: 0 0 2px #0a6aa1;
+      }
+      .vakata-context li>a:focus {
+          outline: 0;
+          border-radius: 20px !important;
+      }
+      .vakata-context li>a {
+          display: block;
+          padding: 0 2em 0 2em;
+          text-decoration: none;
+          width: auto;
+          color: black;
+          white-space: nowrap;
+          line-height: 2.4em;
+          text-shadow: 1px 1px 0 white;
+          border-radius: 1px;
+          border-bottom: 1px solid !important;
+      }
+      /* /////////////////////////////// */
+      .panel-body{
+          gap: 10px;
+          display: flex;
+          flex-direction: column;
+      }
+      #sample_switch{
+          display: flex;
+          justify-content: flex-start;
+          gap: 10px;
+      }
+      .bot-message .botui-message-content .text {
+          background-color: #75a7b6 !important;
+          color: white !important;
+      }
+      .human-message .botui-message-content .text {
+          background-color: #87c0d2 !important;
+          color: white !important;
+      }"
+    )),
+
     # adding D3 library
     tags$script(src = "https://d3js.org/d3.v7.min.js"),
 
