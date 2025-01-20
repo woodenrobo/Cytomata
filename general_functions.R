@@ -301,6 +301,30 @@ inject_fcs <- function(input, filter_features, asinh_transform, cofac, sampling_
 }
 
 
+desc_extraction <- function(input) {
+    library(flowCore)
+    library(progress)
+    library(dplyr)
+
+    fcs <- read.FCS(filename = input, transformation = FALSE, truncate_max_range = FALSE)
+    fcs_channel_desc <- as.vector(fcs@parameters@data$desc)
+    fcs_channel_name <- as.vector(fcs@parameters@data$name)
+    
+    return(fcs_channel_desc)
+}
+
+
+name_extraction <- function(input) {
+    library(flowCore)
+    library(progress)
+    library(dplyr)
+
+    fcs <- read.FCS(filename = input, transformation = FALSE, truncate_max_range = FALSE)
+    fcs_channel_name <- as.vector(fcs@parameters@data$name)
+    
+    return(fcs_channel_name)
+}
+
 check_feature_input_changes <- function() {
     feature_input_changed <- 0
     if (sum(grepl(paste0(data_sub, "_first_run_features.csv"), dir(meta_folder)) == TRUE) > 0) {

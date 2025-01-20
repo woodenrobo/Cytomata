@@ -38,11 +38,11 @@ source("./analysis/analysis_plots.R")
 
 
 data_sub_counter <- 0
-data_sub <- data_subsets[1] #FOR TESTING, REMOVE LATER
+# data_sub <- data_subsets[1] #FOR TESTING, REMOVE LATER
 for (data_sub in data_subsets) {
     cat(paste0("\n DATA SUBSET SELECTED IS: ", data_sub, "\n"))
     setwd(subset_folder)
-    if (grepl(data_sub, dir())) {
+    if (sum(grepl(data_sub, dir()))>0) {
         data_sub_counter <- data_sub_counter + 1
 
         output_data_sub <- paste0(output_analysis, data_sub, "/")

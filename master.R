@@ -62,9 +62,10 @@ feature_markers_gating <- panel$antigen[panel$gating_feature == 1]
 #upload your raw data, remove calibration beads, gate on DNA channels and assign barcode identities
 #also a good place to MAKE SURE ALL CHANNELS HAVE THE SAME NAME BETWEEN BATCHES
 #export and put the files into Cytomata_data/<project_name>/fcs/2_debarcoded/. folder
-datapath <- raw_folder
-setwd(gating_app_folder)
-runApp()
+# COMMENTED OUT DUE TO BEING WORK IN PROGRESS
+# datapath <- raw_folder
+# setwd(gating_app_folder)
+# runApp()
 
 #Lev's unbiased batch adjustment (LUBA)  ################
 #automatically chooses the best anchor out of available, supports multi-step(anchor) adjustment
@@ -93,9 +94,9 @@ if (do_database_injection == 1) {
 #sadly, this part is best done in a cloud-based solution like OMIQ or Cytobank due to the massive data and the fact that gating is still best done manually
 #upload your normalized data and use a gating strategy based on your panel design to separate the cells into populations of interest
 #export resulting files and put them into Cytomata_data/<project_name>/fcs/4_subsets/. folder
-datapath <- norm_folder
-setwd(gating_app_folder)
-runApp()
+# datapath <- norm_folder
+# setwd(gating_app_folder)
+# runApp()
 
 #FINAL PROCESSING AND EXPLORATION  ################
 #data structure exploration
