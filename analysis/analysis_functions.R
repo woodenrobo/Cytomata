@@ -404,7 +404,7 @@ merge_and_annotate <- function() {
         xlsx::write.xlsx(cluster_annot, file = paste0(output_data_sub, "cluster_merging_and_annotation.xlsx"))
     }
 
-
+    dropped_events <<- c()
     exprs_set <- skip_or_merge_and_annotate()
     
     return(exprs_set)
@@ -581,7 +581,11 @@ remove_dropped_events <- function() {
         cat(paste0(sum(exprs_set$sample_state == "dropped"), " events from deleted samples removed\n"))
     }
 
-    return(temp)
+    if (length(dropped_events) > 0 || dropped_samples_mode > 0) {
+        return(temp)
+    } else {
+        return(exprs_set)
+    }
 }
 
 
@@ -590,12 +594,16 @@ do_umap_plots <- function(module) {
         umap_plot(grouping_var = "batch", module = module, labels = TRUE)
         umap_plot(grouping_var = "id", module = module, labels = FALSE)
         umap_plot(grouping_var = "meta_cluster_id", module = module, labels = TRUE)
-        umap_plot(grouping_var = "meta_cluster_annotation", module = module, labels = TRUE)
+        if (sum(grepl("meta_cluster_annotation", colnames(exprs_set))) > 0) {
+            umap_plot(grouping_var = "meta_cluster_annotation", module = module, labels = TRUE)
+        }
 
         umap_facet(grouping_var = "batch", module = module, column_number = 4, equal_sampling = FALSE)
         umap_facet(grouping_var = "meta_cluster_id", module = module, column_number = 4, equal_sampling = FALSE)
-        umap_facet(grouping_var = "meta_cluster_annotation", module = module, column_number = 4, equal_sampling = FALSE)
-
+        if (sum(grepl("meta_cluster_annotation", colnames(exprs_set))) > 0) {
+            umap_facet(grouping_var = "meta_cluster_annotation", module = module, column_number = 4, equal_sampling = FALSE)
+        }
+        
         umap_expressions(grouping_var = NULL, module = module, column_number = 4)
         umap_expressions(grouping_var = "batch", module = module, column_number = 4)
 

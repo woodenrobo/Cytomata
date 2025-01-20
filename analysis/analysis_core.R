@@ -22,11 +22,10 @@ testing_results <- do_testing(data = data, grouping_var = group, features = feat
                                 cluster_var = cluster_var, selected_clusters = selected_clusters, column_number = column_number,
                                 parametric_testing = parametric_testing, paired = paired, manual_comparisons = manual_comparisons, prefix = prefix)
 
-cluster_abundance_heatmaps(data = data, grouping_var = group, features = features, group_by_clusters = group_by_clusters,
-                                cluster_var = cluster_var, selected_clusters = selected_clusters, column_number = column_number, prefix = prefix)
+cluster_abundance_heatmaps(data = data, grouping_var = group, features = features, cluster_var = cluster_var, selected_clusters = selected_clusters, prefix = prefix)
 
-cluster_testing_heatmaps(data = data, testing_results = testing_results, grouping_var = group, features = features, group_by_clusters = group_by_clusters,
-                                cluster_var = cluster_var, selected_clusters = selected_clusters, prefix = prefix)
+cluster_testing_heatmaps(data = data, testing_results = testing_results, grouping_var = group, features = features, 
+                            cluster_var = cluster_var, selected_clusters = selected_clusters, prefix = prefix)
 
 show_testing <- TRUE
 show_pvalues <- FALSE

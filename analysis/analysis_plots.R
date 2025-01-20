@@ -81,6 +81,7 @@ batch_size_bars <- function() {
 make_palette <- function(variable_name) {
   set.seed(1234)
   palette <- Polychrome::createPalette(length(unique(exprs_set[, variable_name])), c("#010101", "#ff0000"), M = 10000)
+  palette <- palette[1:length(unique(exprs_set[, variable_name]))]
   names(palette) <- gtools::mixedsort(unique(exprs_set[, variable_name]))
   return(palette)
 }
@@ -90,6 +91,7 @@ make_palette_groups <- function(variable_name, add_luminance = -1.2) {
 
   set.seed(1234)
   palette <- Polychrome::createPalette(length(levels(exprs_set[, variable_name])), c("#b55555", "#4080ab", "#9b4f89"), M = 10000)
+  palette <- palette[1:length(levels(exprs_set[, variable_name]))]
 
   if (-2 < add_luminance && add_luminance < 2) {
     # Get a matrix of values in the RGB color space
