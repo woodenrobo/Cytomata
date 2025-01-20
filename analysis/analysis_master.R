@@ -89,7 +89,12 @@ for (data_sub in data_subsets) {
         fcs_only_input <- stripped_input[grepl(".fcs", stripped_input)]
         final_input <- input[fcs_only_input %in% meta_input]
 
-        sampling_rate <- sampling_factors[data_sub_counter]
+        if (length(sampling_factors) > 1) {
+            sampling_rate <- sampling_factors[data_sub_counter]
+        } else {
+            sampling_rate <- sampling_factors
+        }
+        
 
         sampling_rate_changed <- check_sampling_rate_changes()
 

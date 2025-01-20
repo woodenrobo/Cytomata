@@ -603,7 +603,7 @@ do_umap_plots <- function(module) {
         if (sum(grepl("meta_cluster_annotation", colnames(exprs_set))) > 0) {
             umap_facet(grouping_var = "meta_cluster_annotation", module = module, column_number = 4, equal_sampling = FALSE)
         }
-        
+
         umap_expressions(grouping_var = NULL, module = module, column_number = 4)
         umap_expressions(grouping_var = "batch", module = module, column_number = 4)
 
@@ -680,14 +680,20 @@ summary_table <- function(data = exprs_set, grouping_var, selected_features = NU
 
 
 calculate_cluster_proportions <- function(cluster_var = "meta_cluster_id", selected_clusters = NULL) {
+    all_clusters <- unique(exprs_set[[cluster_var]])
     if (is.null(selected_clusters)) {
             cluster_proportions <- summary_table(exprs_set, c(group, "id", cluster_var), selected_features = NULL, "count") %>%
+                                    tidyr::complete(id, !!sym(cluster_var) := all_clusters, fill = list(count = 0)) %>%
+                                    tidyr::fill(!!sym(group), .direction = "downup") %>%
                                     group_by(id) %>%
                                     mutate(prop = count / sum(count) * 100) %>%
                                     ungroup()
     } else {
+            all_clusters <- intersect(all_clusters, selected_clusters)
             cluster_proportions <- summary_table(exprs_set, c(group, "id", cluster_var), selected_features = NULL, "count") %>%
                                     dplyr::filter(!!sym(cluster_var) %in% selected_clusters) %>%
+                                    tidyr::complete(id, !!sym(cluster_var) := all_clusters, fill = list(count = 0)) %>%
+                                    tidyr::fill(!!sym(group), .direction = "downup") %>%
                                     group_by(id) %>%
                                     mutate(prop = count / sum(count) * 100) %>%
                                     ungroup()
