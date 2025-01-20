@@ -26,11 +26,11 @@ using_bioconductor(bioc_packages)
 #                      "KChen-lab/CytoSpill", "vqv/ggbiplot", "VPetukhov/ggrastr",
 #                      "rstudio/leaflet", "trafficonese/leaflet.extras")
 
-github_packages <- c("nolanlab/cytofCore", "JinmiaoChenLab/cytofkit", "cytolab/mem",
-                     "KChen-lab/CytoSpill", "vqv/ggbiplot", "VPetukhov/ggrastr")
+# github_packages <- c("nolanlab/cytofCore", "JinmiaoChenLab/cytofkit", "cytolab/mem",
+#                      "KChen-lab/CytoSpill", "vqv/ggbiplot", "VPetukhov/ggrastr")
 
 
-using_github(github_packages)
+# using_github(github_packages)
 
 
 

@@ -112,7 +112,7 @@ if (do_analysis == 1) {
 #POST-PROCESSING ADD-ONS  ################
 #population of interest-specific analyses like e.g. activated T cell flagging
 
-#Need post-factum sample addition feature for: 
+#Need post-factum sample addition feature for:
 #normalization (could be okay, choosing a new main anchor can be argumented for)
 #KNN clustering
 #for this, a nice metric is available:

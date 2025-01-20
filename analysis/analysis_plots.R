@@ -228,7 +228,7 @@ cluster_expr_heatmap <- function(expression_setting, scale, after_dropping = FAL
   #cluster rows in the Heatmap if "order" is not set
     if (exists("subset_feature_selection")) {
       row_clust_setting <- FALSE
-      cluster_matrix <- cluster_matrix[, clustering_feature_markers]
+      cluster_matrix <- cluster_matrix[, colnames(cluster_matrix) %in% clustering_feature_markers]
       col_clust_setting <-  TRUE
     } else {
       row_clust_setting <- TRUE
