@@ -390,7 +390,7 @@ continue_or_recluster <- function() {
 
 
 merge_and_annotate <- function() {
-    if (first_run_mode > 0 && sum(dir(output_data_sub)[grepl("cluster_merging_and_annotation.xlsx", dir(output_data_sub))] == 0)) {
+    if (first_run_mode > 0 && sum(grepl("cluster_merging_and_annotation", dir(output_data_sub)) == 0)) {
         cat("Creating cluster merging and annotation file\n")
         cluster_annot <- as.data.frame(seq_along(unique(exprs_set$meta_cluster_id)))
         colnames(cluster_annot) <- "original_clusters"
@@ -684,19 +684,27 @@ calculate_cluster_proportions <- function(cluster_var = "meta_cluster_id", selec
     if (is.null(selected_clusters)) {
             cluster_proportions <- summary_table(exprs_set, c(group, "id", cluster_var), selected_features = NULL, "count") %>%
                                     tidyr::complete(id, !!sym(cluster_var) := all_clusters, fill = list(count = 0)) %>%
-                                    tidyr::fill(!!sym(group), .direction = "downup") %>%
                                     group_by(id) %>%
                                     mutate(prop = count / sum(count) * 100) %>%
                                     ungroup()
+            for (id in unique(cluster_proportions$id)) {
+                temp <- cluster_proportions[cluster_proportions$id == id, ]
+                true_name <- names(sort(table(temp[group]), decreasing = TRUE)[1])
+                cluster_proportions[cluster_proportions$id == id, group] <- true_name
+            }
     } else {
             all_clusters <- intersect(all_clusters, selected_clusters)
             cluster_proportions <- summary_table(exprs_set, c(group, "id", cluster_var), selected_features = NULL, "count") %>%
                                     dplyr::filter(!!sym(cluster_var) %in% selected_clusters) %>%
                                     tidyr::complete(id, !!sym(cluster_var) := all_clusters, fill = list(count = 0)) %>%
-                                    tidyr::fill(!!sym(group), .direction = "downup") %>%
                                     group_by(id) %>%
                                     mutate(prop = count / sum(count) * 100) %>%
                                     ungroup()
+            for (id in unique(cluster_proportions$id)) {
+                temp <- cluster_proportions[cluster_proportions$id == id, ]
+                true_name <- names(sort(table(temp[group]), decreasing = TRUE)[1])
+                cluster_proportions[cluster_proportions$id == id, group] <- true_name
+            }
     }
 
     return(cluster_proportions)
@@ -791,9 +799,10 @@ do_testing <- function(data, grouping_var, module, features, group_by_clusters, 
       for (f in seq_along(features)) {
         feature <- features[f]
         omnibus_result <- temp %>% rstatix::anova_test(as.formula(paste(feature, "~", grouping_var)))
-        
         if (group_by_clusters == TRUE) {
-          signif_clusters <- unlist(omnibus_result[omnibus_result$p < 0.05, cluster_var])
+            signif_clusters <- unlist(omnibus_result[omnibus_result$p < 0.05, cluster_var])
+        }
+        if (group_by_clusters == TRUE && length(signif_clusters) > 0) {
           test_result <- temp %>% dplyr::filter(!!sym(cluster_var) %in% signif_clusters) %>% rstatix::t_test(as.formula(paste(feature, "~", grouping_var)), paired = paired, p.adjust.method = "none")
         } else {
           test_result <- temp %>% rstatix::t_test(as.formula(paste(feature, "~", grouping_var)), paired = paired, p.adjust.method = "none")
@@ -818,9 +827,10 @@ do_testing <- function(data, grouping_var, module, features, group_by_clusters, 
       for (f in seq_along(features)) {
         feature <- features[f]
         omnibus_result <- temp %>% rstatix::kruskal_test(as.formula(paste(feature, "~", grouping_var)))
-        
         if (group_by_clusters == TRUE) {
-          signif_clusters <- unlist(omnibus_result[omnibus_result$p < 0.05, cluster_var])
+            signif_clusters <- unlist(omnibus_result[omnibus_result$p < 0.05, cluster_var])
+        }
+        if (group_by_clusters == TRUE && length(signif_clusters) > 0) {
           test_result <- temp %>% dplyr::filter(!!sym(cluster_var) %in% signif_clusters) %>% rstatix::pairwise_wilcox_test(as.formula(paste(feature, "~", grouping_var)), paired = paired, p.adjust.method = "none")
         } else {
           test_result <- temp %>% rstatix::pairwise_wilcox_test(as.formula(paste(feature, "~", grouping_var)), paired = paired, p.adjust.method = "none")

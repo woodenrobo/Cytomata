@@ -27,6 +27,14 @@ cluster_abundance_heatmaps(data = data, grouping_var = group, features = feature
 cluster_testing_heatmaps(data = data, testing_results = testing_results, grouping_var = group, features = features, 
                             cluster_var = cluster_var, selected_clusters = selected_clusters, prefix = prefix)
 
+prefix <- "meta_cluster_id_prop_all_clusters_DENDROGRAM_ORDER"
+cluster_abundance_heatmaps(data = data, grouping_var = group, features = features, cluster_var = cluster_var, selected_clusters = selected_clusters, cluster_ordering = TRUE, prefix = prefix)
+
+cluster_testing_heatmaps(data = data, testing_results = testing_results, grouping_var = group, features = features, 
+                            cluster_var = cluster_var, selected_clusters = selected_clusters, cluster_ordering = TRUE, prefix = prefix)
+
+
+
 show_testing <- TRUE
 show_pvalues <- FALSE
 show_outliers <- TRUE
@@ -60,7 +68,7 @@ do_boxplots(data = data, testing_results = testing_results, grouping_var = group
             prefix = prefix)
 
 
-if (sum(colnames(exprs_set) %in% c("meta_cluster_annotation")) > 0) {
+if (sum(colnames(exprs_set) %in% c("meta_cluster_annotation")) > 0 && sum(exprs_set$meta_cluster_annotation != "NA") > 0) {
     cluster_var <- "meta_cluster_annotation"
     selected_clusters <- NULL
     grouping_var <- group
@@ -83,6 +91,7 @@ if (sum(colnames(exprs_set) %in% c("meta_cluster_annotation")) > 0) {
 
     cluster_testing_heatmaps(data = data, testing_results = testing_results, grouping_var = group, features = features, group_by_clusters = group_by_clusters,
                                 cluster_var = cluster_var, selected_clusters = selected_clusters, prefix = prefix)
+
 
     show_testing <- TRUE
     show_pvalues <- FALSE
