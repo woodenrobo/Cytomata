@@ -721,7 +721,7 @@ do_boxplots <- function(data, testing_results = testing_results, grouping_var = 
     dir.create(singles_output)
 
     for (facet in unique(testing_results[["feature"]])) {
-      data_subset <- data[data$feature == i, ]
+      data_subset <- data[data$feature == facet, ]
 
       p_subset <- ggplot(data_subset, aes(x = !!sym(grouping_var), y = value, color = !!sym(grouping_var))) +
         geom_boxplot(size = 2, outlier.shape = NA) +

@@ -249,6 +249,7 @@ do_clustering <- function() {
 
             # get cluster codes
             k <- xdim * ydim
+            som_var_name <- paste0("som", k)
             mcs <- seq_len(clustering_k)[-1]
 
             # construct data.frame of clustering codes
@@ -261,7 +262,7 @@ do_clustering <- function() {
             cluster_ids$som_cluster_id <- factor(som$map$mapping[, 1])
             cluster_ids$meta_cluster_id <- NA
             for (som_clust in seq(k)){
-                cluster_ids$meta_cluster_id[cluster_ids$som_cluster_id == som_clust] <- codes[codes$som100 == som_clust, paste0("meta", optimal_k)]
+                cluster_ids$meta_cluster_id[cluster_ids$som_cluster_id == som_clust] <- codes[codes[, som_var_name] == som_clust, paste0("meta", optimal_k)]
             }
             cluster_ids$cell_id <- exprs_set$cell_id
             cluster_ids <- as.data.frame(cluster_ids)
@@ -299,7 +300,7 @@ do_clustering <- function() {
             cluster_ids$som_cluster_id <- factor(som$map$mapping[, 1])
             cluster_ids$meta_cluster_id <- NA
             for (som_clust in seq(k)){
-                cluster_ids$meta_cluster_id[cluster_ids$som_cluster_id == som_clust] <- codes[codes$som100 == som_clust, paste0("meta", optimal_k)]
+                cluster_ids$meta_cluster_id[cluster_ids$som_cluster_id == som_clust] <- codes[codes[, som_var_name] == som_clust, paste0("meta", optimal_k)]
             }
             cluster_ids$cell_id <- exprs_set$cell_id
             cluster_ids <- as.data.frame(cluster_ids)
