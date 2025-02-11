@@ -902,12 +902,12 @@ cluster_abundance_heatmaps <- function(data = data, grouping_var = group, featur
     select(-count) %>%
     tidyr::pivot_wider(names_from = !!sym(cluster_var), values_from = prop)
 
-  if (!is.null(cluster_ordering) && exists("dendrogram_order")) {
+  if (cluster_ordering == TRUE && exists("dendrogram_order")) {
     rest_of_columns <- abu_heat_mat[, !colnames(abu_heat_mat) %in% dendrogram_order]
     abu_heat_mat <- cbind(abu_heat_mat[, dendrogram_order], rest_of_columns)
   }
 
-  if (!is.null(cluster_ordering) && exists("dendrogram_order")) {
+  if (cluster_ordering == TRUE && exists("dendrogram_order")) {
     clust_cols <- FALSE
   } else {
     clust_cols <- TRUE
@@ -1091,7 +1091,7 @@ cluster_abundance_heatmaps <- function(data = data, grouping_var = group, featur
   abu_heat_mat <- abu_heat_mat %>% group_by(!!sym(group)) %>%
                     summarise(across(where(is.numeric), mean, na.rm = TRUE))
 
-  if (!is.null(cluster_ordering) && exists("dendrogram_order")) {
+  if (cluster_ordering == TRUE && exists("dendrogram_order")) {
     rest_of_columns <- abu_heat_mat[, !colnames(abu_heat_mat) %in% dendrogram_order]
     abu_heat_mat <- cbind(abu_heat_mat[, dendrogram_order], rest_of_columns)
   }
@@ -1186,7 +1186,7 @@ cluster_abundance_heatmaps <- function(data = data, grouping_var = group, featur
   abu_heat_mat <- abu_heat_mat %>% group_by(!!sym(group)) %>%
                     summarise(across(where(is.numeric), mean, na.rm = TRUE))
 
-  if (!is.null(cluster_ordering) && exists("dendrogram_order")) {
+  if (cluster_ordering == TRUE && exists("dendrogram_order")) {
     rest_of_columns <- abu_heat_mat[, !colnames(abu_heat_mat) %in% dendrogram_order]
     abu_heat_mat <- cbind(abu_heat_mat[, dendrogram_order], rest_of_columns)
   }
@@ -1302,7 +1302,7 @@ cluster_testing_heatmaps <- function(data = data, testing_results = testing_resu
     }
 
 
-    if (!is.null(cluster_ordering) && exists("dendrogram_order")) {
+    if (cluster_ordering == TRUE && exists("dendrogram_order")) {
       rest_of_columns <- test_mat_temp[, !colnames(test_mat_temp) %in% dendrogram_order]
       if (nrow(test_mat_temp) > 1) {
         test_mat_temp <- cbind(test_mat_temp[, dendrogram_order], rest_of_columns)

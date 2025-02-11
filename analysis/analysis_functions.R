@@ -390,7 +390,7 @@ continue_or_recluster <- function() {
 
 
 merge_and_annotate <- function() {
-    if (first_run_mode > 0 && sum(grepl("cluster_merging_and_annotation", dir(output_data_sub)) == 0)) {
+    if (!any(grepl("cluster_merging_and_annotation", dir(output_data_sub)))) {
         cat("Creating cluster merging and annotation file\n")
         cluster_annot <- as.data.frame(seq_along(unique(exprs_set$meta_cluster_id)))
         colnames(cluster_annot) <- "original_clusters"
@@ -422,6 +422,13 @@ skip_or_merge_and_annotate <- function() {
         answer <- "skip"
     }
 
+    if (first_run_mode < 1) {
+        cluster_annot <- readxl::read_excel(paste0(output_data_sub, "cluster_merging_and_annotation.xlsx"))[-1]
+        cat("Cluster annotations, merging and deletion parameters have been applied, if set.\n")
+        exprs_set <- apply_annotation(cluster_annot)
+        exprs_set <- merge_or_delete_clusters(exprs_set, cluster_annot)
+    }
+
     if (answer == "continue") {
         cluster_annot <- readxl::read_excel(paste0(output_data_sub, "cluster_merging_and_annotation.xlsx"))[-1]
         cat("Cluster annotations, merging and deletion parameters have been applied, if set.\n")
@@ -434,12 +441,7 @@ skip_or_merge_and_annotate <- function() {
         skip_or_merge_and_annotate()
     }
 
-    if (first_run_mode < 1) {
-        cluster_annot <- readxl::read_excel(paste0(output_data_sub, "cluster_merging_and_annotation.xlsx"))[-1]
-        cat("Cluster annotations, merging and deletion parameters have been applied, if set.\n")
-        exprs_set <- apply_annotation(cluster_annot)
-        exprs_set <- merge_or_delete_clusters(exprs_set, cluster_annot)
-    }
+
     answer <- NULL
 
     return(exprs_set)

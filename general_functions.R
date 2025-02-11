@@ -343,7 +343,7 @@ check_feature_input_changes <- function() {
                                 "Type \"backup\" to automatically set the old feature_markers\nand restore clustering and UMAPs\n",
                                 "Type \"restore\" to restore clustering and UMAPs but plot using new feature_markers\n"))
             } else {
-                answer <- "continue"
+                answer <- "restore"
             }
 
             if (answer == "continue") {

@@ -216,6 +216,6 @@ end_time <- Sys.time()
 
 timediff <- round(as.numeric(gsub('Time difference of ', '', difftime(end_time, start_time, units = "hours"))), 2)
 
-cat(paste0(date, '_', naming, ' analysis run ended successfully\n', 'Total time elapsed (in hours): ', timediff),'\n')
+cat(paste0(date, '_analysis run ended successfully\n', 'Total time elapsed (in hours): ', timediff),'\n')
 
 sink()
