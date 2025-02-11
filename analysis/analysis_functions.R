@@ -681,34 +681,47 @@ summary_table <- function(data = exprs_set, grouping_var, selected_features = NU
 }
 
 
-calculate_cluster_proportions <- function(cluster_var = "meta_cluster_id", selected_clusters = NULL) {
+calculate_cluster_proportions <- function(cluster_var = "meta_cluster_id", selected_clusters = NULL, prefix = NULL) {
     all_clusters <- unique(exprs_set[[cluster_var]])
+  
     if (is.null(selected_clusters)) {
-            cluster_proportions <- summary_table(exprs_set, c(group, "id", cluster_var), selected_features = NULL, "count") %>%
-                                    tidyr::complete(id, !!sym(cluster_var) := all_clusters, fill = list(count = 0)) %>%
-                                    group_by(id) %>%
-                                    mutate(prop = count / sum(count) * 100) %>%
-                                    ungroup()
-            for (id in unique(cluster_proportions$id)) {
-                temp <- cluster_proportions[cluster_proportions$id == id, ]
-                true_name <- names(sort(table(temp[group]), decreasing = TRUE)[1])
-                cluster_proportions[cluster_proportions$id == id, group] <- true_name
-            }
+        counts_table <- summary_table(exprs_set, c(group, "id", cluster_var), selected_features = NULL, "count") %>%
+                        tidyr::complete(id, !!sym(cluster_var) := all_clusters, fill = list(count = 0))
+                        # makes sure that if a given sample "id" does not have a row for a particular cluster, that row is added with a count of zero
+        cluster_proportions <- counts_table %>%
+                        group_by(id) %>%
+                        mutate(prop = count / sum(count) * 100) %>%
+                        ungroup()
+        for (id in unique(cluster_proportions$id)) {
+            temp <- cluster_proportions[cluster_proportions$id == id, ]
+            true_name <- names(sort(table(temp[group]), decreasing = TRUE)[1])
+            cluster_proportions[cluster_proportions$id == id, group] <- true_name
+        }
     } else {
-            all_clusters <- intersect(all_clusters, selected_clusters)
-            cluster_proportions <- summary_table(exprs_set, c(group, "id", cluster_var), selected_features = NULL, "count") %>%
-                                    dplyr::filter(!!sym(cluster_var) %in% selected_clusters) %>%
-                                    tidyr::complete(id, !!sym(cluster_var) := all_clusters, fill = list(count = 0)) %>%
-                                    group_by(id) %>%
-                                    mutate(prop = count / sum(count) * 100) %>%
-                                    ungroup()
-            for (id in unique(cluster_proportions$id)) {
-                temp <- cluster_proportions[cluster_proportions$id == id, ]
-                true_name <- names(sort(table(temp[group]), decreasing = TRUE)[1])
-                cluster_proportions[cluster_proportions$id == id, group] <- true_name
-            }
+        all_clusters <- intersect(all_clusters, selected_clusters)
+        counts_table <- summary_table(exprs_set, c(group, "id", cluster_var), selected_features = NULL, "count") %>%
+                        dplyr::filter(!!sym(cluster_var) %in% selected_clusters) %>%
+                        tidyr::complete(id, !!sym(cluster_var) := all_clusters, fill = list(count = 0))
+                        # makes sure that if a given sample "id" does not have a row for a particular cluster, that row is added with a count of zero
+        cluster_proportions <- counts_table %>%
+                        group_by(id) %>%
+                        mutate(prop = count / sum(count) * 100) %>%
+                        ungroup()
+        for (id in unique(cluster_proportions$id)) {
+            temp <- cluster_proportions[cluster_proportions$id == id, ]
+            true_name <- names(sort(table(temp[group]), decreasing = TRUE)[1])
+            cluster_proportions[cluster_proportions$id == id, group] <- true_name
+        }
     }
-
+    
+    # Write CSV files 
+    if (!is.null(prefix)) {
+        write.csv(counts_table, file = paste0(prefix, "_abs_counts.csv"), row.names = FALSE)
+        write.csv(cluster_proportions, file = paste0(prefix, "_cluster_props.csv"), row.names = FALSE)
+    } else {
+        stop("Please provide a prefix for the calculate_cluster_proportions output files.")
+    }
+    
     return(cluster_proportions)
 }
 

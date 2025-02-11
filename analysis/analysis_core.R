@@ -16,7 +16,7 @@ manual_comparisons <- NULL
 
 prefix <- "meta_cluster_id_prop_all_clusters"
 
-cluster_proportions <- calculate_cluster_proportions(cluster_var = cluster_var, selected_clusters = selected_clusters)
+cluster_proportions <- calculate_cluster_proportions(cluster_var = cluster_var, selected_clusters = selected_clusters, prefix = prefix)
 data <- cluster_proportions
 testing_results <- do_testing(data = data, grouping_var = group, features = features, group_by_clusters = group_by_clusters,
                                 cluster_var = cluster_var, selected_clusters = selected_clusters, column_number = column_number,
@@ -80,7 +80,7 @@ if (sum(colnames(exprs_set) %in% c("meta_cluster_annotation")) > 0 && sum(exprs_
     manual_comparisons <- NULL
     prefix <- "meta_cluster_annotation_prop_all_clusters"
 
-    cluster_proportions <- calculate_cluster_proportions(cluster_var = cluster_var, selected_clusters = selected_clusters)
+    cluster_proportions <- calculate_cluster_proportions(cluster_var = cluster_var, selected_clusters = selected_clusters, prefix = prefix)
     data <- cluster_proportions
     testing_results <- do_testing(data = data, grouping_var = group, features = features, group_by_clusters = group_by_clusters,
                                     cluster_var = cluster_var, selected_clusters = selected_clusters, column_number = column_number,
