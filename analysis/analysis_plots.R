@@ -435,7 +435,7 @@ umap_plot <- function(grouping_var, module, labels = TRUE) {
     # Calculate mean coordinates for each group
     mean_coords <- exprs_set %>%
       group_by(.data[[grouping_var]]) %>%
-      summarize(UMAP1 = mean(UMAP1), UMAP2 = mean(UMAP2))
+      dplyr::summarize(UMAP1 = mean(UMAP1), UMAP2 = mean(UMAP2))
     p <- p + 
           ggnewscale::new_scale_color() +
           geom_label_repel(data = mean_coords, 

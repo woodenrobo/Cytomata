@@ -4,8 +4,8 @@
 #From CRAN:
 cran_packages <- c("arrow", "scales", "ggplot2", "dplyr", "ggridges", "RColorBrewer", "MASS", "Rtsne", "kohonen",
                  "miscTools", "gplots", "Radviz", "igraph", "statmod", "devtools", "uwot", "cowplot", "limma",
-                 "ggrepel", "circlize", "readxl", "ggpubr", "ggsignif", "ggfortify", "Polychrome", "progress",
-                 "ggnewscale", "BiocManager", "rstatix", "raster", "graph",
+                 "ggrepel", "circlize", "readxl", "ggpubr", "ggsignif", "ggfortify", "ggrastr", "Polychrome", "progress",
+                 "ggnewscale", "BiocManager", "rstatix", "raster", "graph", "Hmisc",
                  "provenance", "sp", "ks",
                  "shiny", "shinythemes", "shinytest", "shinyFiles", "Cairo", "shinyjs", "base64enc", "bsplus",
                  "shinytest2", "testthat", "plotly",

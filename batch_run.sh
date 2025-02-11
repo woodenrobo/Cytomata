@@ -58,7 +58,7 @@ for project in "${PROJECTS[@]}"; do
 
     # Run master.R non-interactively using Rscript
     cd "$CYTOMATA_DIR"
-    Rscript master.R --vanilla
+    Rscript master.R
 
 
     echo "Finished processing project: $project"
