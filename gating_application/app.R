@@ -1272,7 +1272,7 @@ server <- function(input, output, session) {
     # Make API request to OpenAI
     response <- POST(
       url = "https://api.openai.com/v1/chat/completions",
-      add_headers(Authorization = paste("Bearer", "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")),
+      add_headers(Authorization = paste("Bearer", "api_key")),
       body = list(
         model = "gpt-3.5-turbo",
         messages = list(
