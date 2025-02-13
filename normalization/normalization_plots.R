@@ -476,28 +476,28 @@ diagnostics_mean_boxplots <- function() {
   col_number <- 5
   box_colors <- c("BEFORE" = "#705252", "AFTER" = "#592389")
   before_after_means$norm_state <- factor(before_after_means$norm_state, ordered=T, levels=c("BEFORE", "AFTER"))
-  print(
-  ggplot(before_after_means, aes(x = norm_state, y = means, color = norm_state)) +
-    geom_boxplot( size = 0.7, outlier.shape = NA) +
-    geom_jitter( size = 1.2, height = 0, width = 0.1)+
-    facet_wrap(~ channel, ncol = col_number, scales = "free") + 
-    scale_color_manual(values = box_colors) +
-    theme_cowplot() +
-    theme(text=element_text(size=10),
-                            legend.position="none",
-                            axis.text.x = element_text(color = "black", size = 10,
-                                                       angle = 45, hjust = 1, vjust = 1, face = "plain"),
-                            axis.text.y = element_text(color = "black", size = 10,
-                                                       angle = 0, hjust = .5, vjust = 0.5, face = "plain"),
-                            axis.title.x = element_text(margin=margin(t = 10, r = 0, b = 5, l = 0, unit = "pt")),
-                            axis.title.y = element_text(margin=margin(t = 0, r = 10, b = 0, l = 10, unit = "pt")),
-                            plot.margin = margin(t = 0, r = 10, b = 10, l = 0, unit = "pt")
-    ) +
-    labs(x = "Normalization state", y = "Mean signal intensity") +
-    scale_y_continuous(limits = c(0, NA))
-  )
+  temp <- print(
+      ggplot(before_after_means, aes(x = norm_state, y = means, color = norm_state)) +
+        geom_boxplot( size = 0.7, outlier.shape = NA) +
+        geom_jitter( size = 1.2, height = 0, width = 0.1)+
+        facet_wrap(~ channel, ncol = col_number, scales = "free") + 
+        scale_color_manual(values = box_colors) +
+        theme_cowplot() +
+        theme(text=element_text(size=10),
+                                legend.position="none",
+                                axis.text.x = element_text(color = "black", size = 10,
+                                                          angle = 45, hjust = 1, vjust = 1, face = "plain"),
+                                axis.text.y = element_text(color = "black", size = 10,
+                                                          angle = 0, hjust = .5, vjust = 0.5, face = "plain"),
+                                axis.title.x = element_text(margin=margin(t = 10, r = 0, b = 5, l = 0, unit = "pt")),
+                                axis.title.y = element_text(margin=margin(t = 0, r = 10, b = 0, l = 10, unit = "pt")),
+                                plot.margin = margin(t = 0, r = 10, b = 10, l = 0, unit = "pt")
+        ) +
+        labs(x = "Normalization state", y = "Mean signal intensity") +
+        scale_y_continuous(limits = c(0, NA))
+    )
   ggsave(paste0(date, "_", project_name, "_channel_means_before_after.pdf"), 
-         plot = last_plot(), device = "pdf", path = out_norm_aid_diag_folder, 
+         plot = temp, device = "pdf", path = out_norm_aid_diag_folder, 
          scale = 1, width = 1.2*col_number, height = 2*ceiling(length(unique(before_after_means$channel))/col_number))
 }
 
@@ -505,26 +505,26 @@ diagnostics_mean_barplots <- function() {
   col_number <- 5
   bar_fills <- c("BEFORE" = "#705252", "AFTER" = "#592389")
   before_after_means$norm_state <- factor(before_after_means$norm_state, ordered=T, levels=c("BEFORE", "AFTER"))
-  print(
-  ggplot(before_after_means, aes(x = sample, y = means, fill = norm_state)) +
-    geom_col(position = position_dodge()) +
-    facet_wrap(~ channel, ncol = col_number, scales = "free") + 
-    scale_fill_manual(values = bar_fills) +
-    theme_cowplot() +
-    theme(text=element_text(size=14),
-                            axis.text.x = element_text(color = "black", size = 8,
-                                                       angle = 45, hjust = 1, vjust = 1, face = "plain"),
-                            axis.text.y = element_text(color = "black", size = 10,
-                                                       angle = 0, hjust = .5, vjust = 0.5, face = "plain"),
-                            axis.title.x = element_blank(),
-                            axis.title.y = element_text(margin=margin(t = 0, r = 80, b = 0, l = 0, unit = "pt")),
-                            legend.margin = margin(t = 0, r = 10, b = 0, l = 10, unit = "pt"),
-                            plot.margin = margin(t = 0, r = 0, b = 10, l = 0, unit = "pt")
-    ) +
-    labs(y = "Mean signal intensity", fill = "Norm. state") +
-    scale_y_continuous(limits = c(0, NA))
-  )
+  temp <- print(
+      ggplot(before_after_means, aes(x = sample, y = means, fill = norm_state)) +
+        geom_col(position = position_dodge()) +
+        facet_wrap(~ channel, ncol = col_number, scales = "free") + 
+        scale_fill_manual(values = bar_fills) +
+        theme_cowplot() +
+        theme(text=element_text(size=14),
+                                axis.text.x = element_text(color = "black", size = 8,
+                                                          angle = 45, hjust = 1, vjust = 1, face = "plain"),
+                                axis.text.y = element_text(color = "black", size = 10,
+                                                          angle = 0, hjust = .5, vjust = 0.5, face = "plain"),
+                                axis.title.x = element_blank(),
+                                axis.title.y = element_text(margin=margin(t = 0, r = 80, b = 0, l = 0, unit = "pt")),
+                                legend.margin = margin(t = 0, r = 10, b = 0, l = 10, unit = "pt"),
+                                plot.margin = margin(t = 0, r = 0, b = 10, l = 0, unit = "pt")
+        ) +
+        labs(y = "Mean signal intensity", fill = "Norm. state") +
+        scale_y_continuous(limits = c(0, NA))
+    )
   ggsave(paste0(date, "_", project_name, "_channel_means_before_after_per_anchor.pdf"), 
-         plot = last_plot(), device = "pdf", path = out_norm_aid_diag_folder, 
+         plot = temp, device = "pdf", path = out_norm_aid_diag_folder, 
          scale = 0.5, width = 5*col_number+(0.4*length(unique(before_after_means$sample))), height = 5*ceiling(length(unique(before_after_means$channel))/col_number))
 }

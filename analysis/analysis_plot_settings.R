@@ -12,7 +12,7 @@ automatic_palette <- as.numeric(settings$value[settings$setting == "automatic_pa
 
 if (automatic_palette < 1) {
     #create a list of custom palletes for each grouping column here
-    custom_palette <- list(c("small_mouse" = "red", "big_mouse" = "blue"), c("small_mouse" = "red", "big_mouse" = "blue"), c("small_mouse" = "red", "big_mouse" = "blue"))
+    custom_palette <- list(c("HC" = "#27317d", "MPO" = "#a14c06", "PR3" = "#b31f1f"), c("HC" = "#27317d", "ANCA" = "#a93f15"))
 }
 
 #DEFAULT THEMES PLACEHOLDER

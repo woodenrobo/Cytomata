@@ -249,6 +249,7 @@ do_clustering <- function() {
 
             # get cluster codes
             k <- xdim * ydim
+            som_var_name <- paste0("som", k)
             mcs <- seq_len(clustering_k)[-1]
 
             # construct data.frame of clustering codes
@@ -261,7 +262,7 @@ do_clustering <- function() {
             cluster_ids$som_cluster_id <- factor(som$map$mapping[, 1])
             cluster_ids$meta_cluster_id <- NA
             for (som_clust in seq(k)){
-                cluster_ids$meta_cluster_id[cluster_ids$som_cluster_id == som_clust] <- codes[codes$som100 == som_clust, paste0("meta", optimal_k)]
+                cluster_ids$meta_cluster_id[cluster_ids$som_cluster_id == som_clust] <- codes[codes[, som_var_name] == som_clust, paste0("meta", optimal_k)]
             }
             cluster_ids$cell_id <- exprs_set$cell_id
             cluster_ids <- as.data.frame(cluster_ids)
@@ -299,7 +300,7 @@ do_clustering <- function() {
             cluster_ids$som_cluster_id <- factor(som$map$mapping[, 1])
             cluster_ids$meta_cluster_id <- NA
             for (som_clust in seq(k)){
-                cluster_ids$meta_cluster_id[cluster_ids$som_cluster_id == som_clust] <- codes[codes$som100 == som_clust, paste0("meta", optimal_k)]
+                cluster_ids$meta_cluster_id[cluster_ids$som_cluster_id == som_clust] <- codes[codes[, som_var_name] == som_clust, paste0("meta", optimal_k)]
             }
             cluster_ids$cell_id <- exprs_set$cell_id
             cluster_ids <- as.data.frame(cluster_ids)
@@ -390,7 +391,7 @@ continue_or_recluster <- function() {
 
 
 merge_and_annotate <- function() {
-    if (first_run_mode > 0 && sum(dir(output_data_sub)[grepl("cluster_merging_and_annotation.xlsx", dir(output_data_sub))] == 0)) {
+    if (!any(grepl("cluster_merging_and_annotation", dir(output_data_sub)))) {
         cat("Creating cluster merging and annotation file\n")
         cluster_annot <- as.data.frame(seq_along(unique(exprs_set$meta_cluster_id)))
         colnames(cluster_annot) <- "original_clusters"
@@ -404,7 +405,7 @@ merge_and_annotate <- function() {
         xlsx::write.xlsx(cluster_annot, file = paste0(output_data_sub, "cluster_merging_and_annotation.xlsx"))
     }
 
-
+    dropped_events <<- c()
     exprs_set <- skip_or_merge_and_annotate()
     
     return(exprs_set)
@@ -422,6 +423,13 @@ skip_or_merge_and_annotate <- function() {
         answer <- "skip"
     }
 
+    if (first_run_mode < 1) {
+        cluster_annot <- readxl::read_excel(paste0(output_data_sub, "cluster_merging_and_annotation.xlsx"))[-1]
+        cat("Cluster annotations, merging and deletion parameters have been applied, if set.\n")
+        exprs_set <- apply_annotation(cluster_annot)
+        exprs_set <- merge_or_delete_clusters(exprs_set, cluster_annot)
+    }
+
     if (answer == "continue") {
         cluster_annot <- readxl::read_excel(paste0(output_data_sub, "cluster_merging_and_annotation.xlsx"))[-1]
         cat("Cluster annotations, merging and deletion parameters have been applied, if set.\n")
@@ -434,12 +442,7 @@ skip_or_merge_and_annotate <- function() {
         skip_or_merge_and_annotate()
     }
 
-    if (first_run_mode < 1) {
-        cluster_annot <- readxl::read_excel(paste0(output_data_sub, "cluster_merging_and_annotation.xlsx"))[-1]
-        cat("Cluster annotations, merging and deletion parameters have been applied, if set.\n")
-        exprs_set <- apply_annotation(cluster_annot)
-        exprs_set <- merge_or_delete_clusters(exprs_set, cluster_annot)
-    }
+
     answer <- NULL
 
     return(exprs_set)
@@ -581,7 +584,11 @@ remove_dropped_events <- function() {
         cat(paste0(sum(exprs_set$sample_state == "dropped"), " events from deleted samples removed\n"))
     }
 
-    return(temp)
+    if (length(dropped_events) > 0 || dropped_samples_mode > 0) {
+        return(temp)
+    } else {
+        return(exprs_set)
+    }
 }
 
 
@@ -590,11 +597,15 @@ do_umap_plots <- function(module) {
         umap_plot(grouping_var = "batch", module = module, labels = TRUE)
         umap_plot(grouping_var = "id", module = module, labels = FALSE)
         umap_plot(grouping_var = "meta_cluster_id", module = module, labels = TRUE)
-        umap_plot(grouping_var = "meta_cluster_annotation", module = module, labels = TRUE)
+        if (sum(grepl("meta_cluster_annotation", colnames(exprs_set))) > 0) {
+            umap_plot(grouping_var = "meta_cluster_annotation", module = module, labels = TRUE)
+        }
 
         umap_facet(grouping_var = "batch", module = module, column_number = 4, equal_sampling = FALSE)
         umap_facet(grouping_var = "meta_cluster_id", module = module, column_number = 4, equal_sampling = FALSE)
-        umap_facet(grouping_var = "meta_cluster_annotation", module = module, column_number = 4, equal_sampling = FALSE)
+        if (sum(grepl("meta_cluster_annotation", colnames(exprs_set))) > 0) {
+            umap_facet(grouping_var = "meta_cluster_annotation", module = module, column_number = 4, equal_sampling = FALSE)
+        }
 
         umap_expressions(grouping_var = NULL, module = module, column_number = 4)
         umap_expressions(grouping_var = "batch", module = module, column_number = 4)
@@ -671,20 +682,47 @@ summary_table <- function(data = exprs_set, grouping_var, selected_features = NU
 }
 
 
-calculate_cluster_proportions <- function(cluster_var = "meta_cluster_id", selected_clusters = NULL) {
+calculate_cluster_proportions <- function(cluster_var = "meta_cluster_id", selected_clusters = NULL, prefix = NULL) {
+    all_clusters <- unique(exprs_set[[cluster_var]])
+  
     if (is.null(selected_clusters)) {
-            cluster_proportions <- summary_table(exprs_set, c(group, "id", cluster_var), selected_features = NULL, "count") %>%
-                                    group_by(id) %>%
-                                    mutate(prop = count / sum(count) * 100) %>%
-                                    ungroup()
+        counts_table <- summary_table(exprs_set, c(group, "id", cluster_var), selected_features = NULL, "count") %>%
+                        tidyr::complete(id, !!sym(cluster_var) := all_clusters, fill = list(count = 0))
+                        # makes sure that if a given sample "id" does not have a row for a particular cluster, that row is added with a count of zero
+        cluster_proportions <- counts_table %>%
+                        group_by(id) %>%
+                        mutate(prop = count / sum(count) * 100) %>%
+                        ungroup()
+        for (id in unique(cluster_proportions$id)) {
+            temp <- cluster_proportions[cluster_proportions$id == id, ]
+            true_name <- names(sort(table(temp[group]), decreasing = TRUE)[1])
+            cluster_proportions[cluster_proportions$id == id, group] <- true_name
+        }
     } else {
-            cluster_proportions <- summary_table(exprs_set, c(group, "id", cluster_var), selected_features = NULL, "count") %>%
-                                    dplyr::filter(!!sym(cluster_var) %in% selected_clusters) %>%
-                                    group_by(id) %>%
-                                    mutate(prop = count / sum(count) * 100) %>%
-                                    ungroup()
+        all_clusters <- intersect(all_clusters, selected_clusters)
+        counts_table <- summary_table(exprs_set, c(group, "id", cluster_var), selected_features = NULL, "count") %>%
+                        dplyr::filter(!!sym(cluster_var) %in% selected_clusters) %>%
+                        tidyr::complete(id, !!sym(cluster_var) := all_clusters, fill = list(count = 0))
+                        # makes sure that if a given sample "id" does not have a row for a particular cluster, that row is added with a count of zero
+        cluster_proportions <- counts_table %>%
+                        group_by(id) %>%
+                        mutate(prop = count / sum(count) * 100) %>%
+                        ungroup()
+        for (id in unique(cluster_proportions$id)) {
+            temp <- cluster_proportions[cluster_proportions$id == id, ]
+            true_name <- names(sort(table(temp[group]), decreasing = TRUE)[1])
+            cluster_proportions[cluster_proportions$id == id, group] <- true_name
+        }
     }
-
+    folder <- output_group
+    # Write CSV files 
+    if (!is.null(prefix)) {
+        write.csv(counts_table, file = paste0(folder, prefix, "_abs_counts.csv"), row.names = FALSE)
+        write.csv(cluster_proportions, file = paste0(folder, prefix, "_cluster_props.csv"), row.names = FALSE)
+    } else {
+        stop("Please provide a prefix for the calculate_cluster_proportions output files.")
+    }
+    
     return(cluster_proportions)
 }
 
@@ -777,9 +815,10 @@ do_testing <- function(data, grouping_var, module, features, group_by_clusters, 
       for (f in seq_along(features)) {
         feature <- features[f]
         omnibus_result <- temp %>% rstatix::anova_test(as.formula(paste(feature, "~", grouping_var)))
-        
         if (group_by_clusters == TRUE) {
-          signif_clusters <- unlist(omnibus_result[omnibus_result$p < 0.05, cluster_var])
+            signif_clusters <- unlist(omnibus_result[omnibus_result$p < 0.05, cluster_var])
+        }
+        if (group_by_clusters == TRUE && length(signif_clusters) > 0) {
           test_result <- temp %>% dplyr::filter(!!sym(cluster_var) %in% signif_clusters) %>% rstatix::t_test(as.formula(paste(feature, "~", grouping_var)), paired = paired, p.adjust.method = "none")
         } else {
           test_result <- temp %>% rstatix::t_test(as.formula(paste(feature, "~", grouping_var)), paired = paired, p.adjust.method = "none")
@@ -804,9 +843,10 @@ do_testing <- function(data, grouping_var, module, features, group_by_clusters, 
       for (f in seq_along(features)) {
         feature <- features[f]
         omnibus_result <- temp %>% rstatix::kruskal_test(as.formula(paste(feature, "~", grouping_var)))
-        
         if (group_by_clusters == TRUE) {
-          signif_clusters <- unlist(omnibus_result[omnibus_result$p < 0.05, cluster_var])
+            signif_clusters <- unlist(omnibus_result[omnibus_result$p < 0.05, cluster_var])
+        }
+        if (group_by_clusters == TRUE && length(signif_clusters) > 0) {
           test_result <- temp %>% dplyr::filter(!!sym(cluster_var) %in% signif_clusters) %>% rstatix::pairwise_wilcox_test(as.formula(paste(feature, "~", grouping_var)), paired = paired, p.adjust.method = "none")
         } else {
           test_result <- temp %>% rstatix::pairwise_wilcox_test(as.formula(paste(feature, "~", grouping_var)), paired = paired, p.adjust.method = "none")

@@ -16,17 +16,24 @@ manual_comparisons <- NULL
 
 prefix <- "meta_cluster_id_prop_all_clusters"
 
-cluster_proportions <- calculate_cluster_proportions(cluster_var = cluster_var, selected_clusters = selected_clusters)
+cluster_proportions <- calculate_cluster_proportions(cluster_var = cluster_var, selected_clusters = selected_clusters, prefix = prefix)
 data <- cluster_proportions
 testing_results <- do_testing(data = data, grouping_var = group, features = features, group_by_clusters = group_by_clusters,
                                 cluster_var = cluster_var, selected_clusters = selected_clusters, column_number = column_number,
                                 parametric_testing = parametric_testing, paired = paired, manual_comparisons = manual_comparisons, prefix = prefix)
 
-cluster_abundance_heatmaps(data = data, grouping_var = group, features = features, group_by_clusters = group_by_clusters,
-                                cluster_var = cluster_var, selected_clusters = selected_clusters, column_number = column_number, prefix = prefix)
+cluster_abundance_heatmaps(data = data, grouping_var = group, features = features, cluster_var = cluster_var, selected_clusters = selected_clusters, prefix = prefix)
 
-cluster_testing_heatmaps(data = data, testing_results = testing_results, grouping_var = group, features = features, group_by_clusters = group_by_clusters,
-                                cluster_var = cluster_var, selected_clusters = selected_clusters, prefix = prefix)
+cluster_testing_heatmaps(data = data, testing_results = testing_results, grouping_var = group, features = features, 
+                            cluster_var = cluster_var, selected_clusters = selected_clusters, prefix = prefix)
+
+prefix <- "meta_cluster_id_prop_all_clusters_DENDROGRAM_ORDER"
+cluster_abundance_heatmaps(data = data, grouping_var = group, features = features, cluster_var = cluster_var, selected_clusters = selected_clusters, cluster_ordering = TRUE, prefix = prefix)
+
+cluster_testing_heatmaps(data = data, testing_results = testing_results, grouping_var = group, features = features, 
+                            cluster_var = cluster_var, selected_clusters = selected_clusters, cluster_ordering = TRUE, prefix = prefix)
+
+
 
 show_testing <- TRUE
 show_pvalues <- FALSE
@@ -61,7 +68,7 @@ do_boxplots(data = data, testing_results = testing_results, grouping_var = group
             prefix = prefix)
 
 
-if (sum(colnames(exprs_set) %in% c("meta_cluster_annotation")) > 0) {
+if (sum(colnames(exprs_set) %in% c("meta_cluster_annotation")) > 0 && sum(exprs_set$meta_cluster_annotation != "NA") > 0) {
     cluster_var <- "meta_cluster_annotation"
     selected_clusters <- NULL
     grouping_var <- group
@@ -73,7 +80,7 @@ if (sum(colnames(exprs_set) %in% c("meta_cluster_annotation")) > 0) {
     manual_comparisons <- NULL
     prefix <- "meta_cluster_annotation_prop_all_clusters"
 
-    cluster_proportions <- calculate_cluster_proportions(cluster_var = cluster_var, selected_clusters = selected_clusters)
+    cluster_proportions <- calculate_cluster_proportions(cluster_var = cluster_var, selected_clusters = selected_clusters, prefix = prefix)
     data <- cluster_proportions
     testing_results <- do_testing(data = data, grouping_var = group, features = features, group_by_clusters = group_by_clusters,
                                     cluster_var = cluster_var, selected_clusters = selected_clusters, column_number = column_number,
@@ -84,6 +91,7 @@ if (sum(colnames(exprs_set) %in% c("meta_cluster_annotation")) > 0) {
 
     cluster_testing_heatmaps(data = data, testing_results = testing_results, grouping_var = group, features = features, group_by_clusters = group_by_clusters,
                                 cluster_var = cluster_var, selected_clusters = selected_clusters, prefix = prefix)
+
 
     show_testing <- TRUE
     show_pvalues <- FALSE

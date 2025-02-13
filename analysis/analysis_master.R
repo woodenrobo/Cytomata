@@ -38,11 +38,11 @@ source("./analysis/analysis_plots.R")
 
 
 data_sub_counter <- 0
-data_sub <- data_subsets[1] #FOR TESTING, REMOVE LATER
+# data_sub <- data_subsets[1] #FOR TESTING, REMOVE LATER
 for (data_sub in data_subsets) {
     cat(paste0("\n DATA SUBSET SELECTED IS: ", data_sub, "\n"))
     setwd(subset_folder)
-    if (grepl(data_sub, dir())) {
+    if (sum(grepl(data_sub, dir()))>0) {
         data_sub_counter <- data_sub_counter + 1
 
         output_data_sub <- paste0(output_analysis, data_sub, "/")
@@ -86,9 +86,15 @@ for (data_sub in data_subsets) {
             warning(paste0(length(meta_input), " out of ", length(filtered_meta$fcs), " samples in meta after filtering are present in input directory"))
         }
 
-        final_input <- input[stripped_input %in% meta_input]
+        fcs_only_input <- stripped_input[grepl(".fcs", stripped_input)]
+        final_input <- input[fcs_only_input %in% meta_input]
 
-        sampling_rate <- sampling_factors[data_sub_counter]
+        if (length(sampling_factors) > 1) {
+            sampling_rate <- sampling_factors[data_sub_counter]
+        } else {
+            sampling_rate <- sampling_factors
+        }
+        
 
         sampling_rate_changed <- check_sampling_rate_changes()
 
@@ -175,7 +181,7 @@ for (data_sub in data_subsets) {
         grouping_col_counter <- 0
         for (group in grouping_columns) {
             grouping_col_counter <- grouping_col_counter + 1
-            group <- grouping_columns[2] #FOR TESTING, REMOVE LATER =============================================================================================================
+            #group <- grouping_columns[1] #FOR TESTING, REMOVE LATER
 
             if (grouping_orders[grouping_col_counter] == "NA") {
                 group_order <- gtools::mixedsort(unique(exprs_set[, group]))
@@ -210,6 +216,6 @@ end_time <- Sys.time()
 
 timediff <- round(as.numeric(gsub('Time difference of ', '', difftime(end_time, start_time, units = "hours"))), 2)
 
-cat(paste0(date, '_', naming, ' analysis run ended successfully\n', 'Total time elapsed (in hours): ', timediff),'\n')
+cat(paste0(date, '_analysis run ended successfully\n', 'Total time elapsed (in hours): ', timediff),'\n')
 
 sink()

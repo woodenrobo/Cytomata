@@ -292,7 +292,8 @@ percentile_selector_compute <- function() {
                                        "baseline_means_var", "result_means_var", "reduction_in_means_var",
                                        "baseline_quantile_distance", "result_quantile_distance", "reduction_in_quantile_distance")
 
-    percentile_selector$percentile_optimality <- (rescale(as.numeric(percentile_selector$reduction_in_ks)) * 1.5 +
+    #ADJUST THIS TO YOUR LIKING
+    percentile_selector$percentile_optimality <- (rescale(as.numeric(percentile_selector$reduction_in_ks)) * 2.5 +
                                                      rescale(as.numeric(percentile_selector$reduction_in_var)) * 1.5 +
                                                       rescale(as.numeric(percentile_selector$reduction_in_means_var)) * 2.5 +
                                                       rescale(as.numeric(percentile_selector$reduction_in_quantile_distance))) * -1
@@ -356,6 +357,9 @@ normalize_batches <- function() {
         setwd(debar_folder)
         exprs_set <- inject_fcs(input, filter_features = FALSE, asinh_transform = asinh_transform, cofac = cofac)
         
+        fcs_channel_desc <- desc_extraction(input[1])
+        fcs_channel_name <- name_extraction(input[1])
+
         for (channel in feature_markers){
             for (samp in unique(exprs_set$sample)) {
                 exprs_set[exprs_set$sample == samp, channel] <- exprs_set[exprs_set$sample == samp, channel] *
@@ -383,7 +387,7 @@ normalize_batches <- function() {
             pb$tick()
             setwd(norm_folder)
             temp_file <- exprs_set[exprs_set$sample==file, ]
-            temp_file <- flowFrame(data.matrix(temp_file[,!colnames(temp_file) %in% 'sample']))
+            temp_file <- flowFrame(data.matrix(temp_file[,!colnames(temp_file) %in% c('sample', 'cell_id')]))
             temp_file@parameters@data$desc <- fcs_channel_desc
             temp_file@parameters@data$name <- fcs_channel_name
             flowCore::write.FCS(x=temp_file, filename=paste0(file))
