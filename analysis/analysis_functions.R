@@ -714,11 +714,11 @@ calculate_cluster_proportions <- function(cluster_var = "meta_cluster_id", selec
             cluster_proportions[cluster_proportions$id == id, group] <- true_name
         }
     }
-    
+    folder <- output_group
     # Write CSV files 
     if (!is.null(prefix)) {
-        write.csv(counts_table, file = paste0(prefix, "_abs_counts.csv"), row.names = FALSE)
-        write.csv(cluster_proportions, file = paste0(prefix, "_cluster_props.csv"), row.names = FALSE)
+        write.csv(counts_table, file = paste0(folder, prefix, "_abs_counts.csv"), row.names = FALSE)
+        write.csv(cluster_proportions, file = paste0(folder, prefix, "_cluster_props.csv"), row.names = FALSE)
     } else {
         stop("Please provide a prefix for the calculate_cluster_proportions output files.")
     }
