@@ -398,6 +398,80 @@ normalize_batches <- function() {
 
 }
 
+
+normalize_batches_harmony <- function(mode = "percentile") {
+    # harmony is memory intensive, use with caution
+    # harmony mode uses HarmonyMatrix function from the Harmony package to adjust for batch effects
+    cat(paste0("\n ANCHOR SAMPLE SELECTED IS: ", a_id, "\n"))
+    cat(paste0("\n BATCHES TO BE NORMALIZED ARE: \n"))
+    setwd(debar_folder)
+    anchor_batches_in_dir <- as.character(unique(target_anchors$batch[target_anchors$fcs %in% dir()]))
+    if (a_counter > 1) {
+       anchor_batches_in_dir <- anchor_batches_in_dir[!grepl(pre_norm_batch, anchor_batches_in_dir)] 
+    }
+    print(anchor_batches_in_dir)
+
+    files_needed <- meta$fcs[meta$batch %in% target_anchors$batch]
+    total_input <- files_needed[files_needed %in% dir()]
+    if (length(total_input) != length(files_needed)) {
+        warning(paste0("Only ", length(total_input), " out of ", length(files_needed), " samples in meta are present in input directory"))
+    }
+
+    if (a_counter > 1) {
+       total_input <- total_input[!grepl(pre_norm_batch, total_input)] 
+    }
+
+
+    sampling_rate <- 1
+    #settings for transformation
+    asinh_transform <- FALSE
+    cofac <- 1
+
+
+    setwd(debar_folder)
+    exprs_set <- inject_fcs(total_input, filter_features = FALSE, asinh_transform = asinh_transform, cofac = cofac)
+
+    fcs_channel_desc <- desc_extraction(total_input[1])
+    fcs_channel_name <- name_extraction(total_input[1])
+
+    exprs_set <- merge(exprs_set, meta[,c("fcs", "batch")], by.x = "sample", by.y = "fcs")
+
+    harmony_param <- HarmonyMatrix(data_mat = as.matrix(exprs_set[, feature_markers]),
+                                   meta_data = exprs_set[, "batch"],
+                                   do_pca = FALSE)
+
+    exprs_set[,feature_markers] <- harmony_param
+
+    #WRITING FILES
+    batch_files <- unique(exprs_set[,"sample"])
+
+
+        # Initializes the progress bar
+        pb <- progress_bar$new(format = "Writing files \n(:spin) [:bar] :percent [Elapsed time: :elapsedfull || Estimated time remaining: :eta]",
+                            total = length(batch_files),
+                            complete = "=",   # Completion bar character
+                            incomplete = "-", # Incomplete bar character
+                            current = ">",    # Current bar character
+                            clear = FALSE,    # If TRUE, clears the bar when finish
+                            width = 100)      # Width of the progress bar
+
+
+        for (file in batch_files){
+            pb$tick()
+            setwd(norm_folder)
+            temp_file <- exprs_set[exprs_set$sample==file, ]
+            temp_file <- flowFrame(data.matrix(temp_file[,!colnames(temp_file) %in% c('sample', 'cell_id', 'batch')]))
+            temp_file@parameters@data$desc <- fcs_channel_desc
+            temp_file@parameters@data$name <- fcs_channel_name
+            flowCore::write.FCS(x=temp_file, filename=paste0(file))
+        }
+
+
+
+
+}
+
+
 channel_mean_compute <- function(data_set) {
     means_df <- data.frame()
     for (channel in feature_markers) {

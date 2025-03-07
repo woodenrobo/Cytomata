@@ -71,6 +71,7 @@ feature_markers_gating <- panel$antigen[panel$gating_feature == 1]
 #automatically chooses the best anchor out of available, supports multi-step(anchor) adjustment
 #automatically chooses optimal percentile via peak recognition and diversity metric estimation
 anchor_ids <- unlist(strsplit(settings$value[settings$setting == "anchor_ids"], split = ", ", fixed = TRUE))
+norm_mode <- settings$value[settings$setting == "norm_mode"]
 
 if (do_normalization == 1) {
     #anchor = technical replicate included with each batch. Can be one or multiple. If multiple, normalization is done in order from left to right

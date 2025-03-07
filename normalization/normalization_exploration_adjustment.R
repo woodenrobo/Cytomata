@@ -330,7 +330,7 @@ for (a_id in anchor_ids) {
 
 
 
-        if (interactive()) {
+        if (interactive() && norm_mode == "percentile") {
             answer <- readline(paste0("Are you satisfied with automatic settings?\n",
                             "If not, change settings table in\n",
                             "Cytomata_data/<project_folder>/output/normalization/<anchor_id>/\n",
@@ -346,71 +346,81 @@ for (a_id in anchor_ids) {
         
 
         if (answer == "continue") {
-            cat(paste0("Continuing with settings from ", a_id, "/normalization_settings.csv\n"))
-            setwd(out_norm_aid_folder)
-            settings_table <- read.csv("normalization_settings.csv", row.names = 1)
+            if (norm_mode == "percentile") {
+                cat(paste0("Continuing with settings from ", a_id, "/normalization_settings.csv\n"))
+                setwd(out_norm_aid_folder)
+                settings_table <- read.csv("normalization_settings.csv", row.names = 1)
 
-            cat(paste0("Reading in anchors for final scaling factor computing\n"))
-            #SELECTING PRE-NORMALIZED OPTIMAL ANCHOR
-            setwd(norm_folder)
-            anchor_file <- dir()[grepl(pre_norm_anchor, dir())]
-            input <- target_anchors$fcs[target_anchors$fcs == anchor_file]
-            if (length(input) == 1) {
+                cat(paste0("Reading in anchors for final scaling factor computing\n"))
+                #SELECTING PRE-NORMALIZED OPTIMAL ANCHOR
+                setwd(norm_folder)
+                anchor_file <- dir()[grepl(pre_norm_anchor, dir())]
+                input <- target_anchors$fcs[target_anchors$fcs == anchor_file]
+                if (length(input) == 1) {
+                    #settings for transformation
+                    asinh_transform <- FALSE
+                    cofac <- 1
+                    exprs_set_prenorm <- inject_fcs(input, filter_features = TRUE, asinh_transform = asinh_transform, cofac = cofac)
+                } else {
+                    stop("PRE-NORMALIZED ANCHOR NOT FOUND! Did you run first anchor? Check metafile!\n")
+                }
+
+                setwd(debar_folder)
+                input <- target_anchors$fcs[target_anchors$fcs %in% dir()]
+                #DROP NON-PRE-NORMALIZED ANCHOR`S BATCH
+                input <- input[!grepl(pre_norm_batch, input)]
                 #settings for transformation
                 asinh_transform <- FALSE
                 cofac <- 1
-                exprs_set_prenorm <- inject_fcs(input, filter_features = TRUE, asinh_transform = asinh_transform, cofac = cofac)
-            } else {
-                stop("PRE-NORMALIZED ANCHOR NOT FOUND! Did you run first anchor? Check metafile!\n")
+                exprs_set <- inject_fcs(input, filter_features = TRUE, asinh_transform = asinh_transform, cofac = cofac)
+                
+                exprs_set <- rbind(exprs_set_prenorm, exprs_set)
+
+                #compute quantile values for each channel and anchor sample
+                quantiles_table_long <- quantile_table()
+
+                cat("Computing scaling factors\n")
+                setwd(out_norm_tables_folder)
+                optimal_anchor <- read.csv("optimal_anchor_local.csv", row.names = 1)
+
+                scaling_factors <- c()
+                filtered_factors <- c()
+                for (channel in feature_markers) {
+                    temp_quantiles <- quantiles_table_long[quantiles_table_long$channel == channel, ]
+                    temp_local_optimal_anchor <- optimal_anchor[optimal_anchor$channel == channel, ]
+
+                    temp_scaling_factors <- cbind(temp_quantiles[, c(1:2)], 
+                                                apply(temp_quantiles[, -c(1:2)], MARGIN = 2, FUN = function(x) as.numeric(x[temp_quantiles$a_sample == temp_local_optimal_anchor$best_anchor]) / as.numeric(x)))
+                    scaling_factors <- rbind(scaling_factors, temp_scaling_factors)
+
+                    temp_filtered_factors <- temp_scaling_factors
+                    temp_filtered_factors$percentile <- settings_table[settings_table$channel == channel, "percentile"]
+                    temp_filtered_factors$factor <- temp_filtered_factors[,settings_table[settings_table$channel == channel, "percentile"]]
+                    temp_filtered_factors <- temp_filtered_factors[, c("channel", "a_sample", "percentile", "factor")]
+                    filtered_factors <- rbind(filtered_factors, temp_filtered_factors)
+
+                }
+                setwd(out_norm_tables_folder)
+                write.csv(scaling_factors, file = "scaling_factors.csv")
+
+                setwd(out_norm_tables_folder)
+                write.csv(filtered_factors, file = "filtered_scaling_factors.csv")
+
+                scaling_factors_barplots()
+                
+
+                #normalizing batches
+                
+                normalize_batches()
+                
+            } else if (norm_mode == "harmony") {
+
+                cat(paste0("Continuing with harmony algorithm\n"))
+
+                normalize_batches_harmony()
+
             }
 
-            setwd(debar_folder)
-            input <- target_anchors$fcs[target_anchors$fcs %in% dir()]
-            #DROP NON-PRE-NORMALIZED ANCHOR`S BATCH
-            input <- input[!grepl(pre_norm_batch, input)]
-            #settings for transformation
-            asinh_transform <- FALSE
-            cofac <- 1
-            exprs_set <- inject_fcs(input, filter_features = TRUE, asinh_transform = asinh_transform, cofac = cofac)
-            
-            exprs_set <- rbind(exprs_set_prenorm, exprs_set)
-
-            #compute quantile values for each channel and anchor sample
-            quantiles_table_long <- quantile_table()
-
-            cat("Computing scaling factors\n")
-            setwd(out_norm_tables_folder)
-            optimal_anchor <- read.csv("optimal_anchor_local.csv", row.names = 1)
-
-            scaling_factors <- c()
-            filtered_factors <- c()
-            for (channel in feature_markers) {
-                temp_quantiles <- quantiles_table_long[quantiles_table_long$channel == channel, ]
-                temp_local_optimal_anchor <- optimal_anchor[optimal_anchor$channel == channel, ]
-
-                temp_scaling_factors <- cbind(temp_quantiles[, c(1:2)], 
-                                            apply(temp_quantiles[, -c(1:2)], MARGIN = 2, FUN = function(x) as.numeric(x[temp_quantiles$a_sample == temp_local_optimal_anchor$best_anchor]) / as.numeric(x)))
-                scaling_factors <- rbind(scaling_factors, temp_scaling_factors)
-
-                temp_filtered_factors <- temp_scaling_factors
-                temp_filtered_factors$percentile <- settings_table[settings_table$channel == channel, "percentile"]
-                temp_filtered_factors$factor <- temp_filtered_factors[,settings_table[settings_table$channel == channel, "percentile"]]
-                temp_filtered_factors <- temp_filtered_factors[, c("channel", "a_sample", "percentile", "factor")]
-                filtered_factors <- rbind(filtered_factors, temp_filtered_factors)
-
-            }
-            setwd(out_norm_tables_folder)
-            write.csv(scaling_factors, file = "scaling_factors.csv")
-
-            setwd(out_norm_tables_folder)
-            write.csv(filtered_factors, file = "filtered_scaling_factors.csv")
-
-            scaling_factors_barplots()
-            
-
-            #normalizing batches
-            
-            normalize_batches()
 
 
         }
