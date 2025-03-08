@@ -39,9 +39,19 @@ do_normalization <- as.numeric(settings$value[settings$setting == "do_normalizat
 do_database_injection <- as.numeric(settings$value[settings$setting == "do_database_injection"])
 do_analysis <- as.numeric(settings$value[settings$setting == "do_analysis"])
 
+
+if (dir(path_to_data_folder) == "") {
+    stop("Data folder not found. Please check the path in settings.")
+}
+
 #this script prepares folder structure for the new project
 setwd(path_to_cytomata)
 source("folder_manager.R")
+
+if (dir(project_folder) == "") {
+    stop("Project folder is empty. Please populate the corresponding folders with\nmetafile and fcs files.")
+}
+
 
 #set filter to select metafile
 #metafile MUST have following columns: "id", "fcs", "batch", "analysis" and "group". script supports having multiple grouping-columns (e.g. "group_2", "group_3" etc.)
@@ -51,6 +61,7 @@ meta <- load_metafile(meta_naming_scheme = settings$value[settings$setting == "m
 #samples that will be dropped from analysis have to be assigned "drop" in the respective "group" column
 #extracting marker panel. check "feature" variable and set it to 0 for unused channels.
 #common pre-processing channels are automatically set to 0
+
 panel <- load_panel()
 feature_markers <- panel$antigen[panel$feature == 1]
 feature_markers_gating <- panel$antigen[panel$gating_feature == 1]
@@ -77,6 +88,11 @@ if (do_normalization == 1) {
     #anchor = technical replicate included with each batch. Can be one or multiple. If multiple, normalization is done in order from left to right
     #files are saved to fcs/3_normalized/<anchor_id>
     #optimal anchor is automatically selected individually for each channel (only for the first anchor)
+
+    if (dir(debar_folder) == "") {
+        stop("No files found in debarcoded folder. Please check the path in settings or populate the folder.")
+    }
+
     setwd(path_to_cytomata)
     source("./normalization/normalization_master.R")
 }
@@ -84,6 +100,11 @@ if (do_normalization == 1) {
 
 #FULL DATA MEAN AND SD CALCULATION FOR SCALING  ################
 if (do_database_injection == 1) {
+
+    if (dir(norm_folder) == "") {
+        stop("No files found in normalized folder. Please check the path in settings or populate the folder.")
+    }
+
     setwd(path_to_cytomata)
     source("database_injection.R")
 }
@@ -106,8 +127,14 @@ if (do_database_injection == 1) {
 #automatic testing of all conditions included in the metafile
 
 if (do_analysis == 1) {
+
+    if (dir(subset_folder) == "") {
+        stop("No files found in subsets folder. Please check the path in settings or populate the folder.")
+    }
+
     setwd(path_to_cytomata)
     source("./analysis/analysis_master.R")
+
 }
 
 #POST-PROCESSING ADD-ONS  ################

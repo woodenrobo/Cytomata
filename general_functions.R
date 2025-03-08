@@ -60,6 +60,11 @@ update_settings <- function(settings) {
 load_metafile <- function(meta_naming_scheme) {
     library(readxl)
     #looking for metafile in meta folder
+
+    if (dir(meta_folder) == "") {
+        stop("No files found in meta folder. Please check the path in settings or populate the folder.")
+    }
+
     metafile <- dir(meta_folder)[grepl(meta_naming_scheme, dir(meta_folder))]
     meta <- read_xlsx(paste0(meta_folder, metafile))
     required_columns <- c("id", "fcs")
@@ -80,6 +85,11 @@ load_panel <- function(...) {
         excluded_channels <- paste0(unlist(strsplit(settings$value[settings$setting == "excluded_channels"], split = ", ", fixed = TRUE)), collapse = "|")
         #all features need to have the same name across the samples
         setwd(debar_folder)
+
+        if (dir(debar_folder) == "") {
+            stop("No files found in debarcoded folder. Please check the path in settings or populate the folder.")
+        }
+
         fcs <- dir(debar_folder)[1]
         fs <- flowCore::read.FCS(fcs, which.lines=1:100, transformation=FALSE, truncate_max_range=FALSE)
         p <- NULL
