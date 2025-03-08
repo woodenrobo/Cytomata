@@ -1,56 +1,56 @@
 Cytomata is an open-source script collection that integrates tools and methods used for mass cytometry (CyTOF) analysis into an automated pipeline.
 Author: Lev Petrov
 
-## OMNICYTO PEOPLE GUIDE
+## GUIDE
 - install R and Rstudio on your machine https://posit.co/download/rstudio-desktop/
-- clone the repo, set the branch to gating-demo and the path to the repo folder in master.R (line 15) as a *NEW LINE*
+- clone the repo, set the path to the repo folder in master.R (line 15)
 
 Example:
 
 ``
-#path_to_cytomata <- "~/DOCTORATE/Cytomata/" #Levs path
+path_to_cytomata <- "/your/path/to/Cytomata/"
 ``
+## From documentation in master.R
 
-``
-path_to_cytomata <- "/your/path/to/Cytomata/" #my path
-``
-
-- go here: [data](https://charitede-my.sharepoint.com/:f:/g/personal/lev_petrov_charite_de/EsfhZi47RwNNoJUOX0mpD-0BcDWFalPU2dBoNUyM4SKbTg?e=pTXe8E)
-- download the /fcs/1_raw folder
-- download the /meta folder
-- *preserve the folder structure!* It should look like this
+Create a folder for Cytomata data and results. The folder structure will be created upon the first run, and you will need to populate the fcs and meta folders before proceeding.
+- *Always preserve the folder structure!*
 
 ```
-.
-+--/your/path/to/Cytomata_data_folder/
-|   +--fcs
-|       +--1_raw
-|   +--meta
-```
-
-- put downloaded data into the folder and set the path to the folder using the excel file in Cytomata (repo) folder. It's the first setting. Don`t forget to change the path if pulling from other commits.
-- don't change anything else, just select the part of the script in master.R up to and including this point
-
-``
-runApp()
-``
-- this will launch the shiny application for you to play around
-- the scripts in question here are
+cytomata_data_folder/
+├─ project_name/
+│  ├─ fcs/
+│  │  ├─ 1_raw/
+│  │  ├─ 2_debarcoded/
+│  │  │  ├─ sample_file_1.fcs
+│  │  │  ├─ sample_file_2.fcs
+│  ├─ meta/
+│  │  ├─ metafile.xlsx
 
 ```
-/your/path/to/Cytomata/gating_application/app.R
+metafile MUST have following columns: "id", "fcs", "batch", "analysis" and "group". script supports having multiple grouping-columns (e.g. "group_2", "group_3" etc.)
 
-/your/path/to/Cytomata/gating_application/www/d3_graphics.js
-```
+analysis column defines whether sample should be included in final analysis. duplicates of anchor/reference files are filtered out by default during analysis
 
-and
+analysis column also accepts values of 0 for samples to be dropped from final analysis or 2 for samples added after the main analysis run (if previous clustering needs to be preserved)
 
-```
-/your/path/to/Cytomata/gating_application/www/styles.css
-```
-- *suggest what functionality to show and improvements using the Trello card*
-- *use the Trello card to declare one of suggested features as yours (under Activities)*
-- *create new sub-branch of gating-demo if you want to change something*
+### CLEANING AND DEBARCODING
+sadly, this part is best done in a cloud-based solution like OMIQ or Cytobank due to the massive data and the fact that gating is still best done manually
+
+upload your raw data, remove calibration beads, gate on DNA channels and assign barcode identities
+
+also a good place to MAKE SURE ALL CHANNELS HAVE THE SAME NAME BETWEEN BATCHES
+
+export and put the files into Cytomata_data/<project_name>/fcs/2_debarcoded/. folder
+
+
+### SUBSETTING OF POPULATIONS OF INTEREST
+sadly, this part is best done in a cloud-based solution like OMIQ or Cytobank due to the massive data and the fact that gating is still best done manually
+
+upload your normalized data and use a gating strategy based on your panel design to separate the cells into populations of interest
+
+export resulting files and put them into Cytomata_data/<project_name>/fcs/4_subsets/. folder
+
+
 
 
 
