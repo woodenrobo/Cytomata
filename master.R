@@ -40,15 +40,15 @@ do_database_injection <- as.numeric(settings$value[settings$setting == "do_datab
 do_analysis <- as.numeric(settings$value[settings$setting == "do_analysis"])
 
 
-if (dir(path_to_data_folder) == "") {
-    stop("Data folder not found. Please check the path in settings.")
+if (length(dir(path_to_data_folder)) == 0) {
+  stop("Data folder not found. Please check the path in settings.")
 }
 
 #this script prepares folder structure for the new project
 setwd(path_to_cytomata)
 source("folder_manager.R")
 
-if (dir(project_folder) == "") {
+if (length(dir(project_folder)) == 0) {
     stop("Project folder is empty. Please populate the corresponding folders with\nmetafile and fcs files.")
 }
 
@@ -89,7 +89,7 @@ if (do_normalization == 1) {
     #files are saved to fcs/3_normalized/<anchor_id>
     #optimal anchor is automatically selected individually for each channel (only for the first anchor)
 
-    if (dir(debar_folder) == "") {
+    if (length(dir(debar_folder)) == 0) {
         stop("No files found in debarcoded folder. Please check the path in settings or populate the folder.")
     }
 
@@ -101,7 +101,7 @@ if (do_normalization == 1) {
 #FULL DATA MEAN AND SD CALCULATION FOR SCALING  ################
 if (do_database_injection == 1) {
 
-    if (dir(norm_folder) == "") {
+    if (length(dir(norm_folder)) == 0) {
         stop("No files found in normalized folder. Please check the path in settings or populate the folder.")
     }
 
@@ -128,7 +128,7 @@ if (do_database_injection == 1) {
 
 if (do_analysis == 1) {
 
-    if (dir(subset_folder) == "") {
+    if (length(dir(subset_folder)) == 0) {
         stop("No files found in subsets folder. Please check the path in settings or populate the folder.")
     }
 
