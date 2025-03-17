@@ -61,7 +61,7 @@ load_metafile <- function(meta_naming_scheme) {
     library(readxl)
     #looking for metafile in meta folder
 
-    if (dir(meta_folder) == "") {
+    if (length(dir(meta_folder)) == 0) {
         stop("No files found in meta folder. Please check the path in settings or populate the folder.")
     }
 
