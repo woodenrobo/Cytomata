@@ -12,7 +12,7 @@
 
 #PROJECT SETUP  ################
 #one only thing you MUST change in the script before running it is this:
-path_to_cytomata <- "~/DOCTORATE/Cytomata/"
+path_to_cytomata <- "C:/Users/lucas/OneDrive - Charité - Universitätsmedizin Berlin/In_Silico/Cytomata"
 #all the other settings are to be changed using following:
 #setting.xlsx in Cytomata folder (general project setup, normalization, clustering, UMAP settings)
 #Cytomata_data/<project_folder>/meta/meta.xlsx (sample stratification, sample addition and removal for reanalyzis)

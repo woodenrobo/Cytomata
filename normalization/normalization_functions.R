@@ -192,7 +192,11 @@ percentile_selector_compute <- function() {
 
         baseline_var <- exprs_set %>% pull(channel)  %>% var()
 
+<<<<<<< HEAD
         baseline_means_var <- exprs_set %>% dplyr::group_by(sample) %>% dplyr::summarise(means = mean(!!sym(channel))) %>% dplyr::summarize(var = var(means))
+=======
+        baseline_means_var <- exprs_set %>% group_by(sample) %>% summarise(means = mean(!!sym(channel))) %>% dplyr::summarize(var = var(means))
+>>>>>>> e872d4afd11e7b3113955b1bedaee7c7cd2d6df5
 
         if (ks_testing == "total") {
             temp_x <- exprs_set %>%
@@ -249,7 +253,11 @@ percentile_selector_compute <- function() {
 
                 temp_var <- temp_set_norm %>% pull(channel) %>% var()
 
+<<<<<<< HEAD
                 temp_means_var <- temp_set_norm %>% dplyr::group_by(sample) %>% dplyr::summarise(means = mean(!!sym(channel))) %>% dplyr::summarize(var = var(means))
+=======
+                temp_means_var <- temp_set_norm %>% group_by(sample) %>% summarise(means = mean(!!sym(channel))) %>% dplyr::summarize(var = var(means))
+>>>>>>> e872d4afd11e7b3113955b1bedaee7c7cd2d6df5
 
                 temp_quantiles <- data.frame()
                  for (samp in unique(temp_set_norm$sample)){

@@ -343,7 +343,7 @@ for (a_id in anchor_ids) {
             cat("It seems that your typing was inprecise, we will select \"continue\" for you")
             answer <- "continue"
         }
-        
+
 
         if (answer == "continue") {
             if (norm_mode == "percentile") {
