@@ -87,7 +87,7 @@ for (a_id in anchor_ids) {
 
         optimal_anchor <- anchor_selector %>%
                                     group_by(channel) %>%
-                                    summarize(best_anchor = sample[which.max(optimality)])
+                                    dplyr::summarize(best_anchor = sample[which.max(optimality)])
         setwd(out_norm_tables_folder)
         write.csv(optimal_anchor, file = "optimal_anchor_local.csv")
 

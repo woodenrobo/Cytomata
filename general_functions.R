@@ -86,7 +86,7 @@ load_panel <- function(...) {
         #all features need to have the same name across the samples
         setwd(debar_folder)
 
-        if (dir(debar_folder) == "") {
+        if (length(dir(debar_folder)) == 0) {
             stop("No files found in debarcoded folder. Please check the path in settings or populate the folder.")
         }
 

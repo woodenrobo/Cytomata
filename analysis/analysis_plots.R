@@ -689,8 +689,8 @@ do_boxplots <- function(data, testing_results = testing_results, grouping_var = 
         testing_results$y.position <- y_positions
 
         nrow_signif <- testing_results %>%
-                      group_by(.data[["feature"]]) %>%
-                      summarise(n_signif = sum(p.adj.signif != "ns"))
+                      dplyr::group_by(.data[["feature"]]) %>%
+                      dplyr::summarise(n_signif = sum(p.adj.signif != "ns"))
         
         if (sum(nrow_signif$n_signif > 0) > 0) {
           filtered_testing <- c()
@@ -813,8 +813,8 @@ do_boxplots <- function(data, testing_results = testing_results, grouping_var = 
         testing_results$y.position <- y_positions
 
         nrow_signif <- testing_results %>%
-                      group_by(.data[[cluster_var]]) %>%
-                      summarise(n_signif = sum(p.adj.signif != "ns"))
+                      dplyr::group_by(.data[[cluster_var]]) %>%
+                      dplyr::summarise(n_signif = sum(p.adj.signif != "ns"))
         
         if (sum(nrow_signif$n_signif > 0) > 0) {
           filtered_testing <- c()
@@ -1088,8 +1088,8 @@ cluster_abundance_heatmaps <- function(data = data, grouping_var = group, featur
 
   abu_heat_mat <- abu_heat_mat %>% select(-c(id))
 
-  abu_heat_mat <- abu_heat_mat %>% group_by(!!sym(group)) %>%
-                    summarise(across(where(is.numeric), mean, na.rm = TRUE))
+  abu_heat_mat <- abu_heat_mat %>% dplyr::group_by(!!sym(group)) %>%
+                    dplyr::summarise(across(where(is.numeric), mean, na.rm = TRUE))
 
   if (cluster_ordering == TRUE && exists("dendrogram_order")) {
     rest_of_columns <- abu_heat_mat[, !colnames(abu_heat_mat) %in% dendrogram_order]
@@ -1183,8 +1183,8 @@ cluster_abundance_heatmaps <- function(data = data, grouping_var = group, featur
 
   abu_heat_mat <- abu_heat_mat %>% select(-c(id))
 
-  abu_heat_mat <- abu_heat_mat %>% group_by(!!sym(group)) %>%
-                    summarise(across(where(is.numeric), mean, na.rm = TRUE))
+  abu_heat_mat <- abu_heat_mat %>% dplyr::group_by(!!sym(group)) %>%
+                    dplyr::summarise(across(where(is.numeric), mean, na.rm = TRUE))
 
   if (cluster_ordering == TRUE && exists("dendrogram_order")) {
     rest_of_columns <- abu_heat_mat[, !colnames(abu_heat_mat) %in% dendrogram_order]
@@ -1494,8 +1494,8 @@ marker_average_heatmaps <- function(data = data, grouping_var = group, features 
 
   expr_heat_mat <- expr_heat_mat %>% select(-c(id))
 
-  expr_heat_mat <- expr_heat_mat %>% group_by(!!sym(group)) %>%
-                    summarise(across(where(is.numeric), mean, na.rm = TRUE))
+  expr_heat_mat <- expr_heat_mat %>% dplyr::group_by(!!sym(group)) %>%
+                    dplyr::summarise(across(where(is.numeric), mean, na.rm = TRUE))
 
   row_annot <- as.factor(expr_heat_mat[[grouping_var]])
 
@@ -1554,8 +1554,8 @@ marker_average_heatmaps <- function(data = data, grouping_var = group, features 
 
   expr_heat_mat <- expr_heat_mat %>% select(-c(id))
 
-  expr_heat_mat <- expr_heat_mat %>% group_by(!!sym(group)) %>%
-                    summarise(across(where(is.numeric), mean, na.rm = TRUE))
+  expr_heat_mat <- expr_heat_mat %>% dplyr::group_by(!!sym(group)) %>%
+                    dplyr::summarise(across(where(is.numeric), mean, na.rm = TRUE))
 
   row_annot <- as.factor(expr_heat_mat[[grouping_var]])
 

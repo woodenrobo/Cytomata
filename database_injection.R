@@ -60,14 +60,14 @@ setwd(norm_folder)
 ds <- arrow::open_dataset("parquet")
 
 means <- ds %>%
-          summarize(across(all_of(feature_markers), ~ mean(.))) %>%
+          dplyr::summarize(across(all_of(feature_markers), ~ mean(.))) %>%
                 collect() %>%
                 as.data.frame() %>%
                 tidyr::pivot_longer(cols = everything())
 colnames(means) <- c("channel", "mean") 
                           
 stdev <- ds %>%
-          summarize(across(all_of(feature_markers), ~ sd(.))) %>%
+          dplyr::summarize(across(all_of(feature_markers), ~ sd(.))) %>%
                 collect() %>%
                 as.data.frame() %>%
                 tidyr::pivot_longer(cols = everything())

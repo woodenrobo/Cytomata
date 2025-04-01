@@ -80,7 +80,7 @@ global_anchor_difference_compute <- function() {
     #computing most "average" anchor sample throughout all channels
     anchor_differences_global <- as.data.frame(anchor_differences %>%
                                     group_by(sample) %>%
-                                    summarize(mean_abs_difference = mean(as.numeric(mean_abs_difference))))
+                                    dplyr::summarize(mean_abs_difference = mean(as.numeric(mean_abs_difference))))
 
     setwd(out_norm_tables_folder)
     write.csv(anchor_differences_global, file = "anchor_differences_global.csv")
@@ -154,7 +154,7 @@ ks_diss_global_compute <- function() {
     #computing most "average" anchor sample throughout all channels
     ks_diss_global <- as.data.frame(ks_diss %>%
                                     group_by(sample) %>%
-                                    summarize(sum_difference = sum(as.numeric(ks_diss))))
+                                    dplyr::summarize(sum_difference = sum(as.numeric(ks_diss))))
 
     setwd(out_norm_tables_folder)
     write.csv(ks_diss_global, file = "ks_dissim_global.csv")
@@ -192,7 +192,7 @@ percentile_selector_compute <- function() {
 
         baseline_var <- exprs_set %>% pull(channel)  %>% var()
 
-        baseline_means_var <- exprs_set %>% group_by(sample) %>% summarise(means = mean(!!sym(channel))) %>% summarize(var = var(means))
+        baseline_means_var <- exprs_set %>% dplyr::group_by(sample) %>% dplyr::summarise(means = mean(!!sym(channel))) %>% dplyr::summarize(var = var(means))
 
         if (ks_testing == "total") {
             temp_x <- exprs_set %>%
@@ -249,7 +249,7 @@ percentile_selector_compute <- function() {
 
                 temp_var <- temp_set_norm %>% pull(channel) %>% var()
 
-                temp_means_var <- temp_set_norm %>% group_by(sample) %>% summarise(means = mean(!!sym(channel))) %>% summarize(var = var(means))
+                temp_means_var <- temp_set_norm %>% dplyr::group_by(sample) %>% dplyr::summarise(means = mean(!!sym(channel))) %>% dplyr::summarize(var = var(means))
 
                 temp_quantiles <- data.frame()
                  for (samp in unique(temp_set_norm$sample)){
@@ -475,7 +475,7 @@ normalize_batches_harmony <- function(mode = "percentile") {
 channel_mean_compute <- function(data_set) {
     means_df <- data.frame()
     for (channel in feature_markers) {
-        temp_means <- data_set %>% group_by(sample) %>% summarise(means = mean(!!sym(channel)))
+        temp_means <- data_set %>% dplyr::group_by(sample) %>% dplyr::summarise(means = mean(!!sym(channel)))
         temp_means$channel <- channel
         means_df <- rbind(means_df, temp_means)
     }
@@ -487,7 +487,7 @@ channel_mean_dist_compute <- function() {
     means_df <- data.frame()
     means_dist_result <- data.frame()
     for (channel in feature_markers) {
-        temp_means <- exprs_set %>% group_by(sample) %>% summarise(means = mean(!!sym(channel)))
+        temp_means <- exprs_set %>% dplyr::group_by(sample) %>% dplyr::summarise(means = mean(!!sym(channel)))
         temp_means$channel <- channel
         means_df <- rbind(means_df, temp_means)
     }

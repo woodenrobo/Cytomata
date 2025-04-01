@@ -4,9 +4,9 @@
 
 
 $Winrar = "C:\Program Files\WinRAR\WinRAR.exe"
-$Path = "C:\Users\woode\OneDrive - Charité - Universitätsmedizin Berlin\DOCTORATE\Cytomata_data\anca_panel_3\fcs\2_debarcoded\"
-$Batch = "240327"
-$Name = $Batch+"_DEBARCODED_250110\"
+$Path = "C:\Users\woode\OneDrive - Charité - Universitätsmedizin Berlin\DOCTORATE\Cytomata_data\iahp_panel_3\fcs\2_debarcoded\"
+$Batch = "20250328"
+$Name = $Batch+"_DEBARCODED_250401\"
 $File = $Batch+"_Blut_Panel3_CV19.fcs"
 
 New-Item -Path $Path -Name $Name -ItemType "directory"

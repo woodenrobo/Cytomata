@@ -12,7 +12,8 @@ automatic_palette <- as.numeric(settings$value[settings$setting == "automatic_pa
 
 if (automatic_palette < 1) {
     #create a list of custom palletes for each grouping column here
-    custom_palette <- list(c("HC" = "#27317d", "MPO" = "#a14c06", "PR3" = "#b31f1f"), c("HC" = "#27317d", "ANCA" = "#a93f15"))
+    # custom_palette <- list(c("HC" = "#27317d", "MPO" = "#a14c06", "PR3" = "#b31f1f"), c("HC" = "#27317d", "ANCA" = "#a93f15"))
+    custom_palette <- list("HC" = "#27317d", "MPO" = "#914100", "PR3" = "#697c00")
 }
 
 #DEFAULT THEMES PLACEHOLDER

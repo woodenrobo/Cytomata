@@ -658,23 +658,23 @@ summary_table <- function(data = exprs_set, grouping_var, selected_features = NU
   
   if (stat == "mean") {
     temp <- data %>% 
-      group_by(across(all_of(grouping_var))) %>% 
-      summarise(across(all_of(selected_features), mean, na.rm = TRUE), .groups = 'drop')
+      dplyr::group_by(across(all_of(grouping_var))) %>% 
+      dplyr::summarise(across(all_of(selected_features), mean, na.rm = TRUE), .groups = 'drop')
       return(temp)
   } else if (stat == "median") {
     temp <- data %>% 
-      group_by(across(all_of(grouping_var))) %>% 
-      summarise(across(all_of(selected_features), median, na.rm = TRUE), .groups = 'drop')
+      dplyr::group_by(across(all_of(grouping_var))) %>% 
+      dplyr::summarise(across(all_of(selected_features), median, na.rm = TRUE), .groups = 'drop')
       return(temp)
   } else if (stat == "count") {
     temp <- data %>% 
-      group_by(across(all_of(grouping_var))) %>% 
-      summarise(count = n(), .groups = 'drop')
+      dplyr::group_by(across(all_of(grouping_var))) %>% 
+      dplyr::summarise(count = n(), .groups = 'drop')
       return(temp)
   } else if (stat == "n_size") {
     temp <- data %>% 
-      group_by(across(all_of(grouping_var))) %>% 
-      summarise(n_size = n_distinct(id), .groups = 'drop')
+      dplyr::group_by(across(all_of(grouping_var))) %>% 
+      dplyr::summarise(n_size = n_distinct(id), .groups = 'drop')
       return(temp)
   } else {
     cat("Incorrect options set\n")
@@ -740,12 +740,12 @@ do_testing <- function(data, grouping_var, module, features, group_by_clusters, 
 
   if (group_by_clusters == TRUE) {
       n_number <- data %>%
-                group_by(!!sym(grouping_var), !!sym(cluster_var)) %>%
-                summarise(n = n())
+                dplyr::group_by(!!sym(grouping_var), !!sym(cluster_var)) %>%
+                dplyr::summarise(n = n())
   } else {
     n_number <- data %>%
-                group_by(!!sym(grouping_var)) %>%
-                summarise(n = n())
+                dplyr::group_by(!!sym(grouping_var)) %>%
+                dplyr::summarise(n = n())
   }
 
   min_n_number <- min(n_number$n)
