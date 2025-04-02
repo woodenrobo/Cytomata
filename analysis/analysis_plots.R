@@ -1614,3 +1614,295 @@ marker_average_heatmaps <- function(data = data, grouping_var = group, features 
 
 
 
+do_paired_boxplots <- function(data, testing_results = NULL, grouping_var = group, pairing_var = "id", 
+                           features, group_by_clusters = TRUE, cluster_var = cluster_var, 
+                           selected_clusters = NULL, column_number = 4, show_testing = TRUE,
+                           show_pvalues = TRUE, show_outliers = TRUE, line_color = "#464646", 
+                           line_size = 1, prefix = "paired") {
+  
+  # Verify that we have paired data
+  if(length(unique(data[[grouping_var]])) < 2) {
+    stop("Need at least two groups for paired comparison")
+  }
+  
+  # Check if pairing variable exists in the data
+  if(!pairing_var %in% names(data)) {
+    stop(paste("Pairing variable", pairing_var, "not found in data"))
+  }
+  
+  # Verify each pair has values for all groups
+  pair_counts <- data %>% 
+    dplyr::group_by(!!sym(pairing_var)) %>% 
+    dplyr::summarize(n_groups = n_distinct(!!sym(grouping_var)))
+  
+  if(any(pair_counts$n_groups < length(unique(data[[grouping_var]])))) {
+    warning("Some pairs don't have values for all groups. Lines will only connect existing pairs.")
+  }
+  
+  if (group_by_clusters == TRUE && length(features) > 1) {
+    stop("When grouping by clusters, only one feature can be plotted at a time.")
+  } else if (group_by_clusters == FALSE && length(features) > 1) {
+    data <- data %>%
+      tidyr::pivot_longer(cols = all_of(features), names_to = "feature", values_to = "value")
+    
+    if (!is.null(selected_clusters)) {
+      data <- data %>% filter(!!sym(cluster_var) %in% selected_clusters)
+    }
+    
+    if (show_outliers == FALSE) {
+      data <- data %>%
+        group_by(feature, !!sym(grouping_var)) %>%
+        dplyr::filter(
+          value >= quantile(value, 0.25) - 1.5 * IQR(value) &
+          value <= quantile(value, 0.75) + 1.5 * IQR(value)
+        ) %>%
+        ungroup()
+    }
+    
+    p <- ggplot(data, aes(x = !!sym(grouping_var), y = value, color = !!sym(grouping_var))) +
+      geom_boxplot(size = 2, outlier.shape = NA) +
+      geom_point(size = 5, alpha = 0.7) +
+      geom_line(aes(group = !!sym(pairing_var)), color = line_color, size = line_size) +
+      xlab(grouping_var) +
+      ylab('Marker Expression') +
+      scale_color_manual(values = group_cols, limits = force) +
+      facet_wrap(~ feature, scales = "free", ncol = column_number,
+                 labeller = labeller(.cols = label_wrap_gen(width = 25))) +
+      theme_cowplot() +
+      theme(
+        text = element_text(size = 45),
+        legend.position = "none",
+        axis.text.x = element_text(color = "black", size = 30, angle = 45, hjust = 1, vjust = 1, face = "plain"),
+        axis.text.y = element_text(color = "black", size = 45, angle = 0, hjust = .5, vjust = 0.5, face = "plain"),
+        plot.margin = margin(t = 20, r = 0, b = 0, l = 10),
+        strip.background = element_rect(fill = "#ffffff")
+      )
+    
+    if (show_testing == TRUE && !is.null(testing_results)) {
+      testing_results$feature <- testing_results$.y.
+      if (show_pvalues == TRUE) {
+        y_positions <- c()
+        for (i in unique(testing_results[["feature"]])) {
+          temp <- get_y_position(data[data$feature == i, ], reformulate(grouping_var, "value"), step.increase = 0.12, scales = "free")$y.position
+          y_positions <- c(y_positions, temp)
+        }
+        testing_results$y.position <- y_positions
+        testing_results$p.adj <- round(testing_results$p.adj, 3)
+        p <- p + stat_pvalue_manual(testing_results, label = "p.adj", hide.ns = FALSE, size = 8, tip.length = 0.01)
+      } else {
+        y_positions <- c()
+        for (i in unique(testing_results[["feature"]])) {
+          temp <- get_y_position(data[data$feature == i, ], reformulate(grouping_var, "value"), step.increase = 0.12, scales = "free")$y.position
+          y_positions <- c(y_positions, temp)
+        }
+        testing_results$y.position <- y_positions
+        
+        nrow_signif <- testing_results %>%
+          dplyr::group_by(.data[["feature"]]) %>%
+          dplyr::summarise(n_signif = sum(p.adj.signif != "ns"))
+        
+        if (sum(nrow_signif$n_signif > 0) > 0) {
+          filtered_testing <- c()
+          for (i in unique(testing_results[["feature"]])) {
+            marker_nrow_signif <- nrow_signif$n_signif[nrow_signif[["feature"]] == i]
+            if (marker_nrow_signif > 0) {
+              temp_y_positions <- testing_results$y.position[testing_results[["feature"]] == i]
+              temp_testing <- testing_results %>% dplyr::filter(.data[["feature"]] == i & p.adj.signif != "ns")
+              temp_testing$y.position <- temp_y_positions[1:marker_nrow_signif]
+              filtered_testing <- rbind(filtered_testing, temp_testing)
+            }
+          }
+          testing_results <- filtered_testing
+          p <- p + stat_pvalue_manual(testing_results, label = "p.adj.signif", hide.ns = FALSE, size = 15, tip.length = 0.01)
+        }
+      }
+    }
+    
+    n_features <- length(features)
+    pdf(paste0(output_group, prefix, "_", "paired_boxplot_grid", ".pdf"),
+        width = 8 * column_number,
+        height = 12 * ceiling(n_features / column_number)
+    )
+    print(p)
+    invisible(dev.off())
+    
+    singles_output <- paste0(output_group, prefix, "_singles/")
+    dir.create(singles_output, showWarnings = FALSE)
+    
+    for (facet in unique(data$feature)) {
+      data_subset <- data[data$feature == facet, ]
+      
+      p_subset <- ggplot(data_subset, aes(x = !!sym(grouping_var), y = value, color = !!sym(grouping_var))) +
+        geom_boxplot(size = 2, outlier.shape = NA) +
+        geom_point(size = 5, alpha = 0.7) +
+        geom_line(aes(group = !!sym(pairing_var)), color = line_color, size = line_size) +
+        ggtitle(paste(facet)) +
+        xlab(grouping_var) +
+        ylab('Marker Expression') +
+        scale_color_manual(values = group_cols, limits = force) +
+        theme_cowplot() +
+        theme(
+          text = element_text(size = 45),
+          legend.position = "none",
+          axis.text.x = element_text(color = "black", size = 30, angle = 45, hjust = 1, vjust = 1, face = "plain"),
+          axis.text.y = element_text(color = "black", size = 45, angle = 0, hjust = .5, vjust = 0.5, face = "plain"),
+          plot.margin = margin(t = 20, r = 0, b = 0, l = 10),
+          strip.background = element_rect(fill = "#ffffff")
+        )
+      
+      if (show_testing == TRUE && !is.null(testing_results)) {
+        if (show_pvalues == TRUE) {
+          feature_testing <- testing_results[testing_results[["feature"]] == facet, ]
+          if(nrow(feature_testing) > 0) {
+            p_subset <- p_subset + stat_pvalue_manual(feature_testing, label = "p.adj", hide.ns = FALSE, size = 8, tip.length = 0.01)
+          }
+        } else if(exists("filtered_testing")) {
+          feature_testing <- filtered_testing[filtered_testing[["feature"]] == facet, ]
+          if(nrow(feature_testing) > 0) {
+            p_subset <- p_subset + stat_pvalue_manual(feature_testing, label = "p.adj.signif", hide.ns = FALSE, size = 8, tip.length = 0.01)
+          }
+        }
+      }
+      
+      pdf(paste0(singles_output, prefix, "_", "paired_boxplot_", facet, ".pdf"),
+          width = 8,
+          height = 12
+      )
+      print(p_subset)
+      invisible(dev.off())
+    }
+    
+  } else if (group_by_clusters == TRUE && length(features) == 1) {
+    data <- data %>%
+      tidyr::pivot_longer(cols = all_of(features), names_to = "feature", values_to = "value")
+    
+    if (!is.null(selected_clusters)) {
+      data <- data %>% filter(!!sym(cluster_var) %in% selected_clusters)
+    }
+    
+    if (show_outliers == FALSE) {
+      data <- data %>%
+        group_by(!!sym(cluster_var), !!sym(grouping_var)) %>%
+        dplyr::filter(
+          value >= quantile(value, 0.25) - 1.5 * IQR(value) &
+          value <= quantile(value, 0.75) + 1.5 * IQR(value)
+        ) %>%
+        ungroup()
+    }
+    
+    p <- ggplot(data, aes(x = !!sym(grouping_var), y = value, color = !!sym(grouping_var))) +
+      geom_boxplot(size = 2, outlier.shape = NA) +
+      geom_point(size = 5, alpha = 0.7) +
+      geom_line(aes(group = !!sym(pairing_var)), color = line_color, size = line_size) +
+      xlab(grouping_var) +
+      ylab('Cluster Abundance [%]') +
+      scale_color_manual(values = group_cols, limits = force) +
+      facet_wrap(~ .data[[cluster_var]], scales = "free", ncol = column_number,
+                 labeller = labeller(.cols = label_wrap_gen(width = 25))) +
+      theme_cowplot() +
+      theme(
+        text = element_text(size = 45),
+        legend.position = "none",
+        axis.text.x = element_text(color = "black", size = 30, angle = 45, hjust = 1, vjust = 1, face = "plain"),
+        axis.text.y = element_text(color = "black", size = 45, angle = 0, hjust = .5, vjust = 0.5, face = "plain"),
+        plot.margin = margin(t = 20, r = 0, b = 0, l = 10),
+        strip.background = element_rect(fill = "#ffffff")
+      )
+    
+    if (show_testing == TRUE && !is.null(testing_results)) {
+      if (show_pvalues == TRUE) {
+        y_positions <- c()
+        for (i in unique(testing_results[[cluster_var]])) {
+          temp <- get_y_position(data[data[[cluster_var]] == i, ], reformulate(grouping_var, "value"), step.increase = 0.12, scales = "free")$y.position
+          y_positions <- c(y_positions, temp)
+        }
+        testing_results$y.position <- y_positions
+        testing_results$p.adj <- round(testing_results$p.adj, 3)
+        p <- p + stat_pvalue_manual(testing_results, label = "p.adj", hide.ns = FALSE, size = 8, tip.length = 0.01)
+        
+      } else {
+        y_positions <- c()
+        for (i in unique(testing_results[[cluster_var]])) {
+          temp <- get_y_position(data[data[[cluster_var]] == i, ], reformulate(grouping_var, "value"), step.increase = 0.12, scales = "free")$y.position
+          y_positions <- c(y_positions, temp)
+        }
+        testing_results$y.position <- y_positions
+        
+        nrow_signif <- testing_results %>%
+          dplyr::group_by(.data[[cluster_var]]) %>%
+          dplyr::summarise(n_signif = sum(p.adj.signif != "ns"))
+        
+        if (sum(nrow_signif$n_signif > 0) > 0) {
+          filtered_testing <- c()
+          for (i in unique(testing_results[[cluster_var]])) {
+            cluster_nrow_signif <- nrow_signif$n_signif[nrow_signif[[cluster_var]] == i]
+            if (cluster_nrow_signif > 0) {
+              temp_y_positions <- testing_results$y.position[testing_results[[cluster_var]] == i]
+              temp_testing <- testing_results %>% dplyr::filter(.data[[cluster_var]] == i & p.adj.signif != "ns")
+              temp_testing$y.position <- temp_y_positions[1:cluster_nrow_signif]
+              filtered_testing <- rbind(filtered_testing, temp_testing)
+            }
+          }
+          testing_results <- filtered_testing
+          p <- p + stat_pvalue_manual(testing_results, label = "p.adj.signif", hide.ns = FALSE, size = 15, tip.length = 0.01)
+        }
+      }
+    }
+    
+    n_clusters <- length(unique(data[[cluster_var]]))
+    pdf(paste0(output_group, prefix, "_", "paired_boxplot_grid", ".pdf"),
+        width = 8 * column_number,
+        height = 12 * ceiling(n_clusters / column_number)
+    )
+    print(p)
+    invisible(dev.off())
+    
+    singles_output <- paste0(output_group, prefix, "_singles/")
+    dir.create(singles_output, showWarnings = FALSE)
+    
+    for (facet in unique(data[[cluster_var]])) {
+      data_subset <- data[data[[cluster_var]] == facet, ]
+      
+      p_subset <- ggplot(data_subset, aes(x = !!sym(grouping_var), y = value, color = !!sym(grouping_var))) +
+        geom_boxplot(size = 2, outlier.shape = NA) +
+        geom_point(size = 5, alpha = 0.7) +
+        geom_line(aes(group = !!sym(pairing_var)), color = line_color, size = line_size) +
+        ggtitle(paste(facet)) +
+        xlab(grouping_var) +
+        ylab('Cluster Abundance [%]') +
+        scale_color_manual(values = group_cols, limits = force) +
+        theme_cowplot() +
+        theme(
+          text = element_text(size = 45),
+          legend.position = "none",
+          axis.text.x = element_text(color = "black", size = 30, angle = 45, hjust = 1, vjust = 1, face = "plain"),
+          axis.text.y = element_text(color = "black", size = 45, angle = 0, hjust = .5, vjust = 0.5, face = "plain"),
+          plot.margin = margin(t = 20, r = 0, b = 0, l = 10),
+          strip.background = element_rect(fill = "#ffffff")
+        )
+      
+      if (show_testing == TRUE && !is.null(testing_results)) {
+        if (show_pvalues == TRUE) {
+          cluster_testing <- testing_results[testing_results[[cluster_var]] == facet, ]
+          if(nrow(cluster_testing) > 0) {
+            p_subset <- p_subset + stat_pvalue_manual(cluster_testing, label = "p.adj", hide.ns = FALSE, size = 8, tip.length = 0.01)
+          }
+        } else if(exists("filtered_testing")) {
+          cluster_testing <- filtered_testing[filtered_testing[[cluster_var]] == facet, ]
+          if(nrow(cluster_testing) > 0) {
+            p_subset <- p_subset + stat_pvalue_manual(cluster_testing, label = "p.adj.signif", hide.ns = FALSE, size = 8, tip.length = 0.01)
+          }
+        }
+      }
+      
+      pdf(paste0(singles_output, prefix, "_", "paired_boxplot_", facet, ".pdf"),
+          width = 8,
+          height = 12
+      )
+      print(p_subset)
+      invisible(dev.off())
+    }
+  }
+  
+  return(p)
+}

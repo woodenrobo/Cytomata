@@ -682,13 +682,30 @@ summary_table <- function(data = exprs_set, grouping_var, selected_features = NU
 }
 
 
-calculate_cluster_proportions <- function(cluster_var = "meta_cluster_id", selected_clusters = NULL, prefix = NULL) {
+calculate_cluster_proportions <- function(cluster_var = "meta_cluster_id", additional_columns = NULL, selected_clusters = NULL, prefix = NULL) {
     all_clusters <- unique(exprs_set[[cluster_var]])
   
     if (is.null(selected_clusters)) {
-        counts_table <- summary_table(exprs_set, c(group, "id", cluster_var), selected_features = NULL, "count") %>%
-                        tidyr::complete(id, !!sym(cluster_var) := all_clusters, fill = list(count = 0))
-                        # makes sure that if a given sample "id" does not have a row for a particular cluster, that row is added with a count of zero
+         # First, create a mapping of id to group and additional columns
+        id_mapping <- exprs_set %>%
+            select(id, !!sym(group), !!!syms(additional_columns)) %>%
+            distinct() %>%
+            group_by(id) %>%
+            dplyr::summarize(
+                across(all_of(c(group, additional_columns)), ~names(which.max(table(.x)))),
+                .groups = "drop"
+            )
+            
+        # Get counts by id and cluster
+        counts_table <- summary_table(exprs_set, c("id", cluster_var), selected_features = NULL, "count")
+        
+        # Complete the table to ensure all clusters are represented for each id
+        counts_table <- counts_table %>%
+            tidyr::complete(id, !!sym(cluster_var) := all_clusters, fill = list(count = 0))
+            
+        # Join back the group and additional columns information
+        counts_table <- counts_table %>%
+            left_join(id_mapping, by = "id")
         cluster_proportions <- counts_table %>%
                         group_by(id) %>%
                         mutate(prop = count / sum(count) * 100) %>%
@@ -700,11 +717,23 @@ calculate_cluster_proportions <- function(cluster_var = "meta_cluster_id", selec
         }
     } else {
         all_clusters <- intersect(all_clusters, selected_clusters)
-        counts_table <- summary_table(exprs_set, c(group, "id", cluster_var), selected_features = NULL, "count") %>%
-                        dplyr::filter(!!sym(cluster_var) %in% selected_clusters) %>%
-                        tidyr::complete(id, !!sym(cluster_var) := all_clusters, fill = list(count = 0))
-                        # makes sure that if a given sample "id" does not have a row for a particular cluster, that row is added with a count of zero
-        cluster_proportions <- counts_table %>%
+        # First, create a mapping of id to group and additional columns
+        id_mapping <- exprs_set %>%
+            select(id, !!sym(group), !!!syms(additional_columns)) %>%
+            distinct() %>%
+            group_by(id) %>%
+            dplyr::summarize(
+                across(all_of(c(group, additional_columns)), ~names(which.max(table(.x)))),
+                .groups = "drop"
+            )
+            
+        # Get counts by id and cluster
+        counts_table <- summary_table(exprs_set, c("id", cluster_var), selected_features = NULL, "count")
+        
+        # Complete the table to ensure all clusters are represented for each id
+        counts_table <- counts_table %>%
+            tidyr::complete(id, !!sym(cluster_var) := all_clusters, fill = list(count = 0))
+                    cluster_proportions <- counts_table %>%
                         group_by(id) %>%
                         mutate(prop = count / sum(count) * 100) %>%
                         ungroup()
@@ -755,6 +784,25 @@ do_testing <- function(data, grouping_var, module, features, group_by_clusters, 
   }
 
   temp <- data
+  
+  if (paired == TRUE) {
+    if (n_unique_groups > 2) {
+      stop("Paired testing is not supported for more than two groups.")
+    }
+    # remove entries where pairing var is not present in both groups
+
+    no_pair <- temp %>%
+      dplyr::ungroup() %>%
+      select(!!sym(pairing_var), !!sym(grouping_var)) %>%
+      dplyr::distinct() %>%
+      dplyr::group_by(!!sym(pairing_var)) %>%
+      dplyr::summarise(n = n()) %>%
+      dplyr::filter(n < 2) %>%
+      dplyr::pull(!!sym(pairing_var))
+
+    temp <- temp[!unlist(temp[, pairing_var]) %in% no_pair, ]
+  }
+
   temp[[grouping_var]] <- as.character(temp[[grouping_var]])
   if (n_unique_groups == 2) {
     comparisons <- list(c(unique_groups))
