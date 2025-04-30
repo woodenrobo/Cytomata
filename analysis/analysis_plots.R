@@ -359,38 +359,84 @@ pca_biplot <- function(grouping_var, dims, module) {
     folder <- output_core
     cols <- group_cols
   }
+  
+  # Set a larger plot size to avoid viewport issues
   pdf(paste0(folder, "PCA_", grouping_var, "_PC_", paste0(dims, collapse = "_"), ".pdf"),
-    width = 13,
-    height = 10
+    width = 15,  # Increased width
+    height = 12  # Increased height
   )
 
-  print(autoplot(temp_pca, data = averaged_pca["group"], color = "group",
+  # Try-catch block to handle potential errors
+  tryCatch({
+    p <- autoplot(temp_pca, data = averaged_pca["group"], color = "group",
                x = dims[1],
                y = dims[2],
                loadings = TRUE, loadings.colour = 'black',
                loadings.label.colour = 'black', loadings.label = TRUE, loadings.label.size = 10,
-               loadings.label.repel = TRUE) +
-        stat_ellipse(type = "norm", level = 0.68, size = 2, alpha = 0.8, aes(color = group, fill = group)) +
-        stat_ellipse(geom = "polygon", alpha = 0.3, aes(fill = group)) +
-        geom_point(aes(color = group), size = 3.5, alpha = 1,) +
+               loadings.label.repel = TRUE)
+    
+    # Add layers individually with error checking
+    p <- p + 
+          theme_cowplot() +
+          scale_color_manual(values = cols, limits = force, labels = scales::label_wrap(25)) +
+          labs(color = grouping_var) + 
+          theme(text=element_text(size=25),
+                plot.title = element_text(size=20),
+                axis.text.x = element_text(color = "black", size = 20, angle = 0, 
+                                           hjust = 0.5, vjust = 0.5, face = "plain"),
+                axis.text.y = element_text(color = "black", size = 20, angle = 0, 
+                                           hjust = 0.5, vjust = 0.5, face = "plain"),
+                axis.title.x.bottom = element_text(margin = margin(t = 10, r = 0, b = 0, l = 0),
+                                                   size = 25),
+                axis.title.y.left = element_text(margin = margin(t = 0, r = 10, b = 0, l = 0),
+                                                 size = 25)
+          )
+    
+    # Try to add ellipses and points, with fallback options
+    tryCatch({
+      p <- p + stat_ellipse(type = "norm", level = 0.68, size = 2, alpha = 0.8, 
+                           aes(color = group, fill = group))
+      p <- p + stat_ellipse(geom = "polygon", alpha = 0.3, aes(fill = group))
+    }, error = function(e) {
+      message("Could not add ellipses: ", e$message)
+    })
+    
+    # Always add points even if ellipses fail
+    p <- p + geom_point(aes(color = group), size = 3.5, alpha = 1)
+    
+    # Add scale_fill_manual if we have ellipses
+    tryCatch({
+      p <- p + scale_fill_manual(values = cols, limits = force)
+    }, error = function(e) {
+      message("Could not add fill scale: ", e$message)
+    })
+    
+    # Print the plot
+    print(p)
+    
+  }, error = function(e) {
+    # If full plot fails, create a simpler version without repel labels
+    message("Error in plot creation: ", e$message)
+    message("Creating simplified plot without repel labels")
+    
+    p_simple <- autoplot(temp_pca, data = averaged_pca["group"], color = "group",
+               x = dims[1],
+               y = dims[2],
+               loadings = TRUE, loadings.colour = 'black',
+               loadings.label = FALSE) +  # No repel labels
+        geom_point(aes(color = group), size = 3.5, alpha = 1) +
         theme_cowplot() +
         scale_color_manual(values = cols, limits = force, labels = scales::label_wrap(25)) +
-        labs(color = grouping_var)+ 
-        theme(text=element_text(size=25),
-              plot.title = element_text(size=20),
-              #legend.position="none",
-              axis.text.x = element_text(color = "black", size = 20
-                                         , angle = 0, hjust = 0.5, vjust = 0.5, face = "plain"),
-              axis.text.y = element_text(color = "black", size = 20
-                                         , angle = 0, hjust = 0.5, vjust = 0.5, face = "plain"),
-              axis.title.x.bottom = element_text(margin = margin(t = 10, r = 0, b = 0, l = 0),
-                                                 size = 25),
-              axis.title.y.left = element_text(margin = margin(t = 0, r = 10, b = 0, l = 0),
-                                               size = 25)
-        )
-  )
+        labs(color = grouping_var, 
+             title = paste("PCA simplified (error with full plot)"))
+    
+    print(p_simple)
+  })
+  
   invisible(dev.off())
-
+  
+  # Return success message
+  return(paste("PCA plot for", grouping_var, "completed"))
 }
 
 
@@ -592,7 +638,8 @@ umap_expressions <- function(grouping_var = NULL, module, column_number = 4) {
 
 
 do_corrplot <- function() {
-   cormat <- Hmisc::rcorr(as.matrix(exprs_set[, clustering_feature_markers]), type = "spearman")
+   #prevent from plotting without viewport
+   invisible(cormat <- Hmisc::rcorr(as.matrix(exprs_set[, clustering_feature_markers]), type = "spearman"))
   
 
   #flattenCorrMatrix
