@@ -198,7 +198,7 @@ for (data_sub in data_subsets) {
             #restore exprs_set from backup
             exprs_set <- exprs_set_backup
             #remove events with NA in grouping column
-            exprs_set <- exprs_set[!is.na(exprs_set[, group]), ]
+            exprs_set <- exprs_set[!exprs_set[, group] == "NA", ]
             exprs_set[, group] <- factor(exprs_set[, group], levels = group_order, ordered = TRUE)
         } else {
             exprs_set[, group] <- factor(exprs_set[, group], levels = group_order, ordered = TRUE)
