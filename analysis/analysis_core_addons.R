@@ -56,7 +56,7 @@ if (group == "pre_post") {
                 prefix = prefix)
 }
 
-if (project == "dc10") {
+if (project_name == "dc10") {
     if (group != "group") {
         cluster_var <- "meta_cluster_id"
         selected_clusters <- NULL
@@ -69,21 +69,21 @@ if (project == "dc10") {
         parametric_testing <- FALSE
         paired <- TRUE
         if (group == "paired_0") {
-            manual_comparisons <- c("DC_0h", "DC-10_0h")
+            manual_comparisons <- c("DC_0h", "DC10_0h")
         } else if (group == "paired_0_5") {
-            manual_comparisons <- c("DC_0.5h", "DC-10_0.5h")
+            manual_comparisons <- c("DC_0_5h", "DC10_0_5h")
         } else if (group == "paired_4") {
-            manual_comparisons <- c("DC_4h", "DC-10_4h")
+            manual_comparisons <- c("DC_4h", "DC10_4h")
         } else if (group == "paired_24") {
-            manual_comparisons <- c("DC_24h", "DC-10_24h")
+            manual_comparisons <- c("DC_24h", "DC10_24h")
         } else if (group == "paired_0_LPS") {
-            manual_comparisons <- c("DC+LPS_0h", "DC-10+LPS_0h")
+            manual_comparisons <- c("DC_LPS_0h", "DC10_LPS_0h")
         } else if (group == "paired_0_5_LPS") {
-            manual_comparisons <- c("DC+LPS_0.5h", "DC-10+LPS_0.5h")
+            manual_comparisons <- c("DC_LPS_0_5h", "DC10_LPS_0_5h")
         } else if (group == "paired_4_LPS") {
-            manual_comparisons <- c("DC+LPS_4h", "DC-10+LPS_4h")
+            manual_comparisons <- c("DC_LPS_4h", "DC10_LPS_4h")
         } else if (group == "paired_24_LPS") {
-            manual_comparisons <- c("DC+LPS_24h", "DC-10+LPS_24h")
+            manual_comparisons <- c("DC_LPS_24h", "DC10_LPS_24h")
         }
 
         prefix <- "meta_cluster_id_prop_all_clusters_PAIRED"
@@ -132,15 +132,18 @@ if (project == "dc10") {
                 
         features <- clustering_feature_markers
         prefix <- "marker_expressions_all_clusters_PAIRED"
+        
 
-        exprs_averages <- summary_table(data = exprs_set, grouping_var = c(group, "id"), selected_features = clustering_feature_markers, stat = "mean")
+
+        group_by_clusters <- FALSE
+        exprs_averages <- summary_table(data = exprs_set, grouping_var = c(group, "id", "donor"), selected_features = clustering_feature_markers, stat = "mean")
         data <- exprs_averages
         testing_results <- do_testing(data = data, grouping_var = group, features = features, group_by_clusters = group_by_clusters,
                                         cluster_var = cluster_var, selected_clusters = selected_clusters, column_number = column_number,
                                         parametric_testing = parametric_testing, paired = paired, manual_comparisons = manual_comparisons, prefix = prefix)
 
 
-        marker_average_heatmaps(data = data, grouping_var = group, features = features, prefix = prefix)
+        marker_average_heatmaps(data = data, grouping_var = group, features = features, prefix = prefix, pairing_var = pairing_var)
 
 
         show_testing <- TRUE

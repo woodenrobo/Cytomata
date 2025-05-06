@@ -373,11 +373,14 @@ continue_or_recluster <- function() {
 
     if (answer == "recluster") {
         clustering_mode <- "do_clustering"
-        settings <- parse_settings()
+
+
+        update_settings()
         clustering_engine <- settings$value[settings$setting == "clustering_engine"]
         clustering_k <- as.numeric(unlist(strsplit(settings$value[settings$setting == "clustering_k"], split = ", ", fixed = TRUE)))
         fs_n_dims <- as.numeric(settings$value[settings$setting == "fs_n_dims"])
         ccp_delta_cutoff <- as.numeric(settings$value[settings$setting == "ccp_delta_cutoff"])
+
         do_clustering()
         do_clustering_diagnostics()
         continue_or_recluster()
@@ -656,7 +659,7 @@ continue_or_recalculate_umap <- function() {
 
 
 summary_table <- function(data = exprs_set, grouping_var, selected_features = NULL, stat = "mean") {
-  
+
   if (stat == "mean") {
     temp <- data %>% 
       dplyr::group_by(across(all_of(grouping_var))) %>% 
@@ -868,9 +871,9 @@ do_testing <- function(data, grouping_var, module, features, group_by_clusters, 
             signif_clusters <- unlist(omnibus_result[omnibus_result$p < 0.05, cluster_var])
         }
         if (group_by_clusters == TRUE && length(signif_clusters) > 0) {
-          test_result <- temp %>% dplyr::filter(!!sym(cluster_var) %in% signif_clusters) %>% ungroup() %>% rstatix::t_test(as.formula(paste(feature, "~", grouping_var)), paired = paired, p.adjust.method = "none")
+          test_result <- temp %>% dplyr::filter(!!sym(cluster_var) %in% signif_clusters) %>% rstatix::t_test(as.formula(paste(feature, "~", grouping_var)), paired = paired, p.adjust.method = "none")
         } else {
-          test_result <- temp %>% ungroup() %>% rstatix::t_test(as.formula(paste(feature, "~", grouping_var)), paired = paired, p.adjust.method = "none")
+          test_result <- temp %>% rstatix::t_test(as.formula(paste(feature, "~", grouping_var)), paired = paired, p.adjust.method = "none")
         }
         omnibus_collector <- rbind(omnibus_collector, omnibus_result)
         collector <- rbind(collector, test_result)
@@ -882,6 +885,14 @@ do_testing <- function(data, grouping_var, module, features, group_by_clusters, 
       testing_type <- "nonparametric"
 
       if (group_by_clusters == TRUE) {
+        # remove groups where all features have variance = 0
+        # as this will crash non-parametric tests
+        temp <- temp %>%
+            dplyr::group_by(!!sym(grouping_var), !!sym(cluster_var)) %>%
+            dplyr::mutate(var = var(!!sym(feature))) %>%
+            dplyr::filter(var > 0) %>%
+            ungroup()
+
         temp <- temp %>% group_by(!!sym(cluster_var))
       }
       if (!is.null(selected_clusters)) {
@@ -889,6 +900,8 @@ do_testing <- function(data, grouping_var, module, features, group_by_clusters, 
       }
       omnibus_collector <- c()
       collector <- c()
+
+
       for (f in seq_along(features)) {
         feature <- features[f]
         omnibus_result <- temp %>% rstatix::kruskal_test(as.formula(paste(feature, "~", grouping_var)))
@@ -896,9 +909,9 @@ do_testing <- function(data, grouping_var, module, features, group_by_clusters, 
             signif_clusters <- unlist(omnibus_result[omnibus_result$p < 0.05, cluster_var])
         }
         if (group_by_clusters == TRUE && length(signif_clusters) > 0) {
-          test_result <- temp %>% dplyr::filter(!!sym(cluster_var) %in% signif_clusters) %>% ungroup() %>% rstatix::pairwise_wilcox_test(as.formula(paste(feature, "~", grouping_var)), paired = paired, p.adjust.method = "none")
+          test_result <- temp %>% dplyr::filter(!!sym(cluster_var) %in% signif_clusters) %>% rstatix::pairwise_wilcox_test(as.formula(paste(feature, "~", grouping_var)), paired = paired, p.adjust.method = "none")
         } else {
-          test_result <- temp %>% ungroup() %>% rstatix::pairwise_wilcox_test(as.formula(paste(feature, "~", grouping_var)), paired = paired, p.adjust.method = "none")
+          test_result <- temp %>% rstatix::pairwise_wilcox_test(as.formula(paste(feature, "~", grouping_var)), paired = paired, p.adjust.method = "none")
         }
         omnibus_collector <- rbind(omnibus_collector, omnibus_result)
         collector <- rbind(collector, test_result)

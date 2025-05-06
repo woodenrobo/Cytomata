@@ -35,20 +35,21 @@ parse_settings <- function() {
     library(readxl)
     library(stringr)
     #looking for settings.xlsx in Cytomata root folder
-    settings <- read_xlsx("settings.xlsx")
+    settings <- read_xlsx(paste0(path_to_cytomata, "settings.xlsx"))
 }
 
 
-update_settings <- function(settings) {
+update_settings <- function() {
     library(readxl)
     library(stringr)
     #looking for settings.xlsx in Cytomata root folder
-    new_settings <- read_xlsx("settings.xlsx")
+    new_settings <- read_xlsx(paste0(path_to_cytomata, "settings.xlsx"))
     changed_settings <- unlist(new_settings[new_settings$value != settings$value & !is.na(new_settings$value), "setting"])
     if (length(changed_settings) > 0) {
-        settings[settings$setting %in% changed_settings, "value"] <- new_settings[new_settings$setting %in% changed_settings, "value"]
-        cat("Changes found in settings:\n")
-        cat(paste(changed_settings, collapse = "\n"), "\n")
+        for (i in 1:length(changed_settings)) {
+            cat("Setting", changed_settings[i], "changed from", settings$value[settings$setting == changed_settings[i]], "to", new_settings$value[new_settings$setting == changed_settings[i]], "\n")
+            settings[settings$setting == changed_settings[i], "value"] <- new_settings$value[new_settings$setting == changed_settings[i]]
+        }
         cat("New values applied\n")
     } else {
         cat("No changes found in settings.\n")
