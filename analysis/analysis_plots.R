@@ -459,7 +459,7 @@ umap_plot <- function(grouping_var, module, labels = TRUE) {
   }
 
   pdf(paste0(folder, "UMAP_", grouping_var, ".pdf"),
-    width = 13,
+    width = 20,
     height = 10
   )
 
