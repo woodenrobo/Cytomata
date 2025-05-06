@@ -354,7 +354,12 @@ normalize_batches <- function() {
     cofac <- 1
 
     for (batch in anchor_batches_in_dir) {
-        input <- total_input[grepl(batch, total_input)]
+        # jesus, was the old implementation stupid
+        # filtering out file files by batch id using meta table instead of regex on fcs name
+        # input <- total_input[grepl(batch, total_input)]
+        input <- meta$fcs[meta$batch == batch]
+        input <- input[input %in% total_input]
+
         cat("Normalizing batch:", batch, "\n")
         setwd(debar_folder)
         exprs_set <- inject_fcs(input, filter_features = FALSE, asinh_transform = asinh_transform, cofac = cofac)
