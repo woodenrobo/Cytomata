@@ -239,6 +239,7 @@ cluster_expr_heatmap <- function(expression_setting, scale, after_dropping = FAL
     #z-normalize feature expression
     #this is done for better contrast in the heatmap
     cluster_matrix <- apply(cluster_matrix, scale, MARGIN = 2)
+    cluster_matrix[is.na(cluster_matrix)] <- 0
   }
 
   rownames(cluster_matrix) <- seq_along(unique(exprs_set$meta_cluster_id))

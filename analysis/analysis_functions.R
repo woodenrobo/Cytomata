@@ -373,6 +373,7 @@ continue_or_recluster <- function() {
 
     if (answer == "recluster") {
         clustering_mode <- "do_clustering"
+        settings <- parse_settings()
         clustering_engine <- settings$value[settings$setting == "clustering_engine"]
         clustering_k <- as.numeric(unlist(strsplit(settings$value[settings$setting == "clustering_k"], split = ", ", fixed = TRUE)))
         fs_n_dims <- as.numeric(settings$value[settings$setting == "fs_n_dims"])
