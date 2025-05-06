@@ -868,9 +868,9 @@ do_testing <- function(data, grouping_var, module, features, group_by_clusters, 
             signif_clusters <- unlist(omnibus_result[omnibus_result$p < 0.05, cluster_var])
         }
         if (group_by_clusters == TRUE && length(signif_clusters) > 0) {
-          test_result <- temp %>% dplyr::filter(!!sym(cluster_var) %in% signif_clusters) %>% rstatix::t_test(as.formula(paste(feature, "~", grouping_var)), paired = paired, p.adjust.method = "none")
+          test_result <- temp %>% dplyr::filter(!!sym(cluster_var) %in% signif_clusters) %>% ungroup() %>% rstatix::t_test(as.formula(paste(feature, "~", grouping_var)), paired = paired, p.adjust.method = "none")
         } else {
-          test_result <- temp %>% rstatix::t_test(as.formula(paste(feature, "~", grouping_var)), paired = paired, p.adjust.method = "none")
+          test_result <- temp %>% ungroup() %>% rstatix::t_test(as.formula(paste(feature, "~", grouping_var)), paired = paired, p.adjust.method = "none")
         }
         omnibus_collector <- rbind(omnibus_collector, omnibus_result)
         collector <- rbind(collector, test_result)
@@ -896,9 +896,9 @@ do_testing <- function(data, grouping_var, module, features, group_by_clusters, 
             signif_clusters <- unlist(omnibus_result[omnibus_result$p < 0.05, cluster_var])
         }
         if (group_by_clusters == TRUE && length(signif_clusters) > 0) {
-          test_result <- temp %>% dplyr::filter(!!sym(cluster_var) %in% signif_clusters) %>% rstatix::pairwise_wilcox_test(as.formula(paste(feature, "~", grouping_var)), paired = paired, p.adjust.method = "none")
+          test_result <- temp %>% dplyr::filter(!!sym(cluster_var) %in% signif_clusters) %>% ungroup() %>% rstatix::pairwise_wilcox_test(as.formula(paste(feature, "~", grouping_var)), paired = paired, p.adjust.method = "none")
         } else {
-          test_result <- temp %>% rstatix::pairwise_wilcox_test(as.formula(paste(feature, "~", grouping_var)), paired = paired, p.adjust.method = "none")
+          test_result <- temp %>% ungroup() %>% rstatix::pairwise_wilcox_test(as.formula(paste(feature, "~", grouping_var)), paired = paired, p.adjust.method = "none")
         }
         omnibus_collector <- rbind(omnibus_collector, omnibus_result)
         collector <- rbind(collector, test_result)
