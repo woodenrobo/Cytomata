@@ -884,9 +884,10 @@ do_testing <- function(data, grouping_var, module, features, group_by_clusters, 
     } else {
       testing_type <- "nonparametric"
 
-      if (group_by_clusters == TRUE) {
+      if (group_by_clusters == TRUE && length(features) == 1) {
         # remove groups where all features have variance = 0
         # as this will crash non-parametric tests
+        feature <- features[1]
         temp <- temp %>%
             dplyr::group_by(!!sym(grouping_var), !!sym(cluster_var)) %>%
             dplyr::mutate(var = var(!!sym(feature))) %>%
