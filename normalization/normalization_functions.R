@@ -354,7 +354,13 @@ normalize_batches <- function() {
     cofac <- 1
 
     for (batch in anchor_batches_in_dir) {
-        input <- total_input[grepl(batch, total_input)]
+        # jesus, was the old implementation stupid
+        # filtering out file files by batch id using meta table instead of regex on fcs name
+        # input <- total_input[grepl(batch, total_input)]
+        curr_anchor <- target_anchors$fcs[target_anchors$batch == batch]
+        input <- meta$fcs[meta$batch == batch]
+        input <- input[input %in% total_input]
+
         cat("Normalizing batch:", batch, "\n")
         setwd(debar_folder)
         exprs_set <- inject_fcs(input, filter_features = FALSE, asinh_transform = asinh_transform, cofac = cofac)
@@ -365,14 +371,14 @@ normalize_batches <- function() {
         for (channel in feature_markers){
             for (samp in unique(exprs_set$sample)) {
                 exprs_set[exprs_set$sample == samp, channel] <- exprs_set[exprs_set$sample == samp, channel] *
-                                                                 as.numeric(filtered_factors[grepl(batch, filtered_factors$a_sample) &
+                                                                 as.numeric(filtered_factors[filtered_factors$a_sample == curr_anchor &
                                                                                              filtered_factors$channel == channel, "factor"])
             }
         }
 
 
         #WRITING FILES
-        batch_files <- unique(exprs_set[grepl(batch, exprs_set$sample), "sample"])
+        batch_files <- unique(exprs_set[, "sample"])
         
         
         # Initializes the progress bar

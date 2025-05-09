@@ -14,4 +14,6 @@ do_pca_plots(module = "exploration")
 
 do_umap_plots(module = "exploration")
 
-do_corrplot()
+
+# Is very slow, so commented out until needed
+# do_corrplot()

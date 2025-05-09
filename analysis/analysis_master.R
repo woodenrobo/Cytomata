@@ -2,6 +2,7 @@
 first_run_mode <- as.numeric(settings$value[settings$setting == "first_run_mode"])
 grouping_columns <- unlist(strsplit(settings$value[settings$setting == "grouping_columns"], split = ", ", fixed = TRUE))
 grouping_orders <- unlist(strsplit(settings$value[settings$setting == "grouping_orders"], split = "; ", fixed = TRUE))
+treat_NA_as_group <- as.numeric(settings$value[settings$setting == "treat_NA_as_group"])
 data_subsets <- unlist(strsplit(settings$value[settings$setting == "data_subsets"], split = ", ", fixed = TRUE))
 sampling_factors <- as.numeric(unlist(strsplit(settings$value[settings$setting == "sampling"], split = ", ", fixed = TRUE)))
 event_cutoff <- as.numeric(settings$value[settings$setting == "event_cutoff"])
@@ -178,6 +179,10 @@ for (data_sub in data_subsets) {
         setwd(path_to_cytomata)
         source("./analysis/analysis_exploration_addons.R")
 
+        if (treat_NA_as_group == 0) {
+            exprs_set_backup <- exprs_set
+        }
+
         grouping_col_counter <- 0
         for (group in grouping_columns) {
             grouping_col_counter <- grouping_col_counter + 1
@@ -189,7 +194,18 @@ for (data_sub in data_subsets) {
                 group_order <- unlist(strsplit(grouping_orders[grouping_col_counter], split = ", ", fixed = TRUE))
             }
 
+        if (treat_NA_as_group == 0) {
+            #restore exprs_set from backup
+            exprs_set <- exprs_set_backup
+            #remove events with NA in grouping column
+            exprs_set <- exprs_set[!exprs_set[, group] == "NA", ]
             exprs_set[, group] <- factor(exprs_set[, group], levels = group_order, ordered = TRUE)
+        } else {
+            exprs_set[, group] <- factor(exprs_set[, group], levels = group_order, ordered = TRUE)
+        }
+
+
+            
 
             if (automatic_palette < 1) {
                 group_cols <- unlist(custom_palette[grouping_col_counter])

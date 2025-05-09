@@ -373,10 +373,14 @@ continue_or_recluster <- function() {
 
     if (answer == "recluster") {
         clustering_mode <- "do_clustering"
+
+
+        update_settings()
         clustering_engine <- settings$value[settings$setting == "clustering_engine"]
         clustering_k <- as.numeric(unlist(strsplit(settings$value[settings$setting == "clustering_k"], split = ", ", fixed = TRUE)))
         fs_n_dims <- as.numeric(settings$value[settings$setting == "fs_n_dims"])
         ccp_delta_cutoff <- as.numeric(settings$value[settings$setting == "ccp_delta_cutoff"])
+
         do_clustering()
         do_clustering_diagnostics()
         continue_or_recluster()
@@ -655,7 +659,7 @@ continue_or_recalculate_umap <- function() {
 
 
 summary_table <- function(data = exprs_set, grouping_var, selected_features = NULL, stat = "mean") {
-  
+
   if (stat == "mean") {
     temp <- data %>% 
       dplyr::group_by(across(all_of(grouping_var))) %>% 
@@ -682,13 +686,30 @@ summary_table <- function(data = exprs_set, grouping_var, selected_features = NU
 }
 
 
-calculate_cluster_proportions <- function(cluster_var = "meta_cluster_id", selected_clusters = NULL, prefix = NULL) {
+calculate_cluster_proportions <- function(cluster_var = "meta_cluster_id", additional_columns = NULL, selected_clusters = NULL, prefix = NULL) {
     all_clusters <- unique(exprs_set[[cluster_var]])
   
     if (is.null(selected_clusters)) {
-        counts_table <- summary_table(exprs_set, c(group, "id", cluster_var), selected_features = NULL, "count") %>%
-                        tidyr::complete(id, !!sym(cluster_var) := all_clusters, fill = list(count = 0))
-                        # makes sure that if a given sample "id" does not have a row for a particular cluster, that row is added with a count of zero
+         # First, create a mapping of id to group and additional columns
+        id_mapping <- exprs_set %>%
+            select(id, !!sym(group), !!!syms(additional_columns)) %>%
+            distinct() %>%
+            group_by(id) %>%
+            dplyr::summarize(
+                across(all_of(c(group, additional_columns)), ~names(which.max(table(.x)))),
+                .groups = "drop"
+            )
+            
+        # Get counts by id and cluster
+        counts_table <- summary_table(exprs_set, c("id", cluster_var), selected_features = NULL, "count")
+        
+        # Complete the table to ensure all clusters are represented for each id
+        counts_table <- counts_table %>%
+            tidyr::complete(id, !!sym(cluster_var) := all_clusters, fill = list(count = 0))
+            
+        # Join back the group and additional columns information
+        counts_table <- counts_table %>%
+            left_join(id_mapping, by = "id")
         cluster_proportions <- counts_table %>%
                         group_by(id) %>%
                         mutate(prop = count / sum(count) * 100) %>%
@@ -700,11 +721,23 @@ calculate_cluster_proportions <- function(cluster_var = "meta_cluster_id", selec
         }
     } else {
         all_clusters <- intersect(all_clusters, selected_clusters)
-        counts_table <- summary_table(exprs_set, c(group, "id", cluster_var), selected_features = NULL, "count") %>%
-                        dplyr::filter(!!sym(cluster_var) %in% selected_clusters) %>%
-                        tidyr::complete(id, !!sym(cluster_var) := all_clusters, fill = list(count = 0))
-                        # makes sure that if a given sample "id" does not have a row for a particular cluster, that row is added with a count of zero
-        cluster_proportions <- counts_table %>%
+        # First, create a mapping of id to group and additional columns
+        id_mapping <- exprs_set %>%
+            select(id, !!sym(group), !!!syms(additional_columns)) %>%
+            distinct() %>%
+            group_by(id) %>%
+            dplyr::summarize(
+                across(all_of(c(group, additional_columns)), ~names(which.max(table(.x)))),
+                .groups = "drop"
+            )
+            
+        # Get counts by id and cluster
+        counts_table <- summary_table(exprs_set, c("id", cluster_var), selected_features = NULL, "count")
+        
+        # Complete the table to ensure all clusters are represented for each id
+        counts_table <- counts_table %>%
+            tidyr::complete(id, !!sym(cluster_var) := all_clusters, fill = list(count = 0))
+                    cluster_proportions <- counts_table %>%
                         group_by(id) %>%
                         mutate(prop = count / sum(count) * 100) %>%
                         ungroup()
@@ -755,6 +788,25 @@ do_testing <- function(data, grouping_var, module, features, group_by_clusters, 
   }
 
   temp <- data
+  
+  if (paired == TRUE) {
+    if (n_unique_groups > 2) {
+      stop("Paired testing is not supported for more than two groups.")
+    }
+    # remove entries where pairing var is not present in both groups
+
+    no_pair <- temp %>%
+      dplyr::ungroup() %>%
+      select(!!sym(pairing_var), !!sym(grouping_var)) %>%
+      dplyr::distinct() %>%
+      dplyr::group_by(!!sym(pairing_var)) %>%
+      dplyr::summarise(n = n()) %>%
+      dplyr::filter(n < 2) %>%
+      dplyr::pull(!!sym(pairing_var))
+
+    temp <- temp[!unlist(temp[, pairing_var]) %in% no_pair, ]
+  }
+
   temp[[grouping_var]] <- as.character(temp[[grouping_var]])
   if (n_unique_groups == 2) {
     comparisons <- list(c(unique_groups))
@@ -832,7 +884,16 @@ do_testing <- function(data, grouping_var, module, features, group_by_clusters, 
     } else {
       testing_type <- "nonparametric"
 
-      if (group_by_clusters == TRUE) {
+      if (group_by_clusters == TRUE && length(features) == 1) {
+        # remove groups where all features have variance = 0
+        # as this will crash non-parametric tests
+        feature <- features[1]
+        temp <- temp %>%
+            dplyr::group_by(!!sym(grouping_var), !!sym(cluster_var)) %>%
+            dplyr::mutate(var = var(!!sym(feature))) %>%
+            dplyr::filter(var > 0) %>%
+            ungroup()
+
         temp <- temp %>% group_by(!!sym(cluster_var))
       }
       if (!is.null(selected_clusters)) {
@@ -840,6 +901,8 @@ do_testing <- function(data, grouping_var, module, features, group_by_clusters, 
       }
       omnibus_collector <- c()
       collector <- c()
+
+
       for (f in seq_along(features)) {
         feature <- features[f]
         omnibus_result <- temp %>% rstatix::kruskal_test(as.formula(paste(feature, "~", grouping_var)))
