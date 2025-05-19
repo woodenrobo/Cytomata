@@ -811,7 +811,7 @@ do_boxplots <- function(data, testing_results = testing_results, grouping_var = 
     data <- data %>%
                 tidyr::pivot_longer(cols = all_of(features), names_to = "feature", values_to = "value")
     if (!is.null(selected_clusters)) {
-      data <- data %>% filter(!!sym(cluster_var) %in% selected_clusters)
+      data <- data %>% dplyr::filter(!!sym(cluster_var) %in% selected_clusters)
     }
     if (show_outliers == FALSE) {
       data <- data %>%

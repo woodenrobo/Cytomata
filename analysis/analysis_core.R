@@ -9,7 +9,7 @@ grouping_var <- group
 features <- c("prop")
 group_by_clusters <- TRUE
 column_number <- 4
-parametric_testing <- FALSE
+parametric_testing <- TRUE
 paired <- FALSE
 manual_comparisons <- NULL
 
@@ -75,7 +75,7 @@ if (sum(colnames(exprs_set) %in% c("meta_cluster_annotation")) > 0 && sum(exprs_
     features <- c("prop")
     group_by_clusters <- TRUE
     column_number <- 4
-    parametric_testing <- FALSE
+    parametric_testing <- TRUE
     paired <- FALSE
     manual_comparisons <- NULL
     prefix <- "meta_cluster_annotation_prop_all_clusters"
@@ -132,7 +132,7 @@ grouping_var <- group
 features <- clustering_feature_markers
 group_by_clusters <- FALSE
 column_number <- 4
-parametric_testing <- FALSE
+parametric_testing <- TRUE
 paired <- FALSE
 manual_comparisons <- NULL
 prefix <- "marker_expressions_all_clusters"

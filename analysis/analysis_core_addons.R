@@ -66,7 +66,7 @@ if (project_name == "dc10") {
         features <- c("prop")
         group_by_clusters <- TRUE
         column_number <- 4
-        parametric_testing <- FALSE
+        parametric_testing <- TRUE
         paired <- TRUE
         if (group == "paired_0") {
             manual_comparisons <- c("DC_0h", "DC10_0h")

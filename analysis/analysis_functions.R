@@ -827,6 +827,7 @@ do_testing <- function(data, grouping_var, module, features, group_by_clusters, 
         collector <- rbind(collector, test_result)
       }
       collector <- collector %>% rstatix::adjust_pvalue(method = "BH")
+      collector$p.adj.signif <- symnum(collector$p.adj, cutpoints = c(0, 0.0001, 0.001, 0.01, 0.05, 1), symbols = c("****", "***", "**", "*", "ns"))
     } else {
       testing_type <- "nonparametric"
 
