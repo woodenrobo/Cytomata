@@ -148,7 +148,8 @@ for (a_id in anchor_ids) {
             answer <- readline(paste0("Are you satisfied with automatic settings?\n",
                             "If not, change settings table in\n",
                             "Cytomata_data/<project_folder>/output/normalization/<anchor_id>/\n",
-                            "please type \"continue\" when you are ready\n"))
+                            "please type \"continue\" when you are ready\n
+                            If you want to skip normalization for a given channel, set percentile to 0\n"))
             } else {
             answer <- "continue"
         }
@@ -191,7 +192,13 @@ for (a_id in anchor_ids) {
 
                 temp_filtered_factors <- temp_scaling_factors
                 temp_filtered_factors$percentile <- settings_table[settings_table$channel == channel, "percentile"]
-                temp_filtered_factors$factor <- temp_filtered_factors[,settings_table[settings_table$channel == channel, "percentile"]]
+
+                #if percentile is 0, set factor to 1 and skip adjusting the channel
+                if (settings_table[settings_table$channel == channel, "percentile"] == 0) {
+                    temp_filtered_factors$factor <- 1
+                } else {
+                    temp_filtered_factors$factor <- temp_filtered_factors[,settings_table[settings_table$channel == channel, "percentile"]]
+                }
                 temp_filtered_factors <- temp_filtered_factors[, c("channel", "a_sample", "percentile", "factor")]
                 filtered_factors <- rbind(filtered_factors, temp_filtered_factors)
 
@@ -334,7 +341,8 @@ for (a_id in anchor_ids) {
             answer <- readline(paste0("Are you satisfied with automatic settings?\n",
                             "If not, change settings table in\n",
                             "Cytomata_data/<project_folder>/output/normalization/<anchor_id>/\n",
-                            "please type \"continue\" when you are ready\n"))
+                            "please type \"continue\" when you are ready\n
+                            If you want to skip normalization for a given channel, set percentile to 0\n"))
             } else {
             answer <- "continue"
         }
@@ -395,7 +403,14 @@ for (a_id in anchor_ids) {
 
                     temp_filtered_factors <- temp_scaling_factors
                     temp_filtered_factors$percentile <- settings_table[settings_table$channel == channel, "percentile"]
-                    temp_filtered_factors$factor <- temp_filtered_factors[,settings_table[settings_table$channel == channel, "percentile"]]
+
+                    #if percentile is 0, set factor to 1 and skip adjusting the channel
+                    if (settings_table[settings_table$channel == channel, "percentile"] == 0) {
+                        temp_filtered_factors$factor <- 1
+                    } else {
+                        temp_filtered_factors$factor <- temp_filtered_factors[,settings_table[settings_table$channel == channel, "percentile"]]
+                    }
+
                     temp_filtered_factors <- temp_filtered_factors[, c("channel", "a_sample", "percentile", "factor")]
                     filtered_factors <- rbind(filtered_factors, temp_filtered_factors)
 
