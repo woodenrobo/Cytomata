@@ -57,7 +57,18 @@ exploration_ridges <- function() {
   percentile_colors[names(percentile_colors) %in% temp_opt_perc] <- "#c70000"
   percentile_sizes[names(percentile_sizes) %in% temp_opt_perc] <- 2
   #temp_set <- temp_set[temp_set[, channel] > 0, ]
-  temp_set <- temp_set[sample(nrow(temp_set), round(nrow(temp_set) * sampling_factor), replace = FALSE), ]
+
+  # downsample using sampling_factor per sample
+  subsample_set <- data.frame()
+  for (a_sample in unique(temp_set$sample)){
+    temp_subsample <- temp_set[temp_set$sample == a_sample, ]
+    temp_subsample <- temp_subsample[sample(nrow(temp_subsample), round(nrow(temp_subsample) * sampling_factor), replace = FALSE), ]
+    subsample_set <- rbind(subsample_set, temp_subsample)
+  }
+
+  temp_set <- subsample_set
+
+  # temp_set <- temp_set[sample(nrow(temp_set), round(nrow(temp_set) * sampling_factor), replace = FALSE), ]
   temp_set$sample <- factor(temp_set$sample, ordered=T, levels=c(rev(unique(temp_set$sample)[order(unique(temp_set$sample))])))
 
   setwd(out_norm_dens_folder)
@@ -163,7 +174,17 @@ exploration_ridges_wo_zeroes <- function() {
   percentile_colors[names(percentile_colors) %in% temp_opt_perc] <- "#c70000"
   percentile_sizes[names(percentile_sizes) %in% temp_opt_perc] <- 2
 
-  temp_set <- temp_set[sample(nrow(temp_set), round(nrow(temp_set) * sampling_factor), replace = FALSE), ]
+  # downsample using sampling_factor per sample
+  subsample_set <- data.frame()
+  for (a_sample in unique(temp_set$sample)){
+    temp_subsample <- temp_set[temp_set$sample == a_sample, ]
+    temp_subsample <- temp_subsample[sample(nrow(temp_subsample), round(nrow(temp_subsample) * sampling_factor), replace = FALSE), ]
+    subsample_set <- rbind(subsample_set, temp_subsample)
+  }
+
+  temp_set <- subsample_set
+
+  # temp_set <- temp_set[sample(nrow(temp_set), round(nrow(temp_set) * sampling_factor), replace = FALSE), ]
   temp_set <- temp_set[temp_set[, channel] > 0, ]
   temp_set$sample <- factor(temp_set$sample, ordered=T, levels=c(rev(unique(temp_set$sample)[order(unique(temp_set$sample))])))
 
@@ -211,6 +232,236 @@ exploration_ridges_wo_zeroes <- function() {
 }
 
 
+exploration_ridges_from_quantiles_wo_zero <- function(exprs_set, simulated_exprs_set, channel_name) {
+  
+  temp_set <- exprs_set[, c("sample", channel_name)]
+  temp_simulated_set <- simulated_exprs_set[, c("sample", channel_name)]
+  # downsample using sampling_factor per sample
+  subsample_set <- data.frame()
+  for (a_sample in unique(temp_set$sample)){
+    temp_subsample <- temp_set[temp_set$sample == a_sample, ]
+    temp_subsample <- temp_subsample[sample(nrow(temp_subsample), round(nrow(temp_subsample) * sampling_factor), replace = FALSE), ]
+    subsample_set <- rbind(subsample_set, temp_subsample)
+  }
+
+  plot_set <- rbind(subsample_set, temp_simulated_set)
+
+
+  # drop zero for wo zero version
+  plot_set <- plot_set[plot_set[, channel_name] > 0, ]
+  
+
+  if (asinh_transform == FALSE) {
+    #transform the expression values
+    plot_set[[channel_name]] <- asinh(plot_set[[channel_name]] / cofac)
+    cat("Applied arcsinh transformation with the cofactor of", cofac, "\n")
+  }
+
+  setwd(out_norm_dens_folder)
+  png(filename = paste0(date, "_", project_name, "_", channel_name, "_no_zero_QUANT.png"), 
+      width = 1200, height = length(unique(plot_set$sample)) * 100)
+  
+  # Create smooth ridge plot using geom_density_ridges2
+  p <- ggplot(plot_set, aes(x = !!sym(channel_name), y = sample, fill = sample)) +
+    geom_density_ridges2(
+      alpha = 0.7, 
+      scale = 1,
+      bandwidth = NULL,  # Let ggridges choose optimal bandwidth
+      quantile_lines = TRUE
+    ) +
+    labs(
+      title = paste0("DENSITY RIDGES FOR ", channel_name),
+      x = paste0(channel_name)
+    ) +
+    ylab(NULL) +
+    theme_cowplot() +
+    theme(
+      axis.title.x = element_text(size = 45),
+      axis.text.x = element_text(size = 35),
+      axis.text.y = element_text(size = 25),
+      title = element_text(size = 35),
+      legend.text = element_text(size = 20),
+      legend.title = element_text(size = 25)
+    ) +
+    scale_fill_manual(
+      values = c("target" = "red")
+    )
+  
+  print(p)
+  invisible(dev.off())
+}
+
+
+exploration_ridges_from_quantiles <- function(exprs_set, simulated_exprs_set, channel_name) {
+  
+  temp_set <- exprs_set[, c("sample", channel_name)]
+  temp_simulated_set <- simulated_exprs_set[, c("sample", channel_name)]
+  # downsample using sampling_factor per sample
+  subsample_set <- data.frame()
+  for (a_sample in unique(temp_set$sample)){
+    temp_subsample <- temp_set[temp_set$sample == a_sample, ]
+    temp_subsample <- temp_subsample[sample(nrow(temp_subsample), round(nrow(temp_subsample) * sampling_factor), replace = FALSE), ]
+    subsample_set <- rbind(subsample_set, temp_subsample)
+  }
+
+  plot_set <- rbind(subsample_set, temp_simulated_set)
+
+
+  if (asinh_transform == FALSE) {
+    #transform the expression values
+    plot_set[[channel_name]] <- asinh(plot_set[[channel_name]] / cofac)
+    cat("Applied arcsinh transformation with the cofactor of", cofac, "\n")
+  }
+
+
+  setwd(out_norm_dens_folder)
+  png(filename = paste0(date, "_", project_name, "_", channel_name, "_no_zero_QUANT.png"), 
+      width = 1200, height = length(unique(plot_set$sample)) * 100)
+  
+  # Create smooth ridge plot using geom_density_ridges2
+  p <- ggplot(plot_set, aes(x = !!sym(channel_name), y = sample, fill = sample)) +
+    geom_density_ridges2(
+      alpha = 0.7, 
+      scale = 1,
+      bandwidth = NULL,  # Let ggridges choose optimal bandwidth
+      quantile_lines = TRUE
+    ) +
+    labs(
+      title = paste0("DENSITY RIDGES FOR ", channel_name),
+      x = paste0(channel_name)
+    ) +
+    ylab(NULL) +
+    theme_cowplot() +
+    theme(
+      axis.title.x = element_text(size = 45),
+      axis.text.x = element_text(size = 35),
+      axis.text.y = element_text(size = 25),
+      title = element_text(size = 35),
+      legend.text = element_text(size = 20),
+      legend.title = element_text(size = 25)
+    ) +
+    scale_fill_manual(
+      values = c("target" = "red")
+    )
+  
+  print(p)
+  invisible(dev.off())
+}
+
+
+
+
+exploration_ridges_harmony_wo_zero <- function(exprs_set, channel_name) {
+  
+  temp_set <- exprs_set[, c("sample", channel_name)]
+
+  # downsample using sampling_factor per sample
+  subsample_set <- data.frame()
+  for (a_sample in unique(temp_set$sample)){
+    temp_subsample <- temp_set[temp_set$sample == a_sample, ]
+    temp_subsample <- temp_subsample[sample(nrow(temp_subsample), round(nrow(temp_subsample) * sampling_factor), replace = FALSE), ]
+    subsample_set <- rbind(subsample_set, temp_subsample)
+  }
+
+
+  # drop zero for wo zero version
+  plot_set <- subsample_set[subsample_set[, channel_name] > 0, ]
+  
+
+  if (asinh_transform == FALSE) {
+    #transform the expression values
+    plot_set[[channel_name]] <- asinh(plot_set[[channel_name]] / cofac)
+    cat("Applied arcsinh transformation with the cofactor of", cofac, "\n")
+  }
+
+  setwd(out_norm_dens_folder)
+  png(filename = paste0(date, "_", project_name, "_", channel_name, "_no_zero_HARMONY.png"), 
+      width = 1200, height = length(unique(plot_set$sample)) * 100)
+  
+  # Create smooth ridge plot using geom_density_ridges2
+  p <- ggplot(plot_set, aes(x = !!sym(channel_name), y = sample)) +
+    geom_density_ridges2(
+      alpha = 0.7, 
+      scale = 1,
+      bandwidth = NULL,  # Let ggridges choose optimal bandwidth
+      quantile_lines = TRUE
+    ) +
+    labs(
+      title = paste0("DENSITY RIDGES FOR ", channel_name),
+      x = paste0(channel_name)
+    ) +
+    ylab(NULL) +
+    theme_cowplot() +
+    theme(
+      axis.title.x = element_text(size = 45),
+      axis.text.x = element_text(size = 35),
+      axis.text.y = element_text(size = 25),
+      title = element_text(size = 35),
+      legend.text = element_text(size = 20),
+      legend.title = element_text(size = 25)
+    )
+  
+  print(p)
+  invisible(dev.off())
+}
+
+
+
+
+exploration_ridges_harmony <- function(exprs_set, channel_name) {
+  
+  temp_set <- exprs_set[, c("sample", channel_name)]
+
+  # downsample using sampling_factor per sample
+  subsample_set <- data.frame()
+  for (a_sample in unique(temp_set$sample)){
+    temp_subsample <- temp_set[temp_set$sample == a_sample, ]
+    temp_subsample <- temp_subsample[sample(nrow(temp_subsample), round(nrow(temp_subsample) * sampling_factor), replace = FALSE), ]
+    subsample_set <- rbind(subsample_set, temp_subsample)
+  }
+  
+
+  if (asinh_transform == FALSE) {
+    #transform the expression values
+    plot_set[[channel_name]] <- asinh(plot_set[[channel_name]] / cofac)
+    cat("Applied arcsinh transformation with the cofactor of", cofac, "\n")
+  }
+
+  setwd(out_norm_dens_folder)
+  png(filename = paste0(date, "_", project_name, "_", channel_name, "_no_zero_HARMONY.png"), 
+      width = 1200, height = length(unique(plot_set$sample)) * 100)
+  
+  # Create smooth ridge plot using geom_density_ridges2
+  p <- ggplot(plot_set, aes(x = !!sym(channel_name), y = sample)) +
+    geom_density_ridges2(
+      alpha = 0.7, 
+      scale = 1,
+      bandwidth = NULL,  # Let ggridges choose optimal bandwidth
+      quantile_lines = TRUE
+    ) +
+    labs(
+      title = paste0("DENSITY RIDGES FOR ", channel_name),
+      x = paste0(channel_name)
+    ) +
+    ylab(NULL) +
+    theme_cowplot() +
+    theme(
+      axis.title.x = element_text(size = 45),
+      axis.text.x = element_text(size = 35),
+      axis.text.y = element_text(size = 25),
+      title = element_text(size = 35),
+      legend.text = element_text(size = 20),
+      legend.title = element_text(size = 25)
+    )
+  
+  print(p)
+  invisible(dev.off())
+}
+
+
+
+
+
 scaling_factors_barplots <- function() {
 
     #plot scaling factors in a faceted barplot
@@ -242,6 +493,10 @@ scaling_factors_barplots <- function() {
     )
     invisible(dev.off())
 }    
+
+
+
+
 
 diagnostics_ridges <- function() {
   cat(paste0("Plotting ", channel, " diagnostic ridges\n"))
@@ -308,8 +563,15 @@ diagnostics_ridges <- function() {
 
 
   
-  #temp_set <- temp_set[temp_set[, channel] > 0, ]
-  temp_set <- temp_set[sample(nrow(temp_set), round(nrow(temp_set) * sampling_factor), replace = FALSE), ]
+  # downsample using sampling_factor per sample
+  subsample_set <- data.frame()
+  for (a_sample in unique(temp_set$sample)){
+    temp_subsample <- temp_set[temp_set$sample == a_sample, ]
+    temp_subsample <- temp_subsample[sample(nrow(temp_subsample), round(nrow(temp_subsample) * sampling_factor), replace = FALSE), ]
+    subsample_set <- rbind(subsample_set, temp_subsample)
+  }
+
+  temp_set <- subsample_set
 
 
   setwd(out_norm_dens_diag_folder)
@@ -356,6 +618,11 @@ diagnostics_ridges <- function() {
   )
   invisible(dev.off())
 }
+
+
+
+
+
 
 diagnostics_ridges_wo_zeroes <- function() {
   cat(paste0("Plotting ", channel, " diagnostic ridges\n"))
@@ -423,7 +690,17 @@ diagnostics_ridges_wo_zeroes <- function() {
 
   
   temp_set <- temp_set[temp_set[, channel] > 0, ]
-  temp_set <- temp_set[sample(nrow(temp_set), round(nrow(temp_set) * sampling_factor), replace = FALSE), ]
+
+
+  # downsample using sampling_factor per sample
+  subsample_set <- data.frame()
+  for (a_sample in unique(temp_set$sample)){
+    temp_subsample <- temp_set[temp_set$sample == a_sample, ]
+    temp_subsample <- temp_subsample[sample(nrow(temp_subsample), round(nrow(temp_subsample) * sampling_factor), replace = FALSE), ]
+    subsample_set <- rbind(subsample_set, temp_subsample)
+  }
+
+  temp_set <- subsample_set
 
 
   setwd(out_norm_dens_diag_folder)
@@ -470,6 +747,239 @@ diagnostics_ridges_wo_zeroes <- function() {
   )
   invisible(dev.off())
 }
+
+
+diagnostics_ridges_quant <- function(exprs_set, simulated_exprs_set, channel) {
+  cat(paste0("Plotting ", channel, " diagnostic ridges\n"))
+
+  ridges_fills <- c("BEFORE" = "#aa9696", "AFTER" = "#8f3ad9", "TARGET" = "#c70000")
+
+
+
+  temp_set <- exprs_set[, c("sample", "norm_state", channel)]
+
+
+  if (asinh_transform == FALSE) {
+
+    #transform the expression values
+    temp_set[, colnames(temp_set) %in% feature_markers] <- asinh(temp_set[, colnames(temp_set) %in% feature_markers] / cofac)
+    cat("Applied arcsinh transformation with the cofactor of", cofac, "\n")
+
+  }
+
+    temp_set$sample <- paste0(temp_set$sample, "_", temp_set$norm_state)
+    temp_set$sample <- factor(temp_set$sample, ordered=T, levels=c(rev(unique(temp_set$sample))))
+
+
+
+  # downsample using sampling_factor per sample
+  subsample_set <- data.frame()
+  for (a_sample in unique(temp_set$sample)){
+    temp_subsample <- temp_set[temp_set$sample == a_sample, ]
+    temp_subsample <- temp_subsample[sample(nrow(temp_subsample), round(nrow(temp_subsample) * sampling_factor), replace = FALSE), ]
+    subsample_set <- rbind(subsample_set, temp_subsample)
+  }
+
+  temp_set <- subsample_set
+
+  temp_set <- rbind(temp_set, simulated_exprs_set)
+
+
+  setwd(out_norm_dens_diag_folder)
+  png(filename = paste0(date, "_", project_name, "_", channel, "_diagnostic_ridges_quant.png"), width = 1350, height = length(unique(temp_set$sample)) * 100)
+  suppressMessages(
+  print(  
+  ggplot(temp_set, aes(x = temp_set[, channel], y = sample, fill = norm_state))+
+      geom_density_ridges2(scale = 1, alpha = 0.4, size = 1.5, quantile_lines = TRUE)+
+      scale_fill_manual(values = ridges_fills) +
+      theme_cowplot()+
+      theme(axis.title.x = element_text(size = 45),
+          axis.text.x = element_text(size = 35),
+          axis.text.y = element_text(size = 25)
+          )+
+      xlab(as.character(channel))+
+      ggtitle("TARGET DISTRIBUTION IS COLORED RED")
+  )
+  )
+  invisible(dev.off())
+}
+
+
+
+diagnostics_ridges_wo_zeroes_quant <- function(exprs_set, simulated_exprs_set, channel) {
+  cat(paste0("Plotting ", channel, " diagnostic ridges\n"))
+
+  ridges_fills <- c("BEFORE" = "#aa9696", "AFTER" = "#8f3ad9", "TARGET" = "#c70000")
+
+
+
+  temp_set <- exprs_set[, c("sample", "norm_state", channel)]
+
+
+  if (asinh_transform == FALSE) {
+
+    #transform the expression values
+    temp_set[, colnames(temp_set) %in% feature_markers] <- asinh(temp_set[, colnames(temp_set) %in% feature_markers] / cofac)
+    cat("Applied arcsinh transformation with the cofactor of", cofac, "\n")
+
+  }
+
+    temp_set$sample <- paste0(temp_set$sample, "_", temp_set$norm_state)
+    temp_set$sample <- factor(temp_set$sample, ordered=T, levels=c(rev(unique(temp_set$sample))))
+
+
+
+  temp_set <- temp_set[temp_set[, channel] > 0, ]
+
+  # downsample using sampling_factor per sample
+  subsample_set <- data.frame()
+  for (a_sample in unique(temp_set$sample)){
+    temp_subsample <- temp_set[temp_set$sample == a_sample, ]
+    temp_subsample <- temp_subsample[sample(nrow(temp_subsample), round(nrow(temp_subsample) * sampling_factor), replace = FALSE), ]
+    subsample_set <- rbind(subsample_set, temp_subsample)
+  }
+
+  temp_set <- subsample_set
+
+  temp_set <- rbind(temp_set, simulated_exprs_set)
+
+
+  setwd(out_norm_dens_diag_folder)
+  png(filename = paste0(date, "_", project_name, "_", channel, "_diagnostic_ridges_quant.png"), width = 1350, height = length(unique(temp_set$sample)) * 100)
+  suppressMessages(
+  print(  
+  ggplot(temp_set, aes(x = temp_set[, channel], y = sample, fill = norm_state))+
+      geom_density_ridges2(scale = 1, alpha = 0.4, size = 1.5, quantile_lines = TRUE)+
+      scale_fill_manual(values = ridges_fills) +
+      theme_cowplot()+
+      theme(axis.title.x = element_text(size = 45),
+          axis.text.x = element_text(size = 35),
+          axis.text.y = element_text(size = 25)
+          )+
+      xlab(as.character(channel))+
+      ggtitle("TARGET DISTRIBUTION IS COLORED RED")
+  )
+  )
+  invisible(dev.off())
+}
+
+
+
+
+diagnostics_ridges_harmony <- function(exprs_set, channel) {
+  cat(paste0("Plotting ", channel, " diagnostic ridges\n"))
+
+  ridges_fills <- c("BEFORE" = "#aa9696", "AFTER" = "#8f3ad9")
+
+
+
+  temp_set <- exprs_set[, c("sample", "norm_state", channel)]
+
+
+  if (asinh_transform == FALSE) {
+
+    #transform the expression values
+    temp_set[, colnames(temp_set) %in% feature_markers] <- asinh(temp_set[, colnames(temp_set) %in% feature_markers] / cofac)
+    cat("Applied arcsinh transformation with the cofactor of", cofac, "\n")
+
+  }
+
+    temp_set$sample <- paste0(temp_set$sample, "_", temp_set$norm_state)
+    temp_set$sample <- factor(temp_set$sample, ordered=T, levels=c(rev(unique(temp_set$sample))))
+
+
+
+  # downsample using sampling_factor per sample
+  subsample_set <- data.frame()
+  for (a_sample in unique(temp_set$sample)){
+    temp_subsample <- temp_set[temp_set$sample == a_sample, ]
+    temp_subsample <- temp_subsample[sample(nrow(temp_subsample), round(nrow(temp_subsample) * sampling_factor), replace = FALSE), ]
+    subsample_set <- rbind(subsample_set, temp_subsample)
+  }
+
+  temp_set <- subsample_set
+
+
+  setwd(out_norm_dens_diag_folder)
+  png(filename = paste0(date, "_", project_name, "_", channel, "_diagnostic_ridges_harmony.png"), width = 1350, height = length(unique(temp_set$sample)) * 100)
+  suppressMessages(
+  print(  
+  ggplot(temp_set, aes(x = temp_set[, channel], y = sample, fill = norm_state))+
+      geom_density_ridges2(scale = 1, alpha = 0.4, size = 1.5, quantile_lines = TRUE)+
+      scale_fill_manual(values = ridges_fills) +
+      theme_cowplot()+
+      theme(axis.title.x = element_text(size = 45),
+          axis.text.x = element_text(size = 35),
+          axis.text.y = element_text(size = 25)
+          )+
+      xlab(as.character(channel))+
+      ggtitle("TARGET DISTRIBUTION IS COLORED RED")
+  )
+  )
+  invisible(dev.off())
+}
+
+
+
+diagnostics_ridges_wo_zeroes_harmony <- function(exprs_set, channel) {
+  cat(paste0("Plotting ", channel, " diagnostic ridges\n"))
+
+  ridges_fills <- c("BEFORE" = "#aa9696", "AFTER" = "#8f3ad9")
+
+
+
+  temp_set <- exprs_set[, c("sample", "norm_state", channel)]
+
+
+  if (asinh_transform == FALSE) {
+
+    #transform the expression values
+    temp_set[, colnames(temp_set) %in% feature_markers] <- asinh(temp_set[, colnames(temp_set) %in% feature_markers] / cofac)
+    cat("Applied arcsinh transformation with the cofactor of", cofac, "\n")
+
+  }
+
+    temp_set$sample <- paste0(temp_set$sample, "_", temp_set$norm_state)
+    temp_set$sample <- factor(temp_set$sample, ordered=T, levels=c(rev(unique(temp_set$sample))))
+
+
+
+  temp_set <- temp_set[temp_set[, channel] > 0, ]
+
+  # downsample using sampling_factor per sample
+  subsample_set <- data.frame()
+  for (a_sample in unique(temp_set$sample)){
+    temp_subsample <- temp_set[temp_set$sample == a_sample, ]
+    temp_subsample <- temp_subsample[sample(nrow(temp_subsample), round(nrow(temp_subsample) * sampling_factor), replace = FALSE), ]
+    subsample_set <- rbind(subsample_set, temp_subsample)
+  }
+
+  temp_set <- subsample_set
+
+
+
+
+  setwd(out_norm_dens_diag_folder)
+  png(filename = paste0(date, "_", project_name, "_", channel, "_diagnostic_ridges_harmony.png"), width = 1350, height = length(unique(temp_set$sample)) * 100)
+  suppressMessages(
+  print(  
+  ggplot(temp_set, aes(x = temp_set[, channel], y = sample, fill = norm_state))+
+      geom_density_ridges2(scale = 1, alpha = 0.4, size = 1.5, quantile_lines = TRUE)+
+      scale_fill_manual(values = ridges_fills) +
+      theme_cowplot()+
+      theme(axis.title.x = element_text(size = 45),
+          axis.text.x = element_text(size = 35),
+          axis.text.y = element_text(size = 25)
+          )+
+      xlab(as.character(channel))+
+      ggtitle("TARGET DISTRIBUTION IS COLORED RED")
+  )
+  )
+  invisible(dev.off())
+}
+
+
+
 
 
 diagnostics_mean_boxplots <- function() {

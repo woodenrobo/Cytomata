@@ -406,7 +406,38 @@ normalize_batches <- function() {
 
 }
 
-normalize_batches_quantile <- function() {
+
+compute_quantile_mapping_functions <- function(exprs_set, n_quantiles, ref_quantiles) {
+    # Create a mapping function for each batch for each column to norm.
+    # This will map values in for the anchor to the reference values.
+    mapping_func_list <- list()
+    
+
+    for (a_sample in unique(exprs_set$sample)) {
+
+        batch_func_list <- list()
+
+        temp_set <- exprs_set[exprs_set$sample == a_sample, ]
+
+        for (channel in feature_markers){
+            refq <- unlist(ref_quantiles[ref_quantiles$channel == channel, "quantile"])
+            qx <- quantile(temp_set[[channel]], probs = seq(0, 1, length.out = n_quantiles), names = FALSE)
+            spf <- splinefun(x = qx, y = refq, method = "monoH.FC", ties = min)
+
+            batch_func_list[[channel]] <- spf
+        }
+
+        mapping_func_list[[a_sample]] <- batch_func_list
+    }
+
+    save(mapping_func_list, file = paste0(out_norm_aid_folder, "mapping_func_list.Rdata"))
+
+    return(mapping_func_list)
+}
+
+
+normalize_batches_quantile <- function(mapping_func_list) {
+
 
     cat(paste0("\n ANCHOR SAMPLE SELECTED IS: ", a_id, "\n"))
     cat(paste0("\n BATCHES TO BE NORMALIZED ARE: \n"))
@@ -433,86 +464,26 @@ normalize_batches_quantile <- function() {
     asinh_transform <- FALSE
     cofac <- 1
 
+
     for (batch in anchor_batches_in_dir) {
-        input_files_for_batch <- meta$fcs[meta$batch == batch & meta$fcs %in% total_input]
-        
-        if (length(input_files_for_batch) == 0) {
-            cat("No input files found for batch:", batch, "after filtering. Skipping batch.\n")
-            next
-        }
+
+        curr_anchor <- target_anchors$fcs[target_anchors$batch == batch]
+        input <- meta$fcs[meta$batch == batch]
+        input <- input[input %in% total_input]
 
         cat("Normalizing batch:", batch, "\n")
-        # cat("Input files for this batch:", paste(input_files_for_batch, collapse=", "), "\n") # Optional: for more detailed logging
-
         setwd(debar_folder)
-        exprs_set <- inject_fcs(input_files_for_batch, filter_features = FALSE, asinh_transform = asinh_transform, cofac = cofac)
+        exprs_set <- inject_fcs(input, filter_features = FALSE, asinh_transform = asinh_transform, cofac = cofac)
         
-        if (is.null(exprs_set) || nrow(exprs_set) == 0) {
-            cat("exprs_set is NULL or empty for batch:", batch, ". Skipping normalization for this batch.\n")
-            next
-        }
-        
-        fcs_channel_desc <- desc_extraction(input_files_for_batch[1])
-        fcs_channel_name <- name_extraction(input_files_for_batch[1])
+        fcs_channel_desc <- desc_extraction(input[1])
+        fcs_channel_name <- name_extraction(input[1])
 
-        # Quantile Normalization Logic
-        for (channel in feature_markers) {
-            if (!channel %in% colnames(exprs_set)) {
-                warning(paste0("Channel '", channel, "' not found in exprs_set for batch '", batch, "'. Skipping this channel."))
-                next
-            }
+        for (channel in feature_markers){
+            for (samp in unique(exprs_set$sample)) {
 
-            all_channel_data_in_batch <- exprs_set[[channel]]
+               spline_function <- mapping_func_list[[curr_anchor]][[channel]]
+               exprs_set[exprs_set$sample == samp, channel] <- spline_function(exprs_set[exprs_set$sample == samp, channel])
 
-            if(length(all_channel_data_in_batch) == 0) {
-                cat("Channel", channel, "is empty for batch", batch, ". Skipping.\n")
-                next
-            }
-            
-            # Create reference distribution from non-NA pooled data for the current channel in the current batch
-            non_na_pooled_data <- all_channel_data_in_batch[!is.na(all_channel_data_in_batch)]
-            
-            if(length(non_na_pooled_data) == 0) {
-                cat("Skipping channel", channel, "for batch", batch, "as all data for this channel is NA.\n")
-                next 
-            }
-            sorted_reference_dist <- sort(non_na_pooled_data)
-
-            samples_in_this_batch <- unique(exprs_set$sample)
-            for (samp in samples_in_this_batch) {
-                sample_rows_idx <- exprs_set$sample == samp
-                current_sample_channel_data <- exprs_set[sample_rows_idx, channel]
-                
-                if (length(current_sample_channel_data) == 0) next
-
-                non_na_indices_in_sample <- !is.na(current_sample_channel_data)
-                n_non_na_in_sample <- sum(non_na_indices_in_sample)
-
-                if (n_non_na_in_sample == 0) { # All values for this sample in this channel are NA
-                    next 
-                }
-                
-                # Calculate ranks only for non-NA values within the current sample's channel data
-                ranks_for_non_na <- rank(current_sample_channel_data[non_na_indices_in_sample], ties.method = "average")
-                
-                # Convert ranks to probabilities for mapping to the reference distribution
-                probs_for_non_na <- (ranks_for_non_na - 0.5) / n_non_na_in_sample
-                
-                # Clamp probabilities to a small epsilon range to avoid issues with exact 0 or 1
-                epsilon <- 1e-9 
-                probs_for_non_na <- pmax(epsilon, pmin(1 - epsilon, probs_for_non_na))
-                
-                normalized_values_for_sample_channel <- current_sample_channel_data 
-                
-                # Apply quantile mapping to non-NA values
-                normalized_values_for_sample_channel[non_na_indices_in_sample] <- stats::quantile(
-                                                                    sorted_reference_dist, # Reference distribution (sorted, no NAs)
-                                                                    probs = probs_for_non_na,
-                                                                    na.rm = FALSE, # Not strictly needed as sorted_reference_dist has no NAs
-                                                                    type = 7 # R's default quantile algorithm
-                                                                    )
-                
-                exprs_set[sample_rows_idx, channel] <- normalized_values_for_sample_channel
             }
         }
 
@@ -534,99 +505,41 @@ normalize_batches_quantile <- function() {
         for (file in batch_files){
             pb$tick()
             setwd(norm_folder)
-            temp_file_data <- exprs_set[exprs_set$sample==file, ]
-            # Ensure only numeric columns (feature_markers and potentially others if not filtered by inject_fcs) are passed to data.matrix
-            # and exclude 'sample', 'cell_id'
-            cols_for_flowframe <- colnames(temp_file_data)[!colnames(temp_file_data) %in% c('sample', 'cell_id')]
-            temp_file <- flowFrame(data.matrix(temp_file_data[, cols_for_flowframe, drop = FALSE]))
-            
-            # Check if parameters slot exists and is of expected type
-            if(!is.null(temp_file@parameters) && inherits(temp_file@parameters, "AnnotatedDataFrame")) {
-                 # Ensure desc and name are of correct length
-                p_data <- temp_file@parameters@data
-                num_cols_in_flowframe <- ncol(temp_file)
-
-                if(length(fcs_channel_desc) == num_cols_in_flowframe && length(fcs_channel_name) == num_cols_in_flowframe) {
-                    p_data$desc <- fcs_channel_desc
-                    p_data$name <- fcs_channel_name
-                } else if (length(fcs_channel_desc) >= num_cols_in_flowframe && length(fcs_channel_name) >= num_cols_in_flowframe) {
-                    # If desc/name are longer (e.g. from original file before inject_fcs filtering), try to match by name or subset
-                    # This part might need more robust handling based on how fcs_channel_desc/name relate to cols_for_flowframe
-                    # For now, let's assume they match or take a subset if names are consistent
-                    current_col_names <- colnames(exprs(temp_file))
-                    original_names_from_desc <- name_extraction(input_files_for_batch[1], raw_names = TRUE) # Assuming name_extraction can give raw names
-
-                    matched_indices_desc <- match(current_col_names, fcs_channel_name) # if fcs_channel_name are the $PnN names
-                    matched_indices_name <- match(current_col_names, original_names_from_desc) # if original_names_from_desc are the $PnN names
-
-                    # This matching is complex; a simpler robust approach is to ensure desc/name are correctly subsetted earlier
-                    # or reconstruct them based on `cols_for_flowframe`.
-                    # For now, using a direct assignment if lengths match, otherwise warning.
-                    # A safer default if mismatch:
-                    p_data$desc <- fcs_channel_desc[match(p_data$name, fcs_channel_name)] # Match based on $PnN if available
-                    # Fallback or ensure fcs_channel_desc/name are correctly prepared for cols_for_flowframe
-                    # This part is tricky without knowing the exact structure of fcs_channel_desc/name and cols_for_flowframe
-                    # The original code assigned directly, assuming fcs_channel_desc/name were for *all* channels from input[1]
-                    # and that the order/subsetting matched after inject_fcs and column selection.
-                    # A robust way is to re-extract or filter desc/name based on `colnames(temp_file@exprs)`
-                    final_desc <- character(num_cols_in_flowframe)
-                    final_name <- character(num_cols_in_flowframe)
-                    temp_params <- parameters(read.FCS(file.path(debar_folder, input_files_for_batch[1])))
-                    original_pdata <- pData(temp_params)
-
-                    for(i in 1:num_cols_in_flowframe){
-                        colname_i <- colnames(exprs(temp_file))[i]
-                        match_idx <- which(original_pdata$name == colname_i | original_pdata$desc == colname_i) # Match by $PnN or $PnS
-                        if(length(match_idx) == 1){
-                            final_name[i] <- original_pdata$name[match_idx]
-                            final_desc[i] <- original_pdata$desc[match_idx]
-                        } else { # Fallback if no unique match
-                            final_name[i] <- colname_i
-                            final_desc[i] <- colname_i
-                        }
-                    }
-                    p_data$desc <- final_desc
-                    p_data$name <- final_name
-
-                } else {
-                     warning(paste0("Mismatch in channel description/name lengths for file ", file, ". Descriptions might be incorrect."))
-                     # Fallback to names from data if desc/name are not suitable
-                     p_data$desc <- colnames(exprs(temp_file))
-                }
-                temp_file@parameters@data <- p_data
-            } else {
-                warning(paste0("Parameters slot not found or not an AnnotatedDataFrame for file ", file))
-            }
+            temp_file <- exprs_set[exprs_set$sample==file, ]
+            temp_file <- flowFrame(data.matrix(temp_file[,!colnames(temp_file) %in% c('sample', 'cell_id')]))
+            temp_file@parameters@data$desc <- fcs_channel_desc
+            temp_file@parameters@data$name <- fcs_channel_name
             flowCore::write.FCS(x=temp_file, filename=paste0(file))
         }
 
     }
     
-
 }
 
 
 normalize_batches_harmony <- function(mode = "percentile") {
     # harmony is memory intensive, use with caution
     # harmony mode uses HarmonyMatrix function from the Harmony package to adjust for batch effects
-    cat(paste0("\n ANCHOR SAMPLE SELECTED IS: ", a_id, "\n"))
-    cat(paste0("\n BATCHES TO BE NORMALIZED ARE: \n"))
-    setwd(debar_folder)
-    anchor_batches_in_dir <- as.character(unique(target_anchors$batch[target_anchors$fcs %in% dir()]))
-    if (a_counter > 1) {
-       anchor_batches_in_dir <- anchor_batches_in_dir[!grepl(pre_norm_batch, anchor_batches_in_dir)] 
-    }
-    print(anchor_batches_in_dir)
 
-    files_needed <- meta$fcs[meta$batch %in% target_anchors$batch]
+    cat(paste0("\n BATCHES TO BE NORMALIZED ARE: \n"))
+
+    setwd(debar_folder)
+
+    print(unique(meta$batch[meta$fcs %in% dir()]))
+
+
+    files_needed <- meta$fcs[meta$fcs %in% dir()]
+
+    if (length(files_needed) == 0) {
+        stop("No files in input directory")
+    }
+
     total_input <- files_needed[files_needed %in% dir()]
+
     if (length(total_input) != length(files_needed)) {
         warning(paste0("Only ", length(total_input), " out of ", length(files_needed), " samples in meta are present in input directory"))
     }
 
-    if (a_counter > 1) {
-       total_input <- total_input[!grepl(pre_norm_batch, total_input)] 
-    }
 
 
     sampling_rate <- 1

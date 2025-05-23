@@ -1,13 +1,4 @@
-library(flowCore)
-library(ggplot2)
-library(cowplot)
-library(ggridges)
-library(progress)
-library(dplyr)
-library(readxl)
-library(provenance)
-library(scales)
-library(ggnewscale)
+# This script is used to run the normalization process for the Cytomata project.
 #1 means all events are used, this is not used for normalization step itself, only for plotting of densities
 sampling_factor <- 0.1
 hide_zeroes_in_ridges <- 1
