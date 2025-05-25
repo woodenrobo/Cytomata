@@ -249,6 +249,8 @@ exploration_ridges_from_quantiles_wo_zero <- function(exprs_set, simulated_exprs
 
   # drop zero for wo zero version
   plot_set <- plot_set[plot_set[, channel_name] > 0, ]
+  plot_set$sample <- factor(plot_set$sample, ordered=T, levels=c(rev(unique(plot_set$sample)[order(unique(plot_set$sample))])))
+
   
 
   if (asinh_transform == FALSE) {
@@ -313,9 +315,10 @@ exploration_ridges_from_quantiles <- function(exprs_set, simulated_exprs_set, ch
     cat("Applied arcsinh transformation with the cofactor of", cofac, "\n")
   }
 
+  plot_set$sample <- factor(plot_set$sample, ordered=T, levels=c(rev(unique(plot_set$sample)[order(unique(plot_set$sample))])))
 
   setwd(out_norm_dens_folder)
-  png(filename = paste0(date, "_", project_name, "_", channel_name, "_no_zero_QUANT.png"), 
+  png(filename = paste0(date, "_", project_name, "_", channel_name, "_QUANT.png"), 
       width = 1200, height = length(unique(plot_set$sample)) * 100)
   
   # Create smooth ridge plot using geom_density_ridges2
@@ -367,6 +370,8 @@ exploration_ridges_harmony_wo_zero <- function(exprs_set, channel_name) {
   # drop zero for wo zero version
   plot_set <- subsample_set[subsample_set[, channel_name] > 0, ]
   
+  plot_set$sample <- factor(plot_set$sample, ordered=T, levels=c(rev(unique(plot_set$sample)[order(unique(plot_set$sample))])))
+
 
   if (asinh_transform == FALSE) {
     #transform the expression values
@@ -427,8 +432,10 @@ exploration_ridges_harmony <- function(exprs_set, channel_name) {
     cat("Applied arcsinh transformation with the cofactor of", cofac, "\n")
   }
 
+  plot_set$sample <- factor(plot_set$sample, ordered=T, levels=c(rev(unique(plot_set$sample)[order(unique(plot_set$sample))])))
+
   setwd(out_norm_dens_folder)
-  png(filename = paste0(date, "_", project_name, "_", channel_name, "_no_zero_HARMONY.png"), 
+  png(filename = paste0(date, "_", project_name, "_", channel_name, "_HARMONY.png"), 
       width = 1200, height = length(unique(plot_set$sample)) * 100)
   
   # Create smooth ridge plot using geom_density_ridges2
@@ -780,9 +787,21 @@ diagnostics_ridges_quant <- function(exprs_set, simulated_exprs_set, channel) {
     subsample_set <- rbind(subsample_set, temp_subsample)
   }
 
+  
+  temp_simulated_exprs_set <- simulated_exprs_set[, c("sample", "norm_state", channel)]
+  
+  if (asinh_transform == FALSE) {
+
+    #transform the expression values
+    temp_simulated_exprs_set[, colnames(temp_simulated_exprs_set) %in% feature_markers] <- asinh(temp_simulated_exprs_set[, colnames(temp_simulated_exprs_set) %in% feature_markers] / cofac)
+    cat("Applied arcsinh transformation with the cofactor of", cofac, "\n")
+
+  }
+
   temp_set <- subsample_set
 
-  temp_set <- rbind(temp_set, simulated_exprs_set)
+  temp_set <- rbind(temp_set, temp_simulated_exprs_set)
+
 
 
   setwd(out_norm_dens_diag_folder)
@@ -839,13 +858,27 @@ diagnostics_ridges_wo_zeroes_quant <- function(exprs_set, simulated_exprs_set, c
     subsample_set <- rbind(subsample_set, temp_subsample)
   }
 
+
+  temp_simulated_exprs_set <- simulated_exprs_set[, c("sample", "norm_state", channel)]
+  
+  if (asinh_transform == FALSE) {
+
+    #transform the expression values
+    temp_simulated_exprs_set[, colnames(temp_simulated_exprs_set) %in% feature_markers] <- asinh(temp_simulated_exprs_set[, colnames(temp_simulated_exprs_set) %in% feature_markers] / cofac)
+    cat("Applied arcsinh transformation with the cofactor of", cofac, "\n")
+
+  }
+
+  
+  temp_simulated_exprs_set <- temp_simulated_exprs_set[temp_simulated_exprs_set[, channel] > 0, ]
+
   temp_set <- subsample_set
 
-  temp_set <- rbind(temp_set, simulated_exprs_set)
+  temp_set <- rbind(temp_set, temp_simulated_exprs_set)
 
 
   setwd(out_norm_dens_diag_folder)
-  png(filename = paste0(date, "_", project_name, "_", channel, "_diagnostic_ridges_quant.png"), width = 1350, height = length(unique(temp_set$sample)) * 100)
+  png(filename = paste0(date, "_", project_name, "_", channel, "_diagnostic_ridges_quant_wo_zeroes.png"), width = 1350, height = length(unique(temp_set$sample)) * 100)
   suppressMessages(
   print(  
   ggplot(temp_set, aes(x = temp_set[, channel], y = sample, fill = norm_state))+

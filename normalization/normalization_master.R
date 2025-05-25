@@ -1,7 +1,7 @@
 # This script is used to run the normalization process for the Cytomata project.
 #1 means all events are used, this is not used for normalization step itself, only for plotting of densities
-sampling_factor <- 0.1
-hide_zeroes_in_ridges <- 1
+sampling_factor <- norm_ridges_downsampling
+hide_zeroes_in_ridges <- norm_hide_zeroes
 #Kolmogorov-Smirnov can be computed in a pairwise manner or against total channel distribution
 #pairwise or total
 ks_testing <- "pairwise"

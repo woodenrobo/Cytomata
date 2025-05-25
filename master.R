@@ -83,6 +83,10 @@ feature_markers_gating <- panel$antigen[panel$gating_feature == 1]
 #automatically chooses optimal percentile via peak recognition and diversity metric estimation
 anchor_ids <- unlist(strsplit(settings$value[settings$setting == "anchor_ids"], split = ", ", fixed = TRUE))
 norm_mode <- settings$value[settings$setting == "norm_mode"]
+norm_method <- settings$value[settings$setting == "norm_method"]
+norm_n_quantiles <- as.numeric(settings$value[settings$setting == "norm_n_quantiles"])
+norm_hide_zeroes <- as.numeric(settings$value[settings$setting == "norm_hide_zeroes"])
+norm_ridges_downsampling <- as.numeric(settings$value[settings$setting == "norm_ridges_downsampling"])
 
 if (do_normalization == 1) {
     #anchor = technical replicate included with each batch. Can be one or multiple. If multiple, normalization is done in order from left to right

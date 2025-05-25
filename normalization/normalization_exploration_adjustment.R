@@ -126,18 +126,17 @@ if (norm_mode == "harmony") {
             exprs_set <- inject_fcs(input, filter_features = TRUE, asinh_transform = asinh_transform, cofac = cofac)
 
             # compute average quantiles over all anchor samples for each channel using X quantiles
-            method <- "channel" # "sample" or "channel"
+            method <- norm_method # "sample" or "channel"
 
             
             if (method == "sample") {
 
-                n_quantiles <- 50000
+                n_quantiles <- norm_n_quantiles
 
                 # compute quantile values for each channel and anchor sample
                 # and average them out
                 quantiles_table_long <- c()
-                pb <- progress_bar$new(format = "Computing quantiles per sample\nThis is very memory hungry and can crash\n
-                (:spin) [:bar] :percent [Elapsed time: :elapsedfull || Estimated time remaining: :eta]\n",
+                pb <- progress_bar$new(format = "Computing quantiles per sample\n(:spin) [:bar] :percent [Elapsed time: :elapsedfull || Estimated time remaining: :eta]\n",
                     total = length(feature_markers) * length(unique(exprs_set$sample)),
                     complete = "=",   # Completion bar character
                     incomplete = "-", # Incomplete bar character
@@ -147,7 +146,9 @@ if (norm_mode == "harmony") {
                 for (channel in feature_markers) {
                     # computing per sample
                     for (a_sample in unique(exprs_set$sample)) {
-                        temp_quantiles <- quantile(exprs_set[exprs_set$sample == a_sample, channel], probs = seq(0, 1, length.out = n_quantiles), na.rm = TRUE)
+                        data <- exprs_set[exprs_set$sample == a_sample, channel]
+                        data <- data[data > 0] # remove zeroes
+                        temp_quantiles <- quantile(data, probs = seq(0, 1, length.out = n_quantiles), type = 8, na.rm = TRUE)
                         temp_quantiles <- data.frame(a_sample, channel, names(temp_quantiles), temp_quantiles)
                         colnames(temp_quantiles) <- c("a_sample", "channel", "quantile", "intensity")
                         quantiles_table_long <- rbind(quantiles_table_long, temp_quantiles, make.row.names = FALSE)
@@ -165,6 +166,8 @@ if (norm_mode == "harmony") {
 
                 target_quantiles$quantile <- as.numeric(gsub("%", "", target_quantiles$quantile)) / 100
 
+                target_quantiles <- target_quantiles[order(target_quantiles$channel, target_quantiles$quantile), ]
+                
                 # use approx function to expand the target quantiles into a target distribution for each channel
                 n_points <- ifelse(n_quantiles > 100000, n_quantiles, 100000)
                 rprobs <- runif(n_points, 0, 1)
@@ -185,7 +188,7 @@ if (norm_mode == "harmony") {
 
             } else if (method == "channel") {
 
-                n_quantiles <- 100000
+                n_quantiles <- norm_n_quantiles
 
                 # compute quantile values for each channel over all anchor sample events
                 quantiles_table_long <- c()
@@ -198,7 +201,9 @@ if (norm_mode == "harmony") {
                     width = 120)      # Width of the progress bar
                 for (channel in feature_markers) {
                     # computing per channel
-                    temp_quantiles <- quantile(exprs_set[, channel], probs = seq(0, 1, length.out = n_quantiles), na.rm = TRUE)
+                    data <- exprs_set[, channel]
+                    data <- data[data > 0] # remove zeroes
+                    temp_quantiles <- quantile(data, probs = seq(0, 1, length.out = n_quantiles), type = 8, na.rm = TRUE)
                     temp_quantiles <- data.frame(a_sample = "all", channel, names(temp_quantiles), temp_quantiles)
                     colnames(temp_quantiles) <- c("a_sample", "channel", "quantile", "intensity")
                     quantiles_table_long <- rbind(quantiles_table_long, temp_quantiles, make.row.names = FALSE)
@@ -263,13 +268,21 @@ if (norm_mode == "harmony") {
             }
             
 
+            if (method == "sample") {
+                #compute spline functions for each channel and batch
+                mapping_func_list <- compute_quantile_mapping_functions(exprs_set = exprs_set,
+                                                                        n_quantiles = n_quantiles,
+                                                                        ref_quantiles = target_quantiles)
 
-            #compute spline functions for each channel and batch
-            mapping_func_list <- compute_quantile_mapping_functions(exprs_set = exprs_set,
-                                                                    n_quantiles = n_quantiles,
-                                                                    ref_quantiles = quantiles_table_long)
-
-
+            } else if (method == "channel") {
+                #compute spline functions for each channel and batch
+                mapping_func_list <- compute_quantile_mapping_functions(exprs_set = exprs_set,
+                                                                        n_quantiles = n_quantiles,
+                                                                        ref_quantiles = quantiles_table_long)
+            } else {
+                stop("Quantile norm method not recognized. Please use \"sample\" or \"channel\".")
+            }
+            
             #normalizing batches
             normalize_batches_quantile(mapping_func_list = mapping_func_list)
 
@@ -358,7 +371,9 @@ if (norm_mode == "harmony") {
                     width = 120)      # Width of the progress bar
                 for (channel in feature_markers) {
                     # computing per channel
-                    temp_quantiles <- quantile(exprs_set_prenorm[, channel], probs = seq(0, 1, length.out = n_quantiles), na.rm = TRUE)
+                    data <- exprs_set_prenorm[, channel]
+                    data <- data[data > 0] # remove zeroes
+                    temp_quantiles <- quantile(data, probs = seq(0, 1, length.out = n_quantiles), type = 8, na.rm = TRUE)
                     temp_quantiles <- data.frame(a_sample = "all", channel, names(temp_quantiles), temp_quantiles)
                     colnames(temp_quantiles) <- c("a_sample", "channel", "quantile", "intensity")
                     quantiles_table_long <- rbind(quantiles_table_long, temp_quantiles, make.row.names = FALSE)

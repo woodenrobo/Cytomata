@@ -412,24 +412,112 @@ compute_quantile_mapping_functions <- function(exprs_set, n_quantiles, ref_quant
     # This will map values in for the anchor to the reference values.
     mapping_func_list <- list()
     
+    map_plot_dir <- paste0(out_norm_aid_folder, "mapping_plots/")
+    dir.create(map_plot_dir, showWarnings = FALSE)
+
+    #plot density ridges with optimal anchor and percentile highlighted
+    pb <- progress_bar$new(format = "Plotting Spline Mappings\n(:spin) [:bar] :percent [Elapsed time: :elapsedfull || Estimated time remaining: :eta]\n",
+                    total = length(feature_markers) * length(unique(exprs_set$sample)),
+                    complete = "=",   # Completion bar character
+                    incomplete = "-", # Incomplete bar character
+                    current = ">",    # Current bar character
+                    clear = FALSE,    # If TRUE, clears the bar when finish
+                    width = 130)      # Width of the progress bar
 
     for (a_sample in unique(exprs_set$sample)) {
+
+        map_plot_dir_sample <- paste0(map_plot_dir, a_sample, "/")
+        dir.create(map_plot_dir_sample, showWarnings = FALSE)
 
         batch_func_list <- list()
 
         temp_set <- exprs_set[exprs_set$sample == a_sample, ]
 
         for (channel in feature_markers){
-            refq <- unlist(ref_quantiles[ref_quantiles$channel == channel, "quantile"])
-            qx <- quantile(temp_set[[channel]], probs = seq(0, 1, length.out = n_quantiles), names = FALSE)
+
+            data <- temp_set[[channel]]  # Extract the channel data
+            data <- data[data > 0]  # Filter out non-positive values
+            
+            refq <- unlist(ref_quantiles[ref_quantiles$channel == channel, "intensity"])
+            qx <- quantile(data, probs = seq(0, 1, length.out = n_quantiles), names = FALSE, type = 8, na.rm = TRUE)  # Using type = 8 for quantile calculation
             spf <- splinefun(x = qx, y = refq, method = "monoH.FC", ties = min)
+            
 
             batch_func_list[[channel]] <- spf
+
+            # Plotting the mapping function
+            plot_data <- data.frame(x = qx, y = refq)
+
+            png(filename = paste0(map_plot_dir_sample, channel, "_mapping_function.png"), width = 800, height = 600)
+            p <- ggplot(plot_data, aes(x = x, y = y)) +
+                geom_line(color = "blue") +
+                geom_point(color = "red") +
+                # add a diagonal line for reference
+                geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "#000000") +
+                labs(title = paste("Mapping function for", channel, "in sample", a_sample),
+                     x = paste0("Quantiles of ", a_sample),
+                     y = "Quantiles of Target") +
+                theme_cowplot()
+            print(p)
+            invisible(dev.off())
+
+
+
+            # transformed version
+            if (asinh_transform == FALSE) {
+
+                #transform the expression values
+                plot_data <- asinh(plot_data / cofac)
+
+            }
+
+            png(filename = paste0(map_plot_dir_sample, channel, "_mapping_function_TRANSFORMED.png"), width = 800, height = 600)
+            p <- ggplot(plot_data, aes(x = x, y = y)) +
+                geom_line(color = "blue") +
+                geom_point(color = "red") +
+                # add a diagonal line for reference
+                geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "#000000") +
+                labs(title = paste("Mapping function for", channel, "in sample", a_sample),
+                     x = paste0("Quantiles of ", a_sample),
+                     y = "Quantiles of Target") +
+                theme_cowplot()
+            print(p)
+            invisible(dev.off())
+
+
+            # do quantile curve plot
+
+            # x and y to one column with additional column saying either anchor or reference
+            # and then quantile values from 0 to 1
+            quant_curve_data <- list()
+            quant_curve_data$x <- c(plot_data$y, plot_data$x)  # Target first, then a_sample
+            quant_curve_data$sample <- c(rep("Target", length(plot_data$y)), rep(a_sample, length(plot_data$x)))
+            quant_curve_data$y <- c(seq(0, 1, length.out = length(plot_data$y)), seq(0, 1, length.out = length(plot_data$x)))
+            quant_curve_data <- data.frame(quant_curve_data)
+            
+            quant_curve_data$sample <- factor(quant_curve_data$sample, levels = c("Target", a_sample))
+            
+            png(filename = paste0(map_plot_dir_sample, channel, "_quantile_curves_TRANSFORMED.png"), width = 800, height = 600)
+            p <- ggplot(quant_curve_data, aes(x = x, y = y, color = sample)) +
+                geom_line( linewidth = 3, alpha = 0.7) +
+                labs(title = paste("Quantile curves for", channel, "in sample", a_sample),
+                     x = "Transformed Intensity",
+                     y = "Quantile") +
+                scale_color_manual(
+                    values = setNames(c("red", "blue"), c("Target", a_sample)) # Assigns red to "Target" and blue to the value of a_sample
+                ) +
+                theme_cowplot()
+            print(p)
+            invisible(dev.off())
+
+
+            pb$tick()
         }
 
         mapping_func_list[[a_sample]] <- batch_func_list
     }
-
+    print("Mapping functions computed for all anchor samples.")
+    print("Saving mapping functions to file...")
     save(mapping_func_list, file = paste0(out_norm_aid_folder, "mapping_func_list.Rdata"))
 
     return(mapping_func_list)
@@ -480,9 +568,15 @@ normalize_batches_quantile <- function(mapping_func_list) {
 
         for (channel in feature_markers){
             for (samp in unique(exprs_set$sample)) {
-
-               spline_function <- mapping_func_list[[curr_anchor]][[channel]]
-               exprs_set[exprs_set$sample == samp, channel] <- spline_function(exprs_set[exprs_set$sample == samp, channel])
+                spline_function <- mapping_func_list[[curr_anchor]][[channel]]
+                exprs_set[
+                          exprs_set$sample == samp
+                          & exprs_set[[channel]] > 0,
+                          channel] <- spline_function(
+                                                      exprs_set[
+                                                                exprs_set$sample == samp
+                                                                & exprs_set[[channel]] > 0,
+                                                                channel])
 
             }
         }
