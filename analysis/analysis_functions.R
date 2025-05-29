@@ -483,6 +483,9 @@ merge_or_delete_clusters <- function(exprs_set, cluster_annot) {
     if (sum(grepl("^0$", temp)) > 0) {
         dropped_events <<- exprs_set$cell_id[grepl("^0$", temp)]
     }
+    if (sum(exprs_set$sample_state == "dropped", na.rm = TRUE) > 0) {
+        dropped_events <<- c(dropped_events, exprs_set$cell_id[which(exprs_set$sample_state == "dropped")])
+    }
 
     exprs_set$meta_cluster_id <- temp
     return(exprs_set)
@@ -580,12 +583,7 @@ merge_exprs_and_umap <- function() {
 remove_dropped_events <- function() {
     if (length(dropped_events) > 0) {
         temp <- exprs_set[!exprs_set$cell_id %in% dropped_events, ]
-        cat(paste0(length(dropped_events), " events from deleted clusters removed\n"))
-    }
-
-    if (dropped_samples_mode > 0) {
-        temp <- temp[!temp$sample_state == "dropped", ]
-        cat(paste0(sum(exprs_set$sample_state == "dropped"), " events from deleted samples removed\n"))
+        cat(paste0(length(dropped_events), " dropped_events from deleted clusters or samples removed\n"))
     }
 
     if (length(dropped_events) > 0 || dropped_samples_mode > 0) {

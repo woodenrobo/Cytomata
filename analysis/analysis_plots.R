@@ -360,10 +360,18 @@ pca_biplot <- function(grouping_var, dims, module) {
     folder <- output_core
     cols <- group_cols
   }
+
+ if (length(unique(exprs_set[[grouping_var]])) > 40) {
+    width_scale <- 40
+    text_size <- element_text(size = 10)
+  } else {
+    width_scale <- 20
+    text_size <- element_text(size = 25)
+  }
   
   # Set a larger plot size to avoid viewport issues
   pdf(paste0(folder, "PCA_", grouping_var, "_PC_", paste0(dims, collapse = "_"), ".pdf"),
-    width = 15,  # Increased width
+    width = width_scale,  # Increased width
     height = 12  # Increased height
   )
 
@@ -381,7 +389,7 @@ pca_biplot <- function(grouping_var, dims, module) {
           theme_cowplot() +
           scale_color_manual(values = cols, limits = force, labels = scales::label_wrap(25)) +
           labs(color = grouping_var) + 
-          theme(text=element_text(size=25),
+          theme(text = text_size,
                 plot.title = element_text(size=20),
                 axis.text.x = element_text(color = "black", size = 20, angle = 0, 
                                            hjust = 0.5, vjust = 0.5, face = "plain"),
@@ -459,8 +467,18 @@ umap_plot <- function(grouping_var, module, labels = TRUE) {
     cols <- group_cols
   }
 
+
+ if (length(unique(exprs_set[[grouping_var]])) > 40) {
+    width_scale <- 40
+    text_size <- element_text(size = 10)
+  } else {
+    width_scale <- 20
+    text_size <- element_text(size = 25)
+  }
+
+
   pdf(paste0(folder, "UMAP_", grouping_var, ".pdf"),
-    width = 20,
+    width = width_scale,
     height = 10
   )
 
@@ -471,7 +489,7 @@ umap_plot <- function(grouping_var, module, labels = TRUE) {
         guides(colour = guide_legend(override.aes = list(alpha = 1, size = 3, shape = 19), title = grouping_var)) +
         scale_color_manual(values = cols, labels = scales::label_wrap(25), limits = force) +
         theme_cowplot() +
-        theme(text = element_text(size = 25),
+        theme(text = text_size,
               axis.text.x = element_text(color = "black", size = 20, angle = 0, hjust = 0.5, vjust = 0.5, face = "plain"),
               axis.text.y = element_text(color = "black", size = 20, angle = 0, hjust = 0.5, vjust = 0.5, face = "plain"),
               axis.title.x = element_text(margin = margin(10, 0, 0, 0)),
@@ -1263,6 +1281,7 @@ cluster_abundance_heatmaps <- function(data = data, grouping_var = group, featur
 
   abu_heat_mat <- abu_heat_mat %>% select(-c(!!sym(grouping_var)))
   abu_heat_mat <- as.matrix(abu_heat_mat)
+  abu_heat_mat <- abu_heat_mat[, apply(abu_heat_mat, MARGIN = 2, FUN = is.numeric)]
   abu_heat_mat <- apply(abu_heat_mat, MARGIN = 2, FUN = scale)
   rownames(abu_heat_mat) <- row_annot
 
@@ -1440,7 +1459,12 @@ cluster_testing_heatmaps <- function(data = data, testing_results = testing_resu
 
 
 
-marker_average_heatmaps <- function(data = data, grouping_var = group, features = features, prefix = prefix, pairing_var = NULL) {
+marker_average_heatmaps <- function(data = data,
+grouping_var = group,
+features = features,
+prefix = prefix, 
+pairing_var = NULL,
+custom_marker_order = NULL) {
 
   # per patient version
   expr_heat_mat <- data
@@ -1478,8 +1502,8 @@ marker_average_heatmaps <- function(data = data, grouping_var = group, features 
   hm <- Heatmap(expr_heat_mat,
                 cluster_rows = TRUE,
                 cluster_columns = TRUE,
-                row_names_gp = gpar(fontsize = 0.6 * (nrow(expr_heat_mat) + 2)),
-                column_names_gp = gpar(fontsize = 0.6 * (nrow(expr_heat_mat) + 2)),
+                row_names_gp = gpar(fontsize = 0.6 * (nrow(expr_heat_mat) + 10)),
+                column_names_gp = gpar(fontsize = 0.6 * (nrow(expr_heat_mat) + 10)),
                 right_annotation = row_ha,
                 heatmap_legend_param = list(
                   title = "Mean Marker Expression",
@@ -1512,6 +1536,7 @@ marker_average_heatmaps <- function(data = data, grouping_var = group, features 
   }
   expr_heat_mat <- expr_heat_mat %>% select(-c(id, !!sym(grouping_var)))
   expr_heat_mat <- as.matrix(expr_heat_mat)
+  expr_heat_mat <- expr_heat_mat[, apply(expr_heat_mat, MARGIN = 2, FUN = is.numeric)]
   expr_heat_mat <- apply(expr_heat_mat, MARGIN = 2, FUN = scale)
   rownames(expr_heat_mat) <- id_annot
 
@@ -1538,8 +1563,8 @@ marker_average_heatmaps <- function(data = data, grouping_var = group, features 
   hm <- Heatmap(expr_heat_mat,
                 cluster_rows = TRUE,
                 cluster_columns = TRUE,
-                row_names_gp = gpar(fontsize = 0.6 * (nrow(expr_heat_mat) + 2)),
-                column_names_gp = gpar(fontsize = 0.6 * (nrow(expr_heat_mat) + 2)),
+                row_names_gp = gpar(fontsize = 0.6 * (nrow(expr_heat_mat) + 10)),
+                column_names_gp = gpar(fontsize = 0.6 * (nrow(expr_heat_mat) + 10)),
                 right_annotation = row_ha,
                 heatmap_legend_param = list(
                   title = "Scaled cluster abundance",
@@ -1603,8 +1628,8 @@ marker_average_heatmaps <- function(data = data, grouping_var = group, features 
   hm <- Heatmap(expr_heat_mat,
                 cluster_rows = TRUE,
                 cluster_columns = TRUE,
-                row_names_gp = gpar(fontsize = 0.6 * (nrow(expr_heat_mat) + 2)),
-                column_names_gp = gpar(fontsize = 0.6 * (nrow(expr_heat_mat) + 2)),
+                row_names_gp = gpar(fontsize = 0.6 * (nrow(expr_heat_mat) + 10)),
+                column_names_gp = gpar(fontsize = 0.6 * (nrow(expr_heat_mat) + 10)),
                 right_annotation = row_ha,
                 heatmap_legend_param = list(
                   title = "Cluster abundance [%]",
@@ -1641,6 +1666,7 @@ marker_average_heatmaps <- function(data = data, grouping_var = group, features 
 
   expr_heat_mat <- expr_heat_mat %>% select(-c(!!sym(grouping_var)))
   expr_heat_mat <- as.matrix(expr_heat_mat)
+  expr_heat_mat <- expr_heat_mat[, apply(expr_heat_mat, MARGIN = 2, FUN = is.numeric)]
   expr_heat_mat <- apply(expr_heat_mat, MARGIN = 2, FUN = scale)
   rownames(expr_heat_mat) <- row_annot
 
@@ -1666,8 +1692,8 @@ marker_average_heatmaps <- function(data = data, grouping_var = group, features 
   hm <- Heatmap(expr_heat_mat,
                 cluster_rows = TRUE,
                 cluster_columns = TRUE,
-                row_names_gp = gpar(fontsize = 0.6 * (nrow(expr_heat_mat) + 2)),
-                column_names_gp = gpar(fontsize = 0.6 * (nrow(expr_heat_mat) + 2)),
+                row_names_gp = gpar(fontsize = 0.6 * (nrow(expr_heat_mat) + 10)),
+                column_names_gp = gpar(fontsize = 0.6 * (nrow(expr_heat_mat) + 10)),
                 right_annotation = row_ha,
                 heatmap_legend_param = list(
                   title = "Scaled cluster abundance",
@@ -1686,6 +1712,268 @@ marker_average_heatmaps <- function(data = data, grouping_var = group, features 
       padding = unit(c(40, 0, 0, 40), "pt"))
 
   invisible(dev.off())
+
+  if (!is.null(custom_marker_order)) {
+    if (all(custom_marker_order %in% colnames(data))) {
+      if (!is.null(pairing_var)) {
+        data <- data[, c(custom_marker_order, "id", grouping_var, pairing_var)]
+      } else {
+        data <- data[, c(custom_marker_order, "id", grouping_var)]
+      }
+    } else {
+      warning("Some markers in custom_marker_order are not present in the data. Skipping custom ordering.")
+      return(NULL)
+    }
+
+      
+    # per patient version
+    expr_heat_mat <- data
+
+    row_annot <- as.factor(expr_heat_mat[[grouping_var]])
+    id_annot <- expr_heat_mat[["id"]]
+
+    if (!is.null(pairing_var)) {
+      expr_heat_mat <- expr_heat_mat %>% dplyr::select(-c(!!sym(pairing_var)))
+    }
+    expr_heat_mat <- expr_heat_mat %>% select(-c(id, !!sym(grouping_var)))
+    expr_heat_mat <- as.matrix(expr_heat_mat)
+    rownames(expr_heat_mat) <- id_annot
+
+
+    row_ha <- rowAnnotation(group = row_annot,
+                            annotation_legend_param = list(
+                              group = list(
+                                ncol = 2,
+                                title = "Group",
+                                title_position = "topcenter",
+                                at = names(group_cols),
+                                grid_height = unit(0.02 * length(row_annot), "cm"),
+                                grid_width = unit(0.02 * length(row_annot), 'cm'),
+                                labels_gp = gpar(fontsize = 0.6 * length(row_annot)),
+                                title_gp = gpar(fontsize = 0.6 * length(row_annot))
+                              )
+                            ),
+                            col = list(group = group_cols),
+                            na_col = "white",
+                            show_annotation_name = FALSE
+    )
+
+
+    hm <- Heatmap(expr_heat_mat,
+                  cluster_rows = TRUE,
+                  cluster_columns = FALSE,
+                  row_names_gp = gpar(fontsize = 0.6 * (nrow(expr_heat_mat) + 10)),
+                  column_names_gp = gpar(fontsize = 0.6 * (nrow(expr_heat_mat) + 10)),
+                  right_annotation = row_ha,
+                  heatmap_legend_param = list(
+                    title = "Mean Marker Expression",
+                    direction = 'horizontal',
+                    title_position = "topcenter",
+                    legend_width = unit(0.25 * (nrow(expr_heat_mat) + 2), "cm"),
+                    grid_width = unit(0.25 * (nrow(expr_heat_mat) + 2), 'cm'),
+                    labels_gp = gpar(fontsize = 0.6 * (nrow(expr_heat_mat) + 2)),
+                    title_gp = gpar(fontsize = 0.6 * (nrow(expr_heat_mat) + 2))
+                  ))
+
+    pdf(file = paste0(output_group, prefix, "_heatmap_per_sample_custom_order.pdf"), width = 1.1 * ncol(expr_heat_mat), height = 2 + 0.7 * nrow(expr_heat_mat))
+    draw(hm,
+        heatmap_legend_side = 'top',
+        row_sub_title_side = 'left',
+        padding = unit(c(40, 0, 0, 40), "pt"))
+
+    invisible(dev.off())
+
+
+    #scaled per patient version
+    expr_heat_mat <- data
+
+    row_annot <- as.factor(expr_heat_mat[[grouping_var]])
+    id_annot <- expr_heat_mat[["id"]]
+
+
+    if (!is.null(pairing_var)) {
+      expr_heat_mat <- expr_heat_mat %>% dplyr::select(-c(!!sym(pairing_var)))
+    }
+    expr_heat_mat <- expr_heat_mat %>% select(-c(id, !!sym(grouping_var)))
+    expr_heat_mat <- as.matrix(expr_heat_mat)
+    #only keep numeric columns
+    expr_heat_mat <- expr_heat_mat[, apply(expr_heat_mat, MARGIN = 2, FUN = is.numeric)]
+    expr_heat_mat <- apply(expr_heat_mat, MARGIN = 2, FUN = scale)
+    rownames(expr_heat_mat) <- id_annot
+
+
+    row_ha <- rowAnnotation(group = row_annot,
+                            annotation_legend_param = list(
+                              group = list(
+                                ncol = 2,
+                                title = "Group",
+                                title_position = "topcenter",
+                                at = names(group_cols),
+                                grid_height = unit(0.02 * (nrow(expr_heat_mat) + 2), "cm"),
+                                grid_width = unit(0.02 * (nrow(expr_heat_mat) + 2), 'cm'),
+                                labels_gp = gpar(fontsize = 0.6 * (nrow(expr_heat_mat) + 2)),
+                                title_gp = gpar(fontsize = 0.6 * (nrow(expr_heat_mat) + 2))
+                              )
+                            ),
+                            col = list(group = group_cols),
+                            na_col = "white",
+                            show_annotation_name = FALSE
+    )
+
+
+    hm <- Heatmap(expr_heat_mat,
+                  cluster_rows = TRUE,
+                  cluster_columns = FALSE,
+                  row_names_gp = gpar(fontsize = 0.6 * (nrow(expr_heat_mat) + 10)),
+                  column_names_gp = gpar(fontsize = 0.6 * (nrow(expr_heat_mat) + 10)),
+                  right_annotation = row_ha,
+                  heatmap_legend_param = list(
+                    title = "Scaled cluster abundance",
+                    direction = 'horizontal',
+                    title_position = "topcenter",
+                    legend_width = unit(0.25 * (nrow(expr_heat_mat) + 2), "cm"),
+                    grid_width = unit(0.25 * (nrow(expr_heat_mat) + 2), 'cm'),
+                    labels_gp = gpar(fontsize = 0.6 * (nrow(expr_heat_mat) + 2)),
+                    title_gp = gpar(fontsize = 0.6 * (nrow(expr_heat_mat) + 2))
+                  ))
+
+    pdf(file = paste0(output_group, prefix, "_heatmap_per_sample_scaled_custom_order.pdf"), width = 1.1 * ncol(expr_heat_mat), height = 2 + 0.7 * nrow(expr_heat_mat))
+    draw(hm,
+        heatmap_legend_side = 'top',
+        row_sub_title_side = 'left',
+        padding = unit(c(40, 0, 0, 40), "pt"))
+
+    invisible(dev.off())
+
+
+
+
+    # per group version
+    expr_heat_mat <- data
+
+    if (!is.null(pairing_var)) {
+      expr_heat_mat <- expr_heat_mat %>% dplyr::select(-c(!!sym(pairing_var)))
+    }
+    expr_heat_mat <- expr_heat_mat %>% select(-c(id))
+
+    expr_heat_mat <- expr_heat_mat %>% dplyr::group_by(!!sym(group)) %>%
+                      dplyr::summarise(across(where(is.numeric), mean, na.rm = TRUE))
+
+    row_annot <- as.factor(expr_heat_mat[[grouping_var]])
+
+
+    expr_heat_mat <- expr_heat_mat %>% select(-c(!!sym(grouping_var)))
+    expr_heat_mat <- as.matrix(expr_heat_mat)
+    rownames(expr_heat_mat) <- row_annot
+
+
+    row_ha <- rowAnnotation(group = row_annot,
+                            annotation_legend_param = list(
+                              group = list(
+                                ncol = 2,
+                                title = "Group",
+                                title_position = "topcenter",
+                                at = names(group_cols),
+                                grid_height = unit(0.02 * (nrow(expr_heat_mat) + 2), "cm"),
+                                grid_width = unit(0.02 * (nrow(expr_heat_mat) + 2), 'cm'),
+                                labels_gp = gpar(fontsize = 0.6 * (nrow(expr_heat_mat) + 2)),
+                                title_gp = gpar(fontsize = 0.6 * (nrow(expr_heat_mat) + 2))
+                              )
+                            ),
+                            col = list(group = group_cols),
+                            na_col = "white",
+                            show_annotation_name = FALSE
+    )
+
+
+    hm <- Heatmap(expr_heat_mat,
+                  cluster_rows = TRUE,
+                  cluster_columns = FALSE,
+                  row_names_gp = gpar(fontsize = 0.6 * (nrow(expr_heat_mat) + 10)),
+                  column_names_gp = gpar(fontsize = 0.6 * (nrow(expr_heat_mat) + 10)),
+                  right_annotation = row_ha,
+                  heatmap_legend_param = list(
+                    title = "Cluster abundance [%]",
+                    direction = 'horizontal',
+                    title_position = "topcenter",
+                    legend_width = unit(0.25 * (nrow(expr_heat_mat) + 2), "cm"),
+                    grid_width = unit(0.25 * (nrow(expr_heat_mat) + 2), 'cm'),
+                    labels_gp = gpar(fontsize = 0.6 * (nrow(expr_heat_mat) + 2)),
+                    title_gp = gpar(fontsize = 0.6 * (nrow(expr_heat_mat) + 2))
+                  ))
+
+    pdf(file = paste0(output_group, prefix, "_heatmap_per_group_custom_order.pdf"),  width = 1.1 * ncol(expr_heat_mat), height = 3 + 0.5 * nrow(expr_heat_mat))
+    draw(hm,
+        heatmap_legend_side = 'top',
+        row_sub_title_side = 'left',
+        padding = unit(c(40, 0, 0, 40), "pt"))
+
+    invisible(dev.off())
+
+
+    #scaled per patient version
+    expr_heat_mat <- data
+
+    if (!is.null(pairing_var)) {
+      expr_heat_mat <- expr_heat_mat %>% dplyr::select(-c(!!sym(pairing_var)))
+    }
+    expr_heat_mat <- expr_heat_mat %>% select(-c(id))
+
+    expr_heat_mat <- expr_heat_mat %>% dplyr::group_by(!!sym(group)) %>%
+                      dplyr::summarise(across(where(is.numeric), mean, na.rm = TRUE))
+
+    row_annot <- as.factor(expr_heat_mat[[grouping_var]])
+
+
+    expr_heat_mat <- expr_heat_mat %>% select(-c(!!sym(grouping_var)))
+    expr_heat_mat <- as.matrix(expr_heat_mat)
+    expr_heat_mat <- expr_heat_mat[, apply(expr_heat_mat, MARGIN = 2, FUN = is.numeric)]
+    expr_heat_mat <- apply(expr_heat_mat, MARGIN = 2, FUN = scale)
+    rownames(expr_heat_mat) <- row_annot
+
+    row_ha <- rowAnnotation(group = row_annot,
+                            annotation_legend_param = list(
+                              group = list(
+                                ncol = 2,
+                                title = "Group",
+                                title_position = "topcenter",
+                                at = names(group_cols),
+                                grid_height = unit(0.02 * (nrow(expr_heat_mat) + 2), "cm"),
+                                grid_width = unit(0.02 * (nrow(expr_heat_mat) + 2), 'cm'),
+                                labels_gp = gpar(fontsize = 0.6 * (nrow(expr_heat_mat) + 2)),
+                                title_gp = gpar(fontsize = 0.6 * (nrow(expr_heat_mat) + 2))
+                              )
+                            ),
+                            col = list(group = group_cols),
+                            na_col = "white",
+                            show_annotation_name = FALSE
+    )
+
+
+    hm <- Heatmap(expr_heat_mat,
+                  cluster_rows = TRUE,
+                  cluster_columns = FALSE,
+                  row_names_gp = gpar(fontsize = 0.6 * (nrow(expr_heat_mat) + 10)),
+                  column_names_gp = gpar(fontsize = 0.6 * (nrow(expr_heat_mat) + 10)),
+                  right_annotation = row_ha,
+                  heatmap_legend_param = list(
+                    title = "Scaled cluster abundance",
+                    direction = 'horizontal',
+                    title_position = "topcenter",
+                    legend_width = unit(0.25 * (nrow(expr_heat_mat) + 2), "cm"),
+                    grid_width = unit(0.25 * (nrow(expr_heat_mat) + 2), 'cm'),
+                    labels_gp = gpar(fontsize = 0.6 * (nrow(expr_heat_mat) + 2)),
+                    title_gp = gpar(fontsize = 0.6 * (nrow(expr_heat_mat) + 2))
+                  ))
+
+    pdf(file = paste0(output_group, prefix, "_heatmap_per_group_scaled_custom_order.pdf"),  width = 1.1 * ncol(expr_heat_mat), height = 3 + 0.5 * nrow(expr_heat_mat))
+    draw(hm,
+        heatmap_legend_side = 'top',
+        row_sub_title_side = 'left',
+        padding = unit(c(40, 0, 0, 40), "pt"))
+
+    invisible(dev.off())
+  }
 
 }
 

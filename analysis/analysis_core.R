@@ -142,8 +142,50 @@ testing_results <- do_testing(data = data, grouping_var = group, features = feat
                                 cluster_var = cluster_var, selected_clusters = selected_clusters, column_number = column_number,
                                 parametric_testing = parametric_testing, paired = paired, manual_comparisons = manual_comparisons, prefix = prefix)
 
+if (grepl("dc", project_name, ignore.case = TRUE)) {
 
-marker_average_heatmaps(data = data, grouping_var = group, features = features, prefix = prefix)
+    custom_order <- c("pSTAT1_Y701",
+        "pSTAT1_S727",
+        "pSTAT2_Y689",
+        "pSTAT3_Y705",
+        "pSTAT3_S727",
+        "pSTAT5_T694",
+        "pRelA_S536",
+        "pAMPKa_T172",
+        "pPDK1_S241",
+        "panAkt",
+        "pAkt_S473",
+        "pAKT_T308",
+        "p_mTOR_S2448",
+        "p_p70S6K_T389",
+        "p4eBP1_T37_T46",
+        "pS6_S235_S236",
+        "HIF1a",
+        "pGSK3b_S9",
+        "pMEK1_2_S217_S221",
+        "pERK1_2_T202_Y204",
+        "p_p90RSK_S380",
+        "pMKK3_6_S189_S207",
+        "p_p38_T180_Y182",
+        "pMAPKAPK2_T334",
+        "CDT1_DUP",
+        "Geminin",
+        "CyclinD1",
+        "pRB_S807_S811",
+        "CyclinB1",
+        "pH3_S28",
+        "Ki67",
+        "cCasp3",
+        "pSRC_T418",
+        "pCREB"
+    )
+
+    marker_average_heatmaps(data = data, grouping_var = group, features = features, prefix = prefix,
+    custom_marker_order = custom_order)
+} else {
+    marker_average_heatmaps(data = data, grouping_var = group, features = features, prefix = prefix)
+}
+
 
 
 show_testing <- TRUE
