@@ -136,7 +136,7 @@ parametric_testing <- TRUE
 paired <- FALSE
 manual_comparisons <- NULL
 prefix <- "marker_expressions_all_clusters"
-exprs_averages <- summary_table(data = exprs_set, grouping_var = c(group, "id"), selected_features = clustering_feature_markers, stat = "mean")
+exprs_averages <- summary_table(data = exprs_set, grouping_var = c(group, "id"), selected_features = clustering_feature_markers, stat = "mean", prefix = prefix)
 data <- exprs_averages
 testing_results <- do_testing(data = data, grouping_var = group, features = features, group_by_clusters = group_by_clusters,
                                 cluster_var = cluster_var, selected_clusters = selected_clusters, column_number = column_number,

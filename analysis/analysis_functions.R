@@ -656,7 +656,7 @@ continue_or_recalculate_umap <- function() {
 }
 
 
-summary_table <- function(data = exprs_set, grouping_var, selected_features = NULL, stat = "mean") {
+summary_table <- function(data = exprs_set, grouping_var, selected_features = NULL, stat = "mean", prefix = NULL) {
 
   if (stat == "mean") {
     temp <- data %>% 
@@ -681,6 +681,14 @@ summary_table <- function(data = exprs_set, grouping_var, selected_features = NU
   } else {
     cat("Incorrect options set\n")
   }
+
+  folder <- output_group  
+  # Write CSV files 
+    if (!is.null(prefix)) {
+        write.csv(counts_table, file = paste0(folder, prefix, "_", stat, ".csv"), row.names = FALSE)
+    } else {
+        stop("Please provide a prefix for the summary_table output files.")
+    }
 }
 
 
