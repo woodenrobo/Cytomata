@@ -662,22 +662,18 @@ summary_table <- function(data = exprs_set, grouping_var, selected_features = NU
     temp <- data %>% 
       dplyr::group_by(across(all_of(grouping_var))) %>% 
       dplyr::summarise(across(all_of(selected_features), mean, na.rm = TRUE), .groups = 'drop')
-      return(temp)
   } else if (stat == "median") {
     temp <- data %>% 
       dplyr::group_by(across(all_of(grouping_var))) %>% 
       dplyr::summarise(across(all_of(selected_features), median, na.rm = TRUE), .groups = 'drop')
-      return(temp)
   } else if (stat == "count") {
     temp <- data %>% 
       dplyr::group_by(across(all_of(grouping_var))) %>% 
       dplyr::summarise(count = n(), .groups = 'drop')
-      return(temp)
   } else if (stat == "n_size") {
     temp <- data %>% 
       dplyr::group_by(across(all_of(grouping_var))) %>% 
-      dplyr::summarise(n_size = n_distinct(id), .groups = 'drop')
-      return(temp)
+      dplyr::summarise(n_size = n_distinct(id), .groups = 'drop')   
   } else {
     cat("Incorrect options set\n")
   }
@@ -685,10 +681,12 @@ summary_table <- function(data = exprs_set, grouping_var, selected_features = NU
   folder <- output_group  
   # Write CSV files 
     if (!is.null(prefix)) {
-        write.csv(counts_table, file = paste0(folder, prefix, "_", stat, ".csv"), row.names = FALSE)
+        write.csv(temp, file = paste0(folder, prefix, "_", stat, ".csv"), row.names = FALSE)
     } else {
         stop("Please provide a prefix for the summary_table output files.")
     }
+
+    return(temp)
 }
 
 
