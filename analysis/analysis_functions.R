@@ -683,7 +683,7 @@ summary_table <- function(data = exprs_set, grouping_var, selected_features = NU
     if (!is.null(prefix)) {
         write.csv(temp, file = paste0(folder, prefix, "_", stat, ".csv"), row.names = FALSE)
     } else {
-        stop("Please provide a prefix for the summary_table output files.")
+        print("No prefix provided for the summary_table output files.")
     }
 
     return(temp)
