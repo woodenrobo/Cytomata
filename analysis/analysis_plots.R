@@ -465,7 +465,10 @@ umap_plot <- function(grouping_var, module, labels = TRUE) {
   } else if (module == "core"){
     folder <- output_group
     cols <- group_cols
+  } else {
+    folder <- getwd()
   }
+
 
 
  if (length(unique(exprs_set[[grouping_var]])) > 40) {
@@ -527,6 +530,8 @@ umap_facet <- function(grouping_var, module, column_number = 4, equal_sampling =
   } else if (module == "core") {
     folder <- output_group
     cols <- group_cols
+  } else {
+    folder <- getwd()
   }
 
   singles_output <- paste0(folder, "UMAP_facet_", grouping_var, "/")

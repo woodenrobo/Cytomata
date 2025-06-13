@@ -124,6 +124,24 @@ if (do_database_injection == 1) {
 # setwd(gating_app_folder)
 # runApp()
 
+#(PREVIEW) TOTAL DATASET SUBSETTING MODULE  ################
+#controlled manually from here for now
+do_subsetting <- 0
+if (do_subsetting == 1) {
+
+    parquet_out_path <- paste0(norm_folder, "parquet/")
+
+    if (length(dir(parquet_out_path)) == 0) {
+        stop("No files found in parquet folder. Please check the path in settings or populate the folder.")
+    }
+
+    setwd(path_to_cytomata)
+    source("./subsetting/subsetting_master.R")
+
+}
+
+
+
 #FINAL PROCESSING AND EXPLORATION  ################
 #data structure exploration
 #clustering, automatic cluster merging, clustering QC, annotation facilitation
