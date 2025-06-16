@@ -123,7 +123,14 @@ for (data_sub in data_subsets) {
         #this is also used for ordering of features in plots
         if (length(dir(meta_folder, pattern = "subset_feature_selection.xlsx")) > 0) {
             subset_feature_selection <- read_xlsx(paste0(meta_folder, "subset_feature_selection.xlsx"))
-            clustering_feature_markers <- unlist(strsplit(subset_feature_selection[subset_feature_selection$subset == data_sub, ] %>% pull(features), split = ", ", fixed = TRUE))
+            clustering_feature_markers <- unique(
+                unlist(
+                    strsplit(
+                        subset_feature_selection[subset_feature_selection$subset == data_sub, ]
+                        %>% pull(features), split = ", ", fixed = TRUE
+                    )
+                )
+            )
             cat("\n Features were set from subset_feature_selection.xlsx table \n")
             cat("\n Features selected for clustering are:\n", clustering_feature_markers, "\n")
         } else if (low_var_feature_removal[1] == 1) {
