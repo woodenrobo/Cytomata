@@ -305,7 +305,7 @@ cluster_expr_heatmap <- function(expression_setting, scale, after_dropping = FAL
 }
 
 
-cluster_expr_densities <- function(after_dropping = FALSE) {
+cluster_expr_densities <- function(after_dropping = FALSE, random_sampling = FALSE, target_n = 100000) {
   col_number <- 5
   
   if (after_dropping == TRUE) {
@@ -317,6 +317,9 @@ cluster_expr_densities <- function(after_dropping = FALSE) {
   for (i in seq_along(unique(exprs_set$meta_cluster_id))) {
     gg_df <- tidyr::pivot_longer(exprs_set[exprs_set$meta_cluster_id == i, c(clustering_feature_markers)], cols = all_of(clustering_feature_markers), names_to = "antigen") %>%
               mutate(antigen = factor(antigen, levels = c(clustering_feature_markers), ordered = TRUE))
+    if (random_sampling == TRUE && nrow(gg_df) > target_n) {
+      gg_df <- gg_df[sample(nrow(gg_df), target_n), ]
+    }
     print(
       ggplot(gg_df, aes(x = value, y = after_stat(ndensity))) + 
             facet_wrap(~ antigen, scales = "free_x", ncol = col_number,
@@ -472,10 +475,13 @@ umap_plot <- function(grouping_var, module, labels = TRUE, use_scattermore = FAL
 
 
  if (length(unique(exprs_set[[grouping_var]])) > 40) {
-    width_scale <- 40
+    width_scale <- 30
     text_size <- element_text(size = 10)
-  } else {
+  } else if (length(unique(exprs_set[[grouping_var]])) > 25) {
     width_scale <- 20
+    text_size <- element_text(size = 15)
+  } else {
+    width_scale <- 15
     text_size <- element_text(size = 25)
   }
 
@@ -489,7 +495,7 @@ umap_plot <- function(grouping_var, module, labels = TRUE, use_scattermore = FAL
   if (use_scattermore) {
     # Use scattermore for large datasets
     p <- ggplot(plot_df, aes(x = UMAP1, y = UMAP2)) +
-          scattermore::geom_scattermore(aes(color = !!sym(grouping_var)), alpha = 0.5, pointsize = 1, pixels = c(1000, 1000)) + 
+          scattermore::geom_scattermore(aes(color = as.factor(.data[[grouping_var]])), alpha = 0.3, pointsize = 3.2, pixels = c(1000, 1000)) + 
           guides(colour = guide_legend(override.aes = list(alpha = 1, size = 3, shape = 19), title = grouping_var)) +
           scale_color_manual(values = cols, labels = scales::label_wrap(25), limits = force) +
           theme_cowplot() +
@@ -501,7 +507,7 @@ umap_plot <- function(grouping_var, module, labels = TRUE, use_scattermore = FAL
           )
   } else {
     p <- ggplot(plot_df, aes(x = UMAP1, y = UMAP2)) +
-        ggrastr::rasterise(geom_point(aes(color = as.factor(.data[[grouping_var]])), alpha = 0.5, size = 1, shape = 19)) +
+        ggrastr::rasterise(geom_point(aes(color = as.factor(.data[[grouping_var]])), alpha = 0.3, size = 1, shape = 19)) +
         # size = 0.5 to restore old version with big points 
         # shape = "." to optimize for execution speed
         guides(colour = guide_legend(override.aes = list(alpha = 1, size = 3, shape = 19), title = grouping_var)) +
@@ -559,9 +565,9 @@ umap_facet <- function(grouping_var, module, column_number = 4, equal_sampling =
   if (equal_sampling == TRUE) {
     max_equal_sampling <- min(table(as.character(exprs_set[[grouping_var]])))
     plot_df <- plot_df %>% group_by(.data[[grouping_var]]) %>% slice_sample(n = max_equal_sampling)
-  } else  if (random_sampling == TRUE && target_n < nrow(exprs_set)) {
+  } else if (random_sampling == TRUE && target_n < nrow(exprs_set)) {
     plot_df <- plot_df %>% group_by(.data[[grouping_var]]) %>% slice_sample(n = target_n)
-  }
+  } 
   
   plot_df[[grouping_var]] <- factor(plot_df[[grouping_var]])
   grouping_levels <- levels(plot_df[[grouping_var]])
@@ -572,8 +578,8 @@ umap_facet <- function(grouping_var, module, column_number = 4, equal_sampling =
     
     if (use_scattermore) {
       p[[s]] <- ggplot(plot_df[plot_df[[grouping_var]] == plotted_group, ], aes(x = UMAP1, y = UMAP2)) +
-        scattermore::geom_scattermore(aes(color = '#aeaeae'), alpha = 0.5, pointsize = 1, pixels = c(1000, 1000)) + 
-        scattermore::geom_scattermore(aes(color = !!sym(grouping_var)), alpha = 0.5, pointsize = 1, pixels = c(1000, 1000)) + 
+        scattermore::geom_scattermore(aes(color = '#aeaeae'), alpha = 0.3, pointsize = 3.2, pixels = c(1000, 1000)) + 
+        scattermore::geom_scattermore(aes(color = !!sym(grouping_var)), alpha = 0.3, pointsize = 3.2, pixels = c(1000, 1000)) + 
         scale_color_manual(values = cols, limits = force) +
         ggtitle(str_wrap(paste(plotted_group), width = 25)) + 
         theme_cowplot() +
@@ -586,8 +592,8 @@ umap_facet <- function(grouping_var, module, column_number = 4, equal_sampling =
         )
     } else {
       p[[s]] <- ggplot(plot_df[plot_df[[grouping_var]] == plotted_group, ], aes(x = UMAP1, y = UMAP2)) +
-        ggrastr::rasterise(geom_point(color = '#aeaeae', alpha = 0.5, size = 1, shape = 19)) + 
-        ggrastr::rasterise(geom_point(aes(color = !!sym(grouping_var)), alpha = 0.5, size = 1, shape = 19, show.legend = F)) + 
+        ggrastr::rasterise(geom_point(color = '#aeaeae', alpha = 0.3, size = 1, shape = 19)) + 
+        ggrastr::rasterise(geom_point(aes(color = !!sym(grouping_var)), alpha = 0.3, size = 1, shape = 19, show.legend = F)) + 
         scale_color_manual(values = cols, limits = force) +
         ggtitle(str_wrap(paste(plotted_group), width = 25)) + 
         theme_cowplot() +
@@ -647,7 +653,7 @@ umap_expressions <- function(grouping_var = NULL, module, column_number = 4, use
 
     if (use_scattermore) {
        p[[s]] <- ggplot(plot_df %>% arrange(!!sym(plotted_marker)), aes(x = UMAP1, y = UMAP2)) +
-        scattermore::geom_scattermore(aes(color = !!sym(plotted_marker)), alpha = 0.5, pointsize = 1, pixels = c(1000, 1000)) + 
+        scattermore::geom_scattermore(aes(color = !!sym(plotted_marker)), alpha = 0.3, pointsize = 3.2, pixels = c(1000, 1000)) + 
         scale_color_gradient2(low = "blue", mid = "white", high = "red", midpoint = 0) +
         ggtitle(paste(plotted_marker)) + 
         theme_cowplot() +
@@ -2056,7 +2062,7 @@ do_paired_boxplots <- function(data, testing_results = NULL, grouping_var = grou
                            features, group_by_clusters = TRUE, cluster_var = cluster_var, 
                            selected_clusters = NULL, column_number = 4, show_testing = TRUE,
                            show_pvalues = TRUE, show_outliers = TRUE, line_color = "#464646", 
-                           line_size = 1, prefix = "paired") {
+                           line_size = 1, prefix = "paired", remove_unpaired = TRUE) {
   
   # Verify that we have paired data
   if(length(unique(data[[grouping_var]])) < 2) {
@@ -2075,6 +2081,45 @@ do_paired_boxplots <- function(data, testing_results = NULL, grouping_var = grou
   
   if(any(pair_counts$n_groups < length(unique(data[[grouping_var]])))) {
     warning("Some pairs don't have values for all groups. Lines will only connect existing pairs.")
+  }
+
+
+  if (remove_unpaired == TRUE) {
+    if (is.null(manual_comparisons)) {
+      unique_groups <- unique(data[[grouping_var]])
+      n_unique_groups <- length(unique(data[[grouping_var]]))
+    } else {
+      unique_groups <- manual_comparisons
+      n_unique_groups <- length(manual_comparisons)
+    }
+
+    if (group_by_clusters == TRUE) {
+      n_number <- data %>%
+                  dplyr::group_by(!!sym(grouping_var), !!sym(cluster_var)) %>%
+                  dplyr::summarise(n = n())
+    } else {
+      n_number <- data %>%
+                  dplyr::group_by(!!sym(grouping_var)) %>%
+                  dplyr::summarise(n = n())
+    }
+
+    temp <- data
+    
+    if (paired == TRUE) {
+
+      # remove entries where pairing var is not present in both groups
+
+      no_pair <- temp %>%
+        dplyr::ungroup() %>%
+        select(!!sym(pairing_var), !!sym(grouping_var)) %>%
+        dplyr::distinct() %>%
+        dplyr::group_by(!!sym(pairing_var)) %>%
+        dplyr::summarise(n = n()) %>%
+        dplyr::filter(n < 2) %>%
+        dplyr::pull(!!sym(pairing_var))
+
+      temp <- temp[!unlist(temp[, pairing_var]) %in% no_pair, ]
+    }
   }
   
   if (group_by_clusters == TRUE && length(features) > 1) {

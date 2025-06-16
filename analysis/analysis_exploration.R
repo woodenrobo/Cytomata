@@ -10,9 +10,9 @@ exprs_set <- remove_dropped_events()
 
 do_clustering_diagnostics_no_dropped()
 
-# do_pca_plots(module = "exploration")
+do_pca_plots(module = "exploration")
 
-# do_umap_plots(module = "exploration")
+do_umap_plots(module = "exploration")
 
 
 # Is very slow, so commented out until needed

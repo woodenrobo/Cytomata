@@ -341,7 +341,7 @@ do_clustering_diagnostics <- function() {
     cluster_expr_heatmap(expression_setting = "medians", scale = TRUE)
     cluster_expr_heatmap(expression_setting = "medians", scale = FALSE)
 
-    cluster_expr_densities()
+    cluster_expr_densities(random_sampling = TRUE, target_n = 100000)
 
 }
 
@@ -355,7 +355,7 @@ do_clustering_diagnostics_no_dropped <- function() {
     cluster_expr_heatmap(expression_setting = "medians", scale = TRUE, after_dropping = TRUE)
     cluster_expr_heatmap(expression_setting = "medians", scale = FALSE, after_dropping = TRUE)
 
-    cluster_expr_densities(after_dropping = TRUE)
+    cluster_expr_densities(after_dropping = TRUE, random_sampling = TRUE, target_n = 100000)
 
 }
 
@@ -582,11 +582,11 @@ merge_exprs_and_umap <- function() {
 
 remove_dropped_events <- function() {
     if (length(dropped_events) > 0) {
-        temp <- exprs_set[!exprs_set$cell_id %in% dropped_events, ]
+        temp <- exprs_set[!which(exprs_set$cell_id %in% dropped_events), ]
         cat(paste0(length(dropped_events), " dropped_events from deleted clusters or samples removed\n"))
     }
 
-    if (length(dropped_events) > 0 || dropped_samples_mode > 0) {
+    if (length(dropped_events) > 0) {
         return(temp)
     } else {
         return(exprs_set)
@@ -599,13 +599,13 @@ do_umap_plots <- function(module) {
         umap_plot(grouping_var = "batch", module = module, labels = TRUE, use_scattermore = TRUE)
         umap_plot(grouping_var = "id", module = module, labels = FALSE, use_scattermore = TRUE)
         umap_plot(grouping_var = "meta_cluster_id", module = module, labels = TRUE, use_scattermore = TRUE)
-        if (sum(grepl("meta_cluster_annotation", colnames(exprs_set))) > 0) {
+        if (sum(grepl("meta_cluster_annotation", colnames(exprs_set))) > 0 && length(unique(exprs_set$meta_cluster_annotation)) > 1) {
             umap_plot(grouping_var = "meta_cluster_annotation", module = module, labels = TRUE, use_scattermore = TRUE)
         }
 
         umap_facet(grouping_var = "batch", module = module, column_number = 4, equal_sampling = FALSE, use_scattermore = TRUE, random_sampling = TRUE, target_n = 100000)
         umap_facet(grouping_var = "meta_cluster_id", module = module, column_number = 4, equal_sampling = FALSE, use_scattermore = TRUE, random_sampling = TRUE, target_n = 100000)
-        if (sum(grepl("meta_cluster_annotation", colnames(exprs_set))) > 0) {
+        if (sum(grepl("meta_cluster_annotation", colnames(exprs_set))) > 0 && length(unique(exprs_set$meta_cluster_annotation)) > 1) {
             umap_facet(grouping_var = "meta_cluster_annotation", module = module, column_number = 4, equal_sampling = FALSE, use_scattermore = TRUE, random_sampling = TRUE, target_n = 100000)
         }
 
@@ -618,7 +618,7 @@ do_umap_plots <- function(module) {
         }
 
     } else if (module == "core") {
-        umap_facet(grouping_var = group, module = module, equal_sampling = TRUE, use_scattermore = TRUE, random_sampling = FALSE, target_n = 100000)
+        umap_facet(grouping_var = group, module = module, equal_sampling = FALSE, use_scattermore = TRUE, random_sampling = TRUE, target_n = 100000)
         umap_expressions(grouping_var = group, module = module, column_number = 4, use_scattermore = TRUE, random_sampling = TRUE, target_n = 100000)
     }
 

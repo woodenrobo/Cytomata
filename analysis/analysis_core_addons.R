@@ -17,6 +17,7 @@ if (group == "pre_post") {
 
     cluster_proportions <- calculate_cluster_proportions(cluster_var = cluster_var, additional_columns = additional_columns, selected_clusters = selected_clusters, prefix = prefix)
     data <- cluster_proportions
+
     data <- data[unlist(data[, grouping_var]) %in% manual_comparisons, ]
     testing_results <- do_testing(data = data, grouping_var = grouping_var, features = features, group_by_clusters = group_by_clusters,
                                     cluster_var = cluster_var, selected_clusters = selected_clusters, column_number = column_number,
@@ -31,7 +32,7 @@ if (group == "pre_post") {
     do_paired_boxplots(data = data, testing_results = testing_results, grouping_var = grouping_var, pairing_var = pairing_var, features = features, group_by_clusters = group_by_clusters,
                 cluster_var = cluster_var, selected_clusters = selected_clusters, column_number = column_number,
                 show_testing = show_testing, show_pvalues = show_pvalues, show_outliers = show_outliers,
-                prefix = prefix)
+                prefix = prefix, remove_unpaired = TRUE)
 
 
     show_testing <- TRUE
@@ -42,7 +43,7 @@ if (group == "pre_post") {
     do_paired_boxplots(data = data, testing_results = testing_results, grouping_var = grouping_var, pairing_var = pairing_var, features = features, group_by_clusters = group_by_clusters,
                 cluster_var = cluster_var, selected_clusters = selected_clusters, column_number = column_number,
                 show_testing = show_testing, show_pvalues = show_pvalues, show_outliers = show_outliers,
-                prefix = prefix)
+                prefix = prefix, remove_unpaired = TRUE)
 
 
     show_testing <- TRUE
@@ -53,7 +54,56 @@ if (group == "pre_post") {
     do_paired_boxplots(data = data, testing_results = testing_results, grouping_var = grouping_var, pairing_var = pairing_var, features = features, group_by_clusters = group_by_clusters,
                 cluster_var = cluster_var, selected_clusters = selected_clusters, column_number = column_number,
                 show_testing = show_testing, show_pvalues = show_pvalues, show_outliers = show_outliers,
-                prefix = prefix)
+                prefix = prefix, remove_unpaired = TRUE)
+
+
+
+
+
+
+
+    
+    group_by_clusters <- FALSE
+    exprs_averages <- summary_table(data = exprs_set, grouping_var = c(grouping_var, "id", pairing_var), selected_features = clustering_feature_markers, stat = "mean", prefix = prefix)
+    data <- exprs_averages
+    testing_results <- do_testing(data = data, grouping_var = group, features = features, group_by_clusters = group_by_clusters,
+                                    cluster_var = cluster_var, selected_clusters = selected_clusters, column_number = column_number,
+                                    parametric_testing = parametric_testing, paired = paired, manual_comparisons = manual_comparisons, prefix = prefix)
+
+
+    
+    show_testing <- TRUE
+    show_pvalues <- FALSE
+    show_outliers <- TRUE
+    prefix <- "marker_expressions_all_clusters_w_testing_wo_pvalues_w_outliers_PAIRED"
+
+    do_paired_boxplots(data = data, testing_results = testing_results, grouping_var = grouping_var, pairing_var = pairing_var, features = features, group_by_clusters = group_by_clusters,
+                cluster_var = cluster_var, selected_clusters = selected_clusters, column_number = column_number,
+                show_testing = show_testing, show_pvalues = show_pvalues, show_outliers = show_outliers,
+                prefix = prefix, remove_unpaired = TRUE)
+
+    show_testing <- TRUE
+    show_pvalues <- TRUE
+    show_outliers <- TRUE
+    prefix <- "marker_expressions_all_clusters_w_testing_w_pvalues_w_outliers_PAIRED"
+
+    do_paired_boxplots(data = data, testing_results = testing_results, grouping_var = grouping_var, pairing_var = pairing_var, features = features, group_by_clusters = group_by_clusters,
+                cluster_var = cluster_var, selected_clusters = selected_clusters, column_number = column_number,
+                show_testing = show_testing, show_pvalues = show_pvalues, show_outliers = show_outliers,
+                prefix = prefix, remove_unpaired = TRUE)
+
+    show_testing <- TRUE
+    show_pvalues <- TRUE
+    show_outliers <- FALSE
+    prefix <- "marker_expressions_all_clusters_w_testing_w_pvalues_wo_outliers_PAIRED"
+
+    do_paired_boxplots(data = data, testing_results = testing_results, grouping_var = grouping_var, pairing_var = pairing_var, features = features, group_by_clusters = group_by_clusters,
+                cluster_var = cluster_var, selected_clusters = selected_clusters, column_number = column_number,
+                show_testing = show_testing, show_pvalues = show_pvalues, show_outliers = show_outliers,
+                prefix = prefix, remove_unpaired = TRUE)
+
+
+
 }
 
 if (project_name == "dc10") {
@@ -104,7 +154,7 @@ if (project_name == "dc10") {
         do_paired_boxplots(data = data, testing_results = testing_results, grouping_var = grouping_var, pairing_var = pairing_var, features = features, group_by_clusters = group_by_clusters,
                     cluster_var = cluster_var, selected_clusters = selected_clusters, column_number = column_number,
                     show_testing = show_testing, show_pvalues = show_pvalues, show_outliers = show_outliers,
-                    prefix = prefix)
+                    prefix = prefix, remove_unpaired = TRUE)
 
 
         show_testing <- TRUE
@@ -115,7 +165,7 @@ if (project_name == "dc10") {
         do_paired_boxplots(data = data, testing_results = testing_results, grouping_var = grouping_var, pairing_var = pairing_var, features = features, group_by_clusters = group_by_clusters,
                     cluster_var = cluster_var, selected_clusters = selected_clusters, column_number = column_number,
                     show_testing = show_testing, show_pvalues = show_pvalues, show_outliers = show_outliers,
-                    prefix = prefix)
+                    prefix = prefix, remove_unpaired = TRUE)
 
 
         show_testing <- TRUE
@@ -126,7 +176,7 @@ if (project_name == "dc10") {
         do_paired_boxplots(data = data, testing_results = testing_results, grouping_var = grouping_var, pairing_var = pairing_var, features = features, group_by_clusters = group_by_clusters,
                     cluster_var = cluster_var, selected_clusters = selected_clusters, column_number = column_number,
                     show_testing = show_testing, show_pvalues = show_pvalues, show_outliers = show_outliers,
-                    prefix = prefix)
+                    prefix = prefix, remove_unpaired = TRUE)
 
 
                 
@@ -194,7 +244,7 @@ if (project_name == "dc10") {
         do_paired_boxplots(data = data, testing_results = testing_results, grouping_var = grouping_var, pairing_var = pairing_var, features = features, group_by_clusters = group_by_clusters,
                     cluster_var = cluster_var, selected_clusters = selected_clusters, column_number = column_number,
                     show_testing = show_testing, show_pvalues = show_pvalues, show_outliers = show_outliers,
-                    prefix = prefix)
+                    prefix = prefix, remove_unpaired = TRUE)
 
         show_testing <- TRUE
         show_pvalues <- TRUE
@@ -204,7 +254,7 @@ if (project_name == "dc10") {
         do_paired_boxplots(data = data, testing_results = testing_results, grouping_var = grouping_var, pairing_var = pairing_var, features = features, group_by_clusters = group_by_clusters,
                     cluster_var = cluster_var, selected_clusters = selected_clusters, column_number = column_number,
                     show_testing = show_testing, show_pvalues = show_pvalues, show_outliers = show_outliers,
-                    prefix = prefix)
+                    prefix = prefix, remove_unpaired = TRUE)
 
         show_testing <- TRUE
         show_pvalues <- TRUE
@@ -214,7 +264,7 @@ if (project_name == "dc10") {
         do_paired_boxplots(data = data, testing_results = testing_results, grouping_var = grouping_var, pairing_var = pairing_var, features = features, group_by_clusters = group_by_clusters,
                     cluster_var = cluster_var, selected_clusters = selected_clusters, column_number = column_number,
                     show_testing = show_testing, show_pvalues = show_pvalues, show_outliers = show_outliers,
-                    prefix = prefix)
+                    prefix = prefix, remove_unpaired = TRUE)
 
     }
 }

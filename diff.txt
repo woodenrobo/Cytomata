@@ -1,0 +1,389 @@
+diff --git a/analysis/analysis_core.R b/analysis/analysis_core.R
+index 8c23ead..a9810e8 100644
+--- a/analysis/analysis_core.R
++++ b/analysis/analysis_core.R
+@@ -218,6 +218,6 @@ do_boxplots(data = data, testing_results = testing_results, grouping_var = group
+             show_testing = show_testing, show_pvalues = show_pvalues, show_outliers = show_outliers,
+             prefix = prefix)
+ 
+-# do_umap_plots(module = "core")
++do_umap_plots(module = "core")
+ 
+ 
+diff --git a/analysis/analysis_core_addons.R b/analysis/analysis_core_addons.R
+index f339110..7ad88fe 100644
+--- a/analysis/analysis_core_addons.R
++++ b/analysis/analysis_core_addons.R
+@@ -17,6 +17,7 @@ if (group == "pre_post") {
+ 
+     cluster_proportions <- calculate_cluster_proportions(cluster_var = cluster_var, additional_columns = additional_columns, selected_clusters = selected_clusters, prefix = prefix)
+     data <- cluster_proportions
++
+     data <- data[unlist(data[, grouping_var]) %in% manual_comparisons, ]
+     testing_results <- do_testing(data = data, grouping_var = grouping_var, features = features, group_by_clusters = group_by_clusters,
+                                     cluster_var = cluster_var, selected_clusters = selected_clusters, column_number = column_number,
+@@ -31,7 +32,7 @@ if (group == "pre_post") {
+     do_paired_boxplots(data = data, testing_results = testing_results, grouping_var = grouping_var, pairing_var = pairing_var, features = features, group_by_clusters = group_by_clusters,
+                 cluster_var = cluster_var, selected_clusters = selected_clusters, column_number = column_number,
+                 show_testing = show_testing, show_pvalues = show_pvalues, show_outliers = show_outliers,
+-                prefix = prefix)
++                prefix = prefix, remove_unpaired = TRUE)
+ 
+ 
+     show_testing <- TRUE
+@@ -42,7 +43,7 @@ if (group == "pre_post") {
+     do_paired_boxplots(data = data, testing_results = testing_results, grouping_var = grouping_var, pairing_var = pairing_var, features = features, group_by_clusters = group_by_clusters,
+                 cluster_var = cluster_var, selected_clusters = selected_clusters, column_number = column_number,
+                 show_testing = show_testing, show_pvalues = show_pvalues, show_outliers = show_outliers,
+-                prefix = prefix)
++                prefix = prefix, remove_unpaired = TRUE)
+ 
+ 
+     show_testing <- TRUE
+@@ -53,7 +54,56 @@ if (group == "pre_post") {
+     do_paired_boxplots(data = data, testing_results = testing_results, grouping_var = grouping_var, pairing_var = pairing_var, features = features, group_by_clusters = group_by_clusters,
+                 cluster_var = cluster_var, selected_clusters = selected_clusters, column_number = column_number,
+                 show_testing = show_testing, show_pvalues = show_pvalues, show_outliers = show_outliers,
+-                prefix = prefix)
++                prefix = prefix, remove_unpaired = TRUE)
++
++
++
++
++
++
++
++    
++    group_by_clusters <- FALSE
++    exprs_averages <- summary_table(data = exprs_set, grouping_var = c(grouping_var, "id", pairing_var), selected_features = clustering_feature_markers, stat = "mean", prefix = prefix)
++    data <- exprs_averages
++    testing_results <- do_testing(data = data, grouping_var = group, features = features, group_by_clusters = group_by_clusters,
++                                    cluster_var = cluster_var, selected_clusters = selected_clusters, column_number = column_number,
++                                    parametric_testing = parametric_testing, paired = paired, manual_comparisons = manual_comparisons, prefix = prefix)
++
++
++    
++    show_testing <- TRUE
++    show_pvalues <- FALSE
++    show_outliers <- TRUE
++    prefix <- "marker_expressions_all_clusters_w_testing_wo_pvalues_w_outliers_PAIRED"
++
++    do_paired_boxplots(data = data, testing_results = testing_results, grouping_var = grouping_var, pairing_var = pairing_var, features = features, group_by_clusters = group_by_clusters,
++                cluster_var = cluster_var, selected_clusters = selected_clusters, column_number = column_number,
++                show_testing = show_testing, show_pvalues = show_pvalues, show_outliers = show_outliers,
++                prefix = prefix, remove_unpaired = TRUE)
++
++    show_testing <- TRUE
++    show_pvalues <- TRUE
++    show_outliers <- TRUE
++    prefix <- "marker_expressions_all_clusters_w_testing_w_pvalues_w_outliers_PAIRED"
++
++    do_paired_boxplots(data = data, testing_results = testing_results, grouping_var = grouping_var, pairing_var = pairing_var, features = features, group_by_clusters = group_by_clusters,
++                cluster_var = cluster_var, selected_clusters = selected_clusters, column_number = column_number,
++                show_testing = show_testing, show_pvalues = show_pvalues, show_outliers = show_outliers,
++                prefix = prefix, remove_unpaired = TRUE)
++
++    show_testing <- TRUE
++    show_pvalues <- TRUE
++    show_outliers <- FALSE
++    prefix <- "marker_expressions_all_clusters_w_testing_w_pvalues_wo_outliers_PAIRED"
++
++    do_paired_boxplots(data = data, testing_results = testing_results, grouping_var = grouping_var, pairing_var = pairing_var, features = features, group_by_clusters = group_by_clusters,
++                cluster_var = cluster_var, selected_clusters = selected_clusters, column_number = column_number,
++                show_testing = show_testing, show_pvalues = show_pvalues, show_outliers = show_outliers,
++                prefix = prefix, remove_unpaired = TRUE)
++
++
++
+ }
+ 
+ if (project_name == "dc10") {
+@@ -104,7 +154,7 @@ if (project_name == "dc10") {
+         do_paired_boxplots(data = data, testing_results = testing_results, grouping_var = grouping_var, pairing_var = pairing_var, features = features, group_by_clusters = group_by_clusters,
+                     cluster_var = cluster_var, selected_clusters = selected_clusters, column_number = column_number,
+                     show_testing = show_testing, show_pvalues = show_pvalues, show_outliers = show_outliers,
+-                    prefix = prefix)
++                    prefix = prefix, remove_unpaired = TRUE)
+ 
+ 
+         show_testing <- TRUE
+@@ -115,7 +165,7 @@ if (project_name == "dc10") {
+         do_paired_boxplots(data = data, testing_results = testing_results, grouping_var = grouping_var, pairing_var = pairing_var, features = features, group_by_clusters = group_by_clusters,
+                     cluster_var = cluster_var, selected_clusters = selected_clusters, column_number = column_number,
+                     show_testing = show_testing, show_pvalues = show_pvalues, show_outliers = show_outliers,
+-                    prefix = prefix)
++                    prefix = prefix, remove_unpaired = TRUE)
+ 
+ 
+         show_testing <- TRUE
+@@ -126,7 +176,7 @@ if (project_name == "dc10") {
+         do_paired_boxplots(data = data, testing_results = testing_results, grouping_var = grouping_var, pairing_var = pairing_var, features = features, group_by_clusters = group_by_clusters,
+                     cluster_var = cluster_var, selected_clusters = selected_clusters, column_number = column_number,
+                     show_testing = show_testing, show_pvalues = show_pvalues, show_outliers = show_outliers,
+-                    prefix = prefix)
++                    prefix = prefix, remove_unpaired = TRUE)
+ 
+ 
+                 
+@@ -194,7 +244,7 @@ if (project_name == "dc10") {
+         do_paired_boxplots(data = data, testing_results = testing_results, grouping_var = grouping_var, pairing_var = pairing_var, features = features, group_by_clusters = group_by_clusters,
+                     cluster_var = cluster_var, selected_clusters = selected_clusters, column_number = column_number,
+                     show_testing = show_testing, show_pvalues = show_pvalues, show_outliers = show_outliers,
+-                    prefix = prefix)
++                    prefix = prefix, remove_unpaired = TRUE)
+ 
+         show_testing <- TRUE
+         show_pvalues <- TRUE
+@@ -204,7 +254,7 @@ if (project_name == "dc10") {
+         do_paired_boxplots(data = data, testing_results = testing_results, grouping_var = grouping_var, pairing_var = pairing_var, features = features, group_by_clusters = group_by_clusters,
+                     cluster_var = cluster_var, selected_clusters = selected_clusters, column_number = column_number,
+                     show_testing = show_testing, show_pvalues = show_pvalues, show_outliers = show_outliers,
+-                    prefix = prefix)
++                    prefix = prefix, remove_unpaired = TRUE)
+ 
+         show_testing <- TRUE
+         show_pvalues <- TRUE
+@@ -214,7 +264,7 @@ if (project_name == "dc10") {
+         do_paired_boxplots(data = data, testing_results = testing_results, grouping_var = grouping_var, pairing_var = pairing_var, features = features, group_by_clusters = group_by_clusters,
+                     cluster_var = cluster_var, selected_clusters = selected_clusters, column_number = column_number,
+                     show_testing = show_testing, show_pvalues = show_pvalues, show_outliers = show_outliers,
+-                    prefix = prefix)
++                    prefix = prefix, remove_unpaired = TRUE)
+ 
+     }
+ }
+diff --git a/analysis/analysis_exploration.R b/analysis/analysis_exploration.R
+index b41e231..2246e5e 100644
+--- a/analysis/analysis_exploration.R
++++ b/analysis/analysis_exploration.R
+@@ -10,9 +10,9 @@ exprs_set <- remove_dropped_events()
+ 
+ do_clustering_diagnostics_no_dropped()
+ 
+-# do_pca_plots(module = "exploration")
++do_pca_plots(module = "exploration")
+ 
+-# do_umap_plots(module = "exploration")
++do_umap_plots(module = "exploration")
+ 
+ 
+ # Is very slow, so commented out until needed
+diff --git a/analysis/analysis_functions.R b/analysis/analysis_functions.R
+index a1ec70e..afe918e 100644
+--- a/analysis/analysis_functions.R
++++ b/analysis/analysis_functions.R
+@@ -341,7 +341,7 @@ do_clustering_diagnostics <- function() {
+     cluster_expr_heatmap(expression_setting = "medians", scale = TRUE)
+     cluster_expr_heatmap(expression_setting = "medians", scale = FALSE)
+ 
+-    cluster_expr_densities()
++    cluster_expr_densities(random_sampling = TRUE, target_n = 100000)
+ 
+ }
+ 
+@@ -355,7 +355,7 @@ do_clustering_diagnostics_no_dropped <- function() {
+     cluster_expr_heatmap(expression_setting = "medians", scale = TRUE, after_dropping = TRUE)
+     cluster_expr_heatmap(expression_setting = "medians", scale = FALSE, after_dropping = TRUE)
+ 
+-    cluster_expr_densities(after_dropping = TRUE)
++    cluster_expr_densities(after_dropping = TRUE, random_sampling = TRUE, target_n = 100000)
+ 
+ }
+ 
+@@ -582,11 +582,11 @@ merge_exprs_and_umap <- function() {
+ 
+ remove_dropped_events <- function() {
+     if (length(dropped_events) > 0) {
+-        temp <- exprs_set[!exprs_set$cell_id %in% dropped_events, ]
++        temp <- exprs_set[!which(exprs_set$cell_id %in% dropped_events), ]
+         cat(paste0(length(dropped_events), " dropped_events from deleted clusters or samples removed\n"))
+     }
+ 
+-    if (length(dropped_events) > 0 || dropped_samples_mode > 0) {
++    if (length(dropped_events) > 0) {
+         return(temp)
+     } else {
+         return(exprs_set)
+@@ -599,13 +599,13 @@ do_umap_plots <- function(module) {
+         umap_plot(grouping_var = "batch", module = module, labels = TRUE, use_scattermore = TRUE)
+         umap_plot(grouping_var = "id", module = module, labels = FALSE, use_scattermore = TRUE)
+         umap_plot(grouping_var = "meta_cluster_id", module = module, labels = TRUE, use_scattermore = TRUE)
+-        if (sum(grepl("meta_cluster_annotation", colnames(exprs_set))) > 0) {
++        if (sum(grepl("meta_cluster_annotation", colnames(exprs_set))) > 0 && length(unique(exprs_set$meta_cluster_annotation)) > 1) {
+             umap_plot(grouping_var = "meta_cluster_annotation", module = module, labels = TRUE, use_scattermore = TRUE)
+         }
+ 
+         umap_facet(grouping_var = "batch", module = module, column_number = 4, equal_sampling = FALSE, use_scattermore = TRUE, random_sampling = TRUE, target_n = 100000)
+         umap_facet(grouping_var = "meta_cluster_id", module = module, column_number = 4, equal_sampling = FALSE, use_scattermore = TRUE, random_sampling = TRUE, target_n = 100000)
+-        if (sum(grepl("meta_cluster_annotation", colnames(exprs_set))) > 0) {
++        if (sum(grepl("meta_cluster_annotation", colnames(exprs_set))) > 0 && length(unique(exprs_set$meta_cluster_annotation)) > 1) {
+             umap_facet(grouping_var = "meta_cluster_annotation", module = module, column_number = 4, equal_sampling = FALSE, use_scattermore = TRUE, random_sampling = TRUE, target_n = 100000)
+         }
+ 
+@@ -618,7 +618,7 @@ do_umap_plots <- function(module) {
+         }
+ 
+     } else if (module == "core") {
+-        umap_facet(grouping_var = group, module = module, equal_sampling = TRUE, use_scattermore = TRUE, random_sampling = FALSE, target_n = 100000)
++        umap_facet(grouping_var = group, module = module, equal_sampling = FALSE, use_scattermore = TRUE, random_sampling = TRUE, target_n = 100000)
+         umap_expressions(grouping_var = group, module = module, column_number = 4, use_scattermore = TRUE, random_sampling = TRUE, target_n = 100000)
+     }
+ 
+diff --git a/analysis/analysis_plots.R b/analysis/analysis_plots.R
+index bb4dbf4..11e17d5 100644
+--- a/analysis/analysis_plots.R
++++ b/analysis/analysis_plots.R
+@@ -305,7 +305,7 @@ cluster_expr_heatmap <- function(expression_setting, scale, after_dropping = FAL
+ }
+ 
+ 
+-cluster_expr_densities <- function(after_dropping = FALSE) {
++cluster_expr_densities <- function(after_dropping = FALSE, random_sampling = FALSE, target_n = 100000) {
+   col_number <- 5
+   
+   if (after_dropping == TRUE) {
+@@ -317,6 +317,9 @@ cluster_expr_densities <- function(after_dropping = FALSE) {
+   for (i in seq_along(unique(exprs_set$meta_cluster_id))) {
+     gg_df <- tidyr::pivot_longer(exprs_set[exprs_set$meta_cluster_id == i, c(clustering_feature_markers)], cols = all_of(clustering_feature_markers), names_to = "antigen") %>%
+               mutate(antigen = factor(antigen, levels = c(clustering_feature_markers), ordered = TRUE))
++    if (random_sampling == TRUE && nrow(gg_df) > target_n) {
++      gg_df <- gg_df[sample(nrow(gg_df), target_n), ]
++    }
+     print(
+       ggplot(gg_df, aes(x = value, y = after_stat(ndensity))) + 
+             facet_wrap(~ antigen, scales = "free_x", ncol = col_number,
+@@ -472,10 +475,13 @@ umap_plot <- function(grouping_var, module, labels = TRUE, use_scattermore = FAL
+ 
+ 
+  if (length(unique(exprs_set[[grouping_var]])) > 40) {
+-    width_scale <- 40
++    width_scale <- 30
+     text_size <- element_text(size = 10)
+-  } else {
++  } else if (length(unique(exprs_set[[grouping_var]])) > 25) {
+     width_scale <- 20
++    text_size <- element_text(size = 15)
++  } else {
++    width_scale <- 15
+     text_size <- element_text(size = 25)
+   }
+ 
+@@ -489,7 +495,7 @@ umap_plot <- function(grouping_var, module, labels = TRUE, use_scattermore = FAL
+   if (use_scattermore) {
+     # Use scattermore for large datasets
+     p <- ggplot(plot_df, aes(x = UMAP1, y = UMAP2)) +
+-          scattermore::geom_scattermore(aes(color = !!sym(grouping_var)), alpha = 0.5, pointsize = 1, pixels = c(1000, 1000)) + 
++          scattermore::geom_scattermore(aes(color = as.factor(.data[[grouping_var]])), alpha = 0.3, pointsize = 3.2, pixels = c(1000, 1000)) + 
+           guides(colour = guide_legend(override.aes = list(alpha = 1, size = 3, shape = 19), title = grouping_var)) +
+           scale_color_manual(values = cols, labels = scales::label_wrap(25), limits = force) +
+           theme_cowplot() +
+@@ -501,7 +507,7 @@ umap_plot <- function(grouping_var, module, labels = TRUE, use_scattermore = FAL
+           )
+   } else {
+     p <- ggplot(plot_df, aes(x = UMAP1, y = UMAP2)) +
+-        ggrastr::rasterise(geom_point(aes(color = as.factor(.data[[grouping_var]])), alpha = 0.5, size = 1, shape = 19)) +
++        ggrastr::rasterise(geom_point(aes(color = as.factor(.data[[grouping_var]])), alpha = 0.3, size = 1, shape = 19)) +
+         # size = 0.5 to restore old version with big points 
+         # shape = "." to optimize for execution speed
+         guides(colour = guide_legend(override.aes = list(alpha = 1, size = 3, shape = 19), title = grouping_var)) +
+@@ -559,9 +565,9 @@ umap_facet <- function(grouping_var, module, column_number = 4, equal_sampling =
+   if (equal_sampling == TRUE) {
+     max_equal_sampling <- min(table(as.character(exprs_set[[grouping_var]])))
+     plot_df <- plot_df %>% group_by(.data[[grouping_var]]) %>% slice_sample(n = max_equal_sampling)
+-  } else  if (random_sampling == TRUE && target_n < nrow(exprs_set)) {
++  } else if (random_sampling == TRUE && target_n < nrow(exprs_set)) {
+     plot_df <- plot_df %>% group_by(.data[[grouping_var]]) %>% slice_sample(n = target_n)
+-  }
++  } 
+   
+   plot_df[[grouping_var]] <- factor(plot_df[[grouping_var]])
+   grouping_levels <- levels(plot_df[[grouping_var]])
+@@ -572,8 +578,8 @@ umap_facet <- function(grouping_var, module, column_number = 4, equal_sampling =
+     
+     if (use_scattermore) {
+       p[[s]] <- ggplot(plot_df[plot_df[[grouping_var]] == plotted_group, ], aes(x = UMAP1, y = UMAP2)) +
+-        scattermore::geom_scattermore(aes(color = '#aeaeae'), alpha = 0.5, pointsize = 1, pixels = c(1000, 1000)) + 
+-        scattermore::geom_scattermore(aes(color = !!sym(grouping_var)), alpha = 0.5, pointsize = 1, pixels = c(1000, 1000)) + 
++        scattermore::geom_scattermore(aes(color = '#aeaeae'), alpha = 0.3, pointsize = 3.2, pixels = c(1000, 1000)) + 
++        scattermore::geom_scattermore(aes(color = !!sym(grouping_var)), alpha = 0.3, pointsize = 3.2, pixels = c(1000, 1000)) + 
+         scale_color_manual(values = cols, limits = force) +
+         ggtitle(str_wrap(paste(plotted_group), width = 25)) + 
+         theme_cowplot() +
+@@ -586,8 +592,8 @@ umap_facet <- function(grouping_var, module, column_number = 4, equal_sampling =
+         )
+     } else {
+       p[[s]] <- ggplot(plot_df[plot_df[[grouping_var]] == plotted_group, ], aes(x = UMAP1, y = UMAP2)) +
+-        ggrastr::rasterise(geom_point(color = '#aeaeae', alpha = 0.5, size = 1, shape = 19)) + 
+-        ggrastr::rasterise(geom_point(aes(color = !!sym(grouping_var)), alpha = 0.5, size = 1, shape = 19, show.legend = F)) + 
++        ggrastr::rasterise(geom_point(color = '#aeaeae', alpha = 0.3, size = 1, shape = 19)) + 
++        ggrastr::rasterise(geom_point(aes(color = !!sym(grouping_var)), alpha = 0.3, size = 1, shape = 19, show.legend = F)) + 
+         scale_color_manual(values = cols, limits = force) +
+         ggtitle(str_wrap(paste(plotted_group), width = 25)) + 
+         theme_cowplot() +
+@@ -647,7 +653,7 @@ umap_expressions <- function(grouping_var = NULL, module, column_number = 4, use
+ 
+     if (use_scattermore) {
+        p[[s]] <- ggplot(plot_df %>% arrange(!!sym(plotted_marker)), aes(x = UMAP1, y = UMAP2)) +
+-        scattermore::geom_scattermore(aes(color = !!sym(plotted_marker)), alpha = 0.5, pointsize = 1, pixels = c(1000, 1000)) + 
++        scattermore::geom_scattermore(aes(color = !!sym(plotted_marker)), alpha = 0.3, pointsize = 3.2, pixels = c(1000, 1000)) + 
+         scale_color_gradient2(low = "blue", mid = "white", high = "red", midpoint = 0) +
+         ggtitle(paste(plotted_marker)) + 
+         theme_cowplot() +
+@@ -2056,7 +2062,7 @@ do_paired_boxplots <- function(data, testing_results = NULL, grouping_var = grou
+                            features, group_by_clusters = TRUE, cluster_var = cluster_var, 
+                            selected_clusters = NULL, column_number = 4, show_testing = TRUE,
+                            show_pvalues = TRUE, show_outliers = TRUE, line_color = "#464646", 
+-                           line_size = 1, prefix = "paired") {
++                           line_size = 1, prefix = "paired", remove_unpaired = TRUE) {
+   
+   # Verify that we have paired data
+   if(length(unique(data[[grouping_var]])) < 2) {
+@@ -2076,6 +2082,45 @@ do_paired_boxplots <- function(data, testing_results = NULL, grouping_var = grou
+   if(any(pair_counts$n_groups < length(unique(data[[grouping_var]])))) {
+     warning("Some pairs don't have values for all groups. Lines will only connect existing pairs.")
+   }
++
++
++  if (remove_unpaired == TRUE) {
++    if (is.null(manual_comparisons)) {
++      unique_groups <- unique(data[[grouping_var]])
++      n_unique_groups <- length(unique(data[[grouping_var]]))
++    } else {
++      unique_groups <- manual_comparisons
++      n_unique_groups <- length(manual_comparisons)
++    }
++
++    if (group_by_clusters == TRUE) {
++      n_number <- data %>%
++                  dplyr::group_by(!!sym(grouping_var), !!sym(cluster_var)) %>%
++                  dplyr::summarise(n = n())
++    } else {
++      n_number <- data %>%
++                  dplyr::group_by(!!sym(grouping_var)) %>%
++                  dplyr::summarise(n = n())
++    }
++
++    temp <- data
++    
++    if (paired == TRUE) {
++
++      # remove entries where pairing var is not present in both groups
++
++      no_pair <- temp %>%
++        dplyr::ungroup() %>%
++        select(!!sym(pairing_var), !!sym(grouping_var)) %>%
++        dplyr::distinct() %>%
++        dplyr::group_by(!!sym(pairing_var)) %>%
++        dplyr::summarise(n = n()) %>%
++        dplyr::filter(n < 2) %>%
++        dplyr::pull(!!sym(pairing_var))
++
++      temp <- temp[!unlist(temp[, pairing_var]) %in% no_pair, ]
++    }
++  }
+   
+   if (group_by_clusters == TRUE && length(features) > 1) {
+     stop("When grouping by clusters, only one feature can be plotted at a time.")
+diff --git a/settings.xlsx b/settings.xlsx
+index 764fd0d..08adc05 100644
+Binary files a/settings.xlsx and b/settings.xlsx differ
