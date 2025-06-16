@@ -456,7 +456,7 @@ get_contrasting_text_color <- function(hex_color) {
 }
 
 
-umap_plot <- function(grouping_var, module, labels = TRUE) {
+umap_plot <- function(grouping_var, module, labels = TRUE, use_scattermore = FALSE) {
   cols <- make_palette(grouping_var)
   text_colors <- sapply(cols, get_contrasting_text_color)
 
@@ -479,13 +479,28 @@ umap_plot <- function(grouping_var, module, labels = TRUE) {
     text_size <- element_text(size = 25)
   }
 
+  plot_df <- exprs_set[, c("UMAP1", "UMAP2", grouping_var)]
 
   pdf(paste0(folder, "UMAP_", grouping_var, ".pdf"),
     width = width_scale,
     height = 10
   )
 
-  p <- ggplot(exprs_set, aes(x = UMAP1, y = UMAP2)) +
+  if (use_scattermore) {
+    # Use scattermore for large datasets
+    p <- ggplot(plot_df, aes(x = UMAP1, y = UMAP2)) +
+          scattermore::geom_scattermore(aes(color = !!sym(grouping_var)), alpha = 0.5, pointsize = 1, pixels = c(1000, 1000)) + 
+          guides(colour = guide_legend(override.aes = list(alpha = 1, size = 3, shape = 19), title = grouping_var)) +
+          scale_color_manual(values = cols, labels = scales::label_wrap(25), limits = force) +
+          theme_cowplot() +
+          theme(text = text_size,
+                axis.text.x = element_text(color = "black", size = 20, angle = 0, hjust = 0.5, vjust = 0.5, face = "plain"),
+                axis.text.y = element_text(color = "black", size = 20, angle = 0, hjust = 0.5, vjust = 0.5, face = "plain"),
+                axis.title.x = element_text(margin = margin(10, 0, 0, 0)),
+                axis.title.y = element_text(margin = margin(0, 10, 0, 0))
+          )
+  } else {
+    p <- ggplot(plot_df, aes(x = UMAP1, y = UMAP2)) +
         ggrastr::rasterise(geom_point(aes(color = as.factor(.data[[grouping_var]])), alpha = 0.5, size = 1, shape = 19)) +
         # size = 0.5 to restore old version with big points 
         # shape = "." to optimize for execution speed
@@ -498,10 +513,13 @@ umap_plot <- function(grouping_var, module, labels = TRUE) {
               axis.title.x = element_text(margin = margin(10, 0, 0, 0)),
               axis.title.y = element_text(margin = margin(0, 10, 0, 0))
         )
+  }
+
+  
 
   if (labels == TRUE) {
     # Calculate mean coordinates for each group
-    mean_coords <- exprs_set %>%
+    mean_coords <- plot_df %>%
       group_by(.data[[grouping_var]]) %>%
       dplyr::summarize(UMAP1 = mean(UMAP1), UMAP2 = mean(UMAP2))
     p <- p + 
@@ -521,8 +539,7 @@ umap_plot <- function(grouping_var, module, labels = TRUE) {
 
 }
 
-
-umap_facet <- function(grouping_var, module, column_number = 4, equal_sampling = FALSE) {
+umap_facet <- function(grouping_var, module, column_number = 4, equal_sampling = FALSE, use_scattermore = FALSE, random_sampling = FALSE, target_n = 100000) {
   cols <- make_palette(grouping_var)
 
   if (module == "exploration") {
@@ -537,11 +554,13 @@ umap_facet <- function(grouping_var, module, column_number = 4, equal_sampling =
   singles_output <- paste0(folder, "UMAP_facet_", grouping_var, "/")
   dir.create(singles_output, showWarnings = FALSE)
 
+  plot_df <- exprs_set[, c("UMAP1", "UMAP2", grouping_var)]
+
   if (equal_sampling == TRUE) {
     max_equal_sampling <- min(table(as.character(exprs_set[[grouping_var]])))
-    plot_df  <- exprs_set %>% group_by(.data[[grouping_var]]) %>% slice_sample(n = max_equal_sampling)
-  } else {
-    plot_df <- exprs_set
+    plot_df <- plot_df %>% group_by(.data[[grouping_var]]) %>% slice_sample(n = max_equal_sampling)
+  } else  if (random_sampling == TRUE && target_n < nrow(exprs_set)) {
+    plot_df <- plot_df %>% group_by(.data[[grouping_var]]) %>% slice_sample(n = target_n)
   }
   
   plot_df[[grouping_var]] <- factor(plot_df[[grouping_var]])
@@ -550,18 +569,36 @@ umap_facet <- function(grouping_var, module, column_number = 4, equal_sampling =
   p <- list()
   for (s in seq(grouping_levels)) {
     plotted_group <- grouping_levels[s]
-    p[[s]] <- ggplot(plot_df[plot_df[[grouping_var]] == plotted_group, ], aes(x = UMAP1, y = UMAP2)) +
-      ggrastr::rasterise(geom_point(data = plot_df, color = '#aeaeae', alpha = 0.5, size = 1, shape = 19)) + 
-      ggrastr::rasterise(geom_point(aes(color = !!sym(grouping_var)), alpha = 0.5, size = 1, shape = 19, show.legend = F)) + 
-      scale_color_manual(values = cols, limits = force) +
-      ggtitle(str_wrap(paste(plotted_group), width = 25)) + 
-      theme_cowplot() +
-      theme(text = element_text(size = 25),
-            axis.text.x = element_text(color = "black", size = 20, angle = 0, hjust = 0.5, vjust = 0.5, face = "plain"),
-            axis.text.y = element_text(color = "black", size = 20, angle = 0, hjust = 0.5, vjust = 0.5, face = "plain"),
-            axis.title.x = element_text(margin = margin(10, 0, 0, 0)),
-            axis.title.y = element_text(margin = margin(0, 10, 0, 0))
-      )
+    
+    if (use_scattermore) {
+      p[[s]] <- ggplot(plot_df[plot_df[[grouping_var]] == plotted_group, ], aes(x = UMAP1, y = UMAP2)) +
+        scattermore::geom_scattermore(aes(color = '#aeaeae'), alpha = 0.5, pointsize = 1, pixels = c(1000, 1000)) + 
+        scattermore::geom_scattermore(aes(color = !!sym(grouping_var)), alpha = 0.5, pointsize = 1, pixels = c(1000, 1000)) + 
+        scale_color_manual(values = cols, limits = force) +
+        ggtitle(str_wrap(paste(plotted_group), width = 25)) + 
+        theme_cowplot() +
+        theme(text = element_text(size = 25),
+              axis.text.x = element_text(color = "black", size = 20, angle = 0, hjust = 0.5, vjust = 0.5, face = "plain"),
+              axis.text.y = element_text(color = "black", size = 20, angle = 0, hjust = 0.5, vjust = 0.5, face = "plain"),
+              axis.title.x = element_text(margin = margin(10, 0, 0, 0)),
+              axis.title.y = element_text(margin = margin(0, 10, 0, 0)),
+              legend.position = "none"
+        )
+    } else {
+      p[[s]] <- ggplot(plot_df[plot_df[[grouping_var]] == plotted_group, ], aes(x = UMAP1, y = UMAP2)) +
+        ggrastr::rasterise(geom_point(color = '#aeaeae', alpha = 0.5, size = 1, shape = 19)) + 
+        ggrastr::rasterise(geom_point(aes(color = !!sym(grouping_var)), alpha = 0.5, size = 1, shape = 19, show.legend = F)) + 
+        scale_color_manual(values = cols, limits = force) +
+        ggtitle(str_wrap(paste(plotted_group), width = 25)) + 
+        theme_cowplot() +
+        theme(text = element_text(size = 25),
+              axis.text.x = element_text(color = "black", size = 20, angle = 0, hjust = 0.5, vjust = 0.5, face = "plain"),
+              axis.text.y = element_text(color = "black", size = 20, angle = 0, hjust = 0.5, vjust = 0.5, face = "plain"),
+              axis.title.x = element_text(margin = margin(10, 0, 0, 0)),
+              axis.title.y = element_text(margin = margin(0, 10, 0, 0))
+        )
+    }
+    
     pdf(paste0(singles_output, "UMAP_", grouping_var, "_", plotted_group, ".pdf"),
     width = 11,
     height = 10
@@ -580,7 +617,7 @@ umap_facet <- function(grouping_var, module, column_number = 4, equal_sampling =
 }
 
 
-umap_expressions <- function(grouping_var = NULL, module, column_number = 4) {
+umap_expressions <- function(grouping_var = NULL, module, column_number = 4, use_scattermore = FALSE, random_sampling = FALSE, target_n = 100000) {
   
   if (module == "exploration") {
     folder <- output_exploration
@@ -591,17 +628,30 @@ umap_expressions <- function(grouping_var = NULL, module, column_number = 4) {
   singles_output <- paste0(folder, "UMAP_expressions/")
   dir.create(singles_output, showWarnings = FALSE)
 
-  plot_df <- exprs_set
 
   p <- list()
   for (s in seq(clustering_feature_markers)) {
     plotted_marker <- clustering_feature_markers[s]
-    p[[s]] <- ggplot(plot_df %>% arrange(!!sym(plotted_marker)), aes(x = UMAP1, y = UMAP2)) +
-      ggrastr::rasterise(geom_point(aes(color = !!sym(plotted_marker)), alpha = 1, size = 1, shape = 19)) + 
-      scale_colour_gradient2(low = "blue", mid = "white", high = "red", midpoint = 0) +
-      ggtitle(paste(plotted_marker)) + 
-      theme_cowplot() +
-      theme(text = element_text(size = 25),
+
+    if (!is.null(grouping_var)) {
+      plot_df <- exprs_set[, c("UMAP1", "UMAP2", plotted_marker, grouping_var)]
+    } else {
+      plot_df <- exprs_set[, c("UMAP1", "UMAP2", plotted_marker)]
+    }
+
+
+    if (random_sampling == TRUE && target_n < nrow(exprs_set)) {
+      plot_df <- plot_df %>% slice_sample(n = target_n)
+    }
+
+
+    if (use_scattermore) {
+       p[[s]] <- ggplot(plot_df %>% arrange(!!sym(plotted_marker)), aes(x = UMAP1, y = UMAP2)) +
+        scattermore::geom_scattermore(aes(color = !!sym(plotted_marker)), alpha = 0.5, pointsize = 1, pixels = c(1000, 1000)) + 
+        scale_color_gradient2(low = "blue", mid = "white", high = "red", midpoint = 0) +
+        ggtitle(paste(plotted_marker)) + 
+        theme_cowplot() +
+        theme(text = element_text(size = 25),
             axis.text.x = element_text(color = "black", size = 20, angle = 0, hjust = 0.5, vjust = 0.5, face = "plain"),
             axis.text.y = element_text(color = "black", size = 20, angle = 0, hjust = 0.5, vjust = 0.5, face = "plain"),
             axis.title.x = element_text(margin = margin(10, 0, 0, 0)),
@@ -609,8 +659,24 @@ umap_expressions <- function(grouping_var = NULL, module, column_number = 4) {
             legend.key.size = unit(3, "lines"),
             panel.background = element_rect(fill = "#bdbdbd", color = "black"),  # Background color of the plot area
             plot.background = element_rect(fill = "#ffffff", color = NA)
-      )
-    
+        )
+    } else {
+      p[[s]] <- ggplot(plot_df %>% arrange(!!sym(plotted_marker)), aes(x = UMAP1, y = UMAP2)) +
+        ggrastr::rasterise(geom_point(aes(color = !!sym(plotted_marker)), alpha = 1, size = 1, shape = 19)) + 
+        scale_colour_gradient2(low = "blue", mid = "white", high = "red", midpoint = 0) +
+        ggtitle(paste(plotted_marker)) + 
+        theme_cowplot() +
+        theme(text = element_text(size = 25),
+              axis.text.x = element_text(color = "black", size = 20, angle = 0, hjust = 0.5, vjust = 0.5, face = "plain"),
+              axis.text.y = element_text(color = "black", size = 20, angle = 0, hjust = 0.5, vjust = 0.5, face = "plain"),
+              axis.title.x = element_text(margin = margin(10, 0, 0, 0)),
+              axis.title.y = element_text(margin = margin(0, 10, 0, 0)),
+              legend.key.size = unit(3, "lines"),
+              panel.background = element_rect(fill = "#bdbdbd", color = "black"),  # Background color of the plot area
+              plot.background = element_rect(fill = "#ffffff", color = NA)
+        )
+    }
+
     if (!is.null(grouping_var)) {
       plot_df[[grouping_var]] <- factor(plot_df[[grouping_var]])
       grouping_levels <- levels(plot_df[[grouping_var]])
@@ -661,10 +727,10 @@ umap_expressions <- function(grouping_var = NULL, module, column_number = 4) {
 }
 
 
-do_corrplot <- function() {
+do_corrplot <- function(sample_n = 100000) {
    #prevent from plotting without viewport
-   invisible(cormat <- Hmisc::rcorr(as.matrix(exprs_set[, clustering_feature_markers]), type = "spearman"))
-  
+   invisible(cormat <- Hmisc::rcorr(as.matrix(exprs_set[sample(nrow(exprs_set), sample_n), clustering_feature_markers]), type = "spearman"))
+
 
   #flattenCorrMatrix
   # cormat : matrix of the correlation coefficients

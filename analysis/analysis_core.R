@@ -218,6 +218,6 @@ do_boxplots(data = data, testing_results = testing_results, grouping_var = group
             show_testing = show_testing, show_pvalues = show_pvalues, show_outliers = show_outliers,
             prefix = prefix)
 
-do_umap_plots(module = "core")
+# do_umap_plots(module = "core")
 
 

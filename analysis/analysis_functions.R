@@ -596,30 +596,30 @@ remove_dropped_events <- function() {
 
 do_umap_plots <- function(module) {
     if (module == "exploration") {
-        umap_plot(grouping_var = "batch", module = module, labels = TRUE)
-        umap_plot(grouping_var = "id", module = module, labels = FALSE)
-        umap_plot(grouping_var = "meta_cluster_id", module = module, labels = TRUE)
+        umap_plot(grouping_var = "batch", module = module, labels = TRUE, use_scattermore = TRUE)
+        umap_plot(grouping_var = "id", module = module, labels = FALSE, use_scattermore = TRUE)
+        umap_plot(grouping_var = "meta_cluster_id", module = module, labels = TRUE, use_scattermore = TRUE)
         if (sum(grepl("meta_cluster_annotation", colnames(exprs_set))) > 0) {
-            umap_plot(grouping_var = "meta_cluster_annotation", module = module, labels = TRUE)
+            umap_plot(grouping_var = "meta_cluster_annotation", module = module, labels = TRUE, use_scattermore = TRUE)
         }
 
-        umap_facet(grouping_var = "batch", module = module, column_number = 4, equal_sampling = FALSE)
-        umap_facet(grouping_var = "meta_cluster_id", module = module, column_number = 4, equal_sampling = FALSE)
+        umap_facet(grouping_var = "batch", module = module, column_number = 4, equal_sampling = FALSE, use_scattermore = TRUE, random_sampling = TRUE, target_n = 100000)
+        umap_facet(grouping_var = "meta_cluster_id", module = module, column_number = 4, equal_sampling = FALSE, use_scattermore = TRUE, random_sampling = TRUE, target_n = 100000)
         if (sum(grepl("meta_cluster_annotation", colnames(exprs_set))) > 0) {
-            umap_facet(grouping_var = "meta_cluster_annotation", module = module, column_number = 4, equal_sampling = FALSE)
+            umap_facet(grouping_var = "meta_cluster_annotation", module = module, column_number = 4, equal_sampling = FALSE, use_scattermore = TRUE, random_sampling = TRUE, target_n = 100000)
         }
 
-        umap_expressions(grouping_var = NULL, module = module, column_number = 4)
-        umap_expressions(grouping_var = "batch", module = module, column_number = 4)
+        umap_expressions(grouping_var = NULL, module = module, column_number = 4, use_scattermore = TRUE, random_sampling = TRUE, target_n = 100000)
+        umap_expressions(grouping_var = "batch", module = module, column_number = 4, use_scattermore = TRUE, random_sampling = TRUE, target_n = 100000)
 
         if (new_samples_mode > 0) {
-            umap_plot(grouping_var = "analysis", module = module, labels = TRUE)
-            umap_facet(grouping_var = "analysis", module = module, equal_sampling = FALSE)
+            umap_plot(grouping_var = "analysis", module = module, labels = TRUE, use_scattermore = TRUE)
+            umap_facet(grouping_var = "analysis", module = module, equal_sampling = FALSE, use_scattermore = TRUE, random_sampling = TRUE, target_n = 100000)
         }
 
     } else if (module == "core") {
-        umap_facet(grouping_var = group, module = module, equal_sampling = TRUE)
-        umap_expressions(grouping_var = group, module = module, column_number = 4)
+        umap_facet(grouping_var = group, module = module, equal_sampling = TRUE, use_scattermore = TRUE, random_sampling = FALSE, target_n = 100000)
+        umap_expressions(grouping_var = group, module = module, column_number = 4, use_scattermore = TRUE, random_sampling = TRUE, target_n = 100000)
     }
 
 }
