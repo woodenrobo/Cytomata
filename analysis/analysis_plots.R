@@ -1503,14 +1503,6 @@ cluster_testing_heatmaps <- function(data = data, testing_results = testing_resu
       colnames(test_mat_temp)[(ncol(test_mat_temp) - length(missing_clusters) + 1):ncol(test_mat_temp)] <- missing_clusters
     }
 
-
-    if (cluster_ordering == TRUE && exists("dendrogram_order")) {
-      rest_of_columns <- test_mat_temp[, !colnames(test_mat_temp) %in% dendrogram_order]
-      if (nrow(test_mat_temp) > 1) {
-        test_mat_temp <- cbind(test_mat_temp[, dendrogram_order], rest_of_columns)
-      }
-    }
-
     if (cluster_ordering == TRUE && exists("dendrogram_order")) {
       if (nrow(test_mat_temp) > 1) {
         # Ensure dendrogram_order contains valid column names
