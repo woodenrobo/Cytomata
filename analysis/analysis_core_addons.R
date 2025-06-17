@@ -62,9 +62,9 @@ if (group == "pre_post") {
 
 
 
-    
+    features <- clustering_feature_markers
     group_by_clusters <- FALSE
-    exprs_averages <- summary_table(data = exprs_set, grouping_var = c(grouping_var, "id", pairing_var), selected_features = clustering_feature_markers, stat = "mean", prefix = prefix)
+    exprs_averages <- summary_table(data = exprs_set, grouping_var = c(grouping_var, "id", pairing_var), selected_features = features, stat = "mean", prefix = prefix)
     data <- exprs_averages
     testing_results <- do_testing(data = data, grouping_var = group, features = features, group_by_clusters = group_by_clusters,
                                     cluster_var = cluster_var, selected_clusters = selected_clusters, column_number = column_number,
