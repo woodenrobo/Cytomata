@@ -1066,8 +1066,21 @@ cluster_abundance_heatmaps <- function(data = data, grouping_var = group, featur
     tidyr::pivot_wider(names_from = !!sym(cluster_var), values_from = prop)
 
   if (cluster_ordering == TRUE && exists("dendrogram_order")) {
-    rest_of_columns <- abu_heat_mat[, !colnames(abu_heat_mat) %in% dendrogram_order]
-    abu_heat_mat <- cbind(abu_heat_mat[, dendrogram_order], rest_of_columns)
+      # Ensure dendrogram_order contains valid column names
+      dendrogram_order <- as.character(dendrogram_order)
+      
+      # Add missing columns with 0s
+      missing_cols <- setdiff(dendrogram_order, colnames(abu_heat_mat))
+      if (length(missing_cols) > 0) {
+          for (col in missing_cols) {
+              abu_heat_mat[, col] <- 0  # Fixed: single brackets
+          }
+      }
+      
+      # Safely reorder columns
+      available_ordered_cols <- intersect(dendrogram_order, colnames(abu_heat_mat))
+      rest_of_columns <- abu_heat_mat[, !colnames(abu_heat_mat) %in% dendrogram_order, drop = FALSE]
+      abu_heat_mat <- cbind(abu_heat_mat[, available_ordered_cols, drop = FALSE], rest_of_columns)
   }
 
   if (cluster_ordering == TRUE && exists("dendrogram_order")) {
@@ -1254,8 +1267,21 @@ cluster_abundance_heatmaps <- function(data = data, grouping_var = group, featur
                     dplyr::summarise(across(where(is.numeric), mean, na.rm = TRUE))
 
   if (cluster_ordering == TRUE && exists("dendrogram_order")) {
-    rest_of_columns <- abu_heat_mat[, !colnames(abu_heat_mat) %in% dendrogram_order]
-    abu_heat_mat <- cbind(abu_heat_mat[, dendrogram_order], rest_of_columns)
+      # Ensure dendrogram_order contains valid column names
+      dendrogram_order <- as.character(dendrogram_order)
+      
+      # Add missing columns with 0s
+      missing_cols <- setdiff(dendrogram_order, colnames(abu_heat_mat))
+      if (length(missing_cols) > 0) {
+          for (col in missing_cols) {
+              abu_heat_mat[, col] <- 0  # Fixed: single brackets
+          }
+      }
+      
+      # Safely reorder columns
+      available_ordered_cols <- intersect(dendrogram_order, colnames(abu_heat_mat))
+      rest_of_columns <- abu_heat_mat[, !colnames(abu_heat_mat) %in% dendrogram_order, drop = FALSE]
+      abu_heat_mat <- cbind(abu_heat_mat[, available_ordered_cols, drop = FALSE], rest_of_columns)
   }
 
   row_annot <- as.factor(abu_heat_mat[[grouping_var]])
@@ -1349,8 +1375,21 @@ cluster_abundance_heatmaps <- function(data = data, grouping_var = group, featur
                     dplyr::summarise(across(where(is.numeric), mean, na.rm = TRUE))
 
   if (cluster_ordering == TRUE && exists("dendrogram_order")) {
-    rest_of_columns <- abu_heat_mat[, !colnames(abu_heat_mat) %in% dendrogram_order]
-    abu_heat_mat <- cbind(abu_heat_mat[, dendrogram_order], rest_of_columns)
+      # Ensure dendrogram_order contains valid column names
+      dendrogram_order <- as.character(dendrogram_order)
+      
+      # Add missing columns with 0s
+      missing_cols <- setdiff(dendrogram_order, colnames(abu_heat_mat))
+      if (length(missing_cols) > 0) {
+          for (col in missing_cols) {
+              abu_heat_mat[, col] <- 0  # Fixed: single brackets
+          }
+      }
+      
+      # Safely reorder columns
+      available_ordered_cols <- intersect(dendrogram_order, colnames(abu_heat_mat))
+      rest_of_columns <- abu_heat_mat[, !colnames(abu_heat_mat) %in% dendrogram_order, drop = FALSE]
+      abu_heat_mat <- cbind(abu_heat_mat[, available_ordered_cols, drop = FALSE], rest_of_columns)
   }
 
   row_annot <- as.factor(abu_heat_mat[[grouping_var]])
@@ -1472,7 +1511,25 @@ cluster_testing_heatmaps <- function(data = data, testing_results = testing_resu
       }
     }
 
-
+    if (cluster_ordering == TRUE && exists("dendrogram_order")) {
+      if (nrow(test_mat_temp) > 1) {
+        # Ensure dendrogram_order contains valid column names
+        dendrogram_order <- as.character(dendrogram_order)
+        
+        # Add missing columns with 0s
+        missing_cols <- setdiff(dendrogram_order, colnames(test_mat_temp))
+        if (length(missing_cols) > 0) {
+            for (col in missing_cols) {
+                test_mat_temp[, col] <- 0  # Fixed: single brackets
+            }
+        }
+        
+        # Safely reorder columns
+        available_ordered_cols <- intersect(dendrogram_order, colnames(test_mat_temp))
+        rest_of_columns <- test_mat_temp[, !colnames(test_mat_temp) %in% dendrogram_order, drop = FALSE]
+        test_mat_temp <- cbind(test_mat_temp[, available_ordered_cols, drop = FALSE], rest_of_columns)
+      }
+    }
 
 
     pdf(file = paste0(output_group, prefix, "_testing_heatmap.pdf"), width = 1.1 * ncol(test_mat_temp), height = 3 + 0.5 * nrow(test_mat_temp))
