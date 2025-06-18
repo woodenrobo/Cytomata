@@ -121,17 +121,14 @@ for (data_sub in data_subsets) {
 
         #SET FEATURES TO BE USED FOR CLUSTERING AND AUTOMATIC VISUALIZATION ######
         #this is also used for ordering of features in plots
-        if (length(dir(meta_folder, pattern = "subset_feature_selection.xlsx")) > 0) {
-            subset_feature_selection <- read_xlsx(paste0(meta_folder, "subset_feature_selection.xlsx"))
+        if (length(dir(meta_folder, pattern = "subset_feat_select.xlsx")) > 0) {
+            subset_feature_selection <- read_xlsx(paste0(meta_folder, "subset_feat_select.xlsx"))
             clustering_feature_markers <- unique(
                 unlist(
-                    strsplit(
-                        subset_feature_selection[subset_feature_selection$subset == data_sub, ]
-                        %>% pull(features), split = ", ", fixed = TRUE
-                    )
+                    subset_feature_selection$antigen[as.logical(subset_feature_selection[[data_sub]])]
                 )
             )
-            cat("\n Features were set from subset_feature_selection.xlsx table \n")
+            cat("\n Features were set from subset_feat_select.xlsx table \n")
             cat("\n Features selected for clustering are:\n", clustering_feature_markers, "\n")
         } else if (low_var_feature_removal[1] == 1) {
             ## REMOVE FEATURES WITH LOW VARIANCE ##########################################
