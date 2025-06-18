@@ -2152,13 +2152,12 @@ do_paired_boxplots <- function(data, testing_results = NULL, grouping_var = grou
                   dplyr::summarise(n = n())
     }
 
-    temp <- data
     
     if (paired == TRUE) {
 
       # remove entries where pairing var is not present in both groups
 
-      no_pair <- temp %>%
+      no_pair <- data %>%
         dplyr::ungroup() %>%
         select(!!sym(pairing_var), !!sym(grouping_var)) %>%
         dplyr::distinct() %>%
@@ -2167,7 +2166,7 @@ do_paired_boxplots <- function(data, testing_results = NULL, grouping_var = grou
         dplyr::filter(n < 2) %>%
         dplyr::pull(!!sym(pairing_var))
 
-      temp <- temp[!unlist(temp[, pairing_var]) %in% no_pair, ]
+      data <- data[!unlist(data[, pairing_var]) %in% no_pair, ]
     }
   }
   
