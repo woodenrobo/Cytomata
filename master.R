@@ -9,6 +9,9 @@
 #holds both input and output files
 #Cytomata_data/<project_name>/fcs/
 
+rm(list = ls())
+gc()
+
 
 #PROJECT SETUP  ################
 #one only thing you MUST change in the script before running it is this:
@@ -37,6 +40,7 @@ project_name <- settings$value[settings$setting == "project_name"]
 
 do_normalization <- as.numeric(settings$value[settings$setting == "do_normalization"])
 do_database_injection <- as.numeric(settings$value[settings$setting == "do_database_injection"])
+do_subsetting <- as.numeric(settings$value[settings$setting == "do_subsetting"])
 do_analysis <- as.numeric(settings$value[settings$setting == "do_analysis"])
 
 
@@ -125,8 +129,6 @@ if (do_database_injection == 1) {
 # runApp()
 
 #(PREVIEW) TOTAL DATASET SUBSETTING MODULE  ################
-#controlled manually from here for now
-do_subsetting <- 0
 if (do_subsetting == 1) {
 
     parquet_out_path <- paste0(norm_folder, "parquet/")

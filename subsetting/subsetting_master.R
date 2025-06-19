@@ -18,7 +18,7 @@ date <- gsub('-', '', strsplit(x = as.character(start_time), split = ' ')[[1]][1
 setwd(norm_folder)
 ds <- arrow::open_dataset("parquet")
 
-backbone_markers <- c("CD45", "CD3", "CD8", "CD19", "CD14", "CD16", "CD56", "CD11c", "HLADR", "CD11b", "CD64", "CD1c", "CD123", "CD15", "CD33")
+backbone_markers <- c("CD45", "CD3", "CD8", "CD19", "CD14", "CD16", "CD56", "CD11c", "HLADR", "CD11b", "CD64", "CD1c", "CD123", "CD15", "CD33", "TCRgd")
 
 # see what backbone markers are present in the dataset
 backbone_markers <- backbone_markers[backbone_markers %in% colnames(ds)]
@@ -55,9 +55,6 @@ output_clustering <- paste0(output_data_sub, "clustering/")
 dir.create(output_clustering, showWarnings = FALSE, recursive = TRUE)
 do_clustering_diagnostics()
 
-#gives the possibility to annotate, merge and delete clusters
-exprs_set <- merge_and_annotate()
-
 
 feature_input_changed <- FALSE
 sampling_rate_changed <- FALSE
@@ -65,6 +62,11 @@ sampling_rate_changed <- FALSE
 umap_coords <- do_umap()
 
 exprs_set <- merge_exprs_and_umap()
+
+
+first_run_mode <- 1
+#gives the possibility to annotate, merge and delete clusters
+exprs_set <- merge_and_annotate()
 
 module <- "total_data"
 setwd(output_data_sub)
