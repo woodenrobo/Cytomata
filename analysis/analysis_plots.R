@@ -629,6 +629,8 @@ umap_expressions <- function(grouping_var = NULL, module, column_number = 4, use
     folder <- output_exploration
   } else if (module == "core") {
     folder <- output_group
+  } else if (module == "total_data") {
+    folder <- output_data_sub
   }
 
   singles_output <- paste0(folder, "UMAP_expressions/")
