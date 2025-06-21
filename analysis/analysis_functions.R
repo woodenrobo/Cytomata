@@ -759,6 +759,8 @@ calculate_cluster_proportions <- function(cluster_var = "meta_cluster_id", addit
     } else {
         stop("Please provide a prefix for the calculate_cluster_proportions output files.")
     }
+
+    cluster_proportions[[group]] <- factor(cluster_proportions[[group]], levels = levels(exprs_set[[group]]), ordered = TRUE)
     
     return(cluster_proportions)
 }
